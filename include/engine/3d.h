@@ -46,11 +46,19 @@ typedef struct VertexMesh{
 	int length;
 }VertexMesh;
 
+struct TriangleMesh{
+	Vec3f *triangles;
+	int n_triangles;
+	char name[STRING_SIZE];
+};
+
 void Model_initFromMeshData(Model *, const unsigned char *, int);
 
 void Model_initFromFile_mesh(Model *, const char *);
 
 void VertexMesh_initFromFile_mesh(VertexMesh *, const char *);
+
+void TriangleMesh_initFromFile_mesh(TriangleMesh *, const char *);
 
 void Texture_init(Texture *, const char *, unsigned char *, int, int);
 

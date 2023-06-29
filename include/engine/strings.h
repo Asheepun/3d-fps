@@ -1,6 +1,10 @@
 #ifndef STRINGS_H_
 #define STRINGS_H_
 
+#include "stdlib.h"
+#include "stdio.h"
+#include "string.h"
+
 #define STRING_SIZE 256
 #define LARGE_STRING_SIZE 1024
 #define SMALL_STRING_SIZE 32

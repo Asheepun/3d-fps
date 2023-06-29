@@ -74,6 +74,26 @@ void VertexMesh_initFromFile_mesh(VertexMesh *vertexMesh_p, const char *path){
 
 	}
 
+	free(data);
+
+}
+
+void TriangleMesh_initFromFile_mesh(TriangleMesh *triangleMesh_p, const char *path){
+
+	long int fileSize;
+	char *data = getFileData_mustFree(path, &fileSize);
+
+	triangleMesh_p->n_triangles = fileSize / (sizeof(float) * 8 * 3);
+	triangleMesh_p->triangles = (Vec3f *)malloc(triangleMesh_p->n_triangles * 3 * sizeof(Vec3f));
+	
+	for(int i = 0; i < triangleMesh_p->n_triangles * 3; i++){
+		
+		memcpy(triangleMesh_p->triangles + i, data + i * 8 * sizeof(float), sizeof(Vec3f));
+
+	}
+
+	free(data);
+
 }
 
 void Texture_init(Texture *texture_p, const char *name, unsigned char *data, int width, int height){

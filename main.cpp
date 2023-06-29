@@ -1,11 +1,8 @@
-#include "engine/engine.h"
-#include "engine/geometry.h"
-#include "engine/3d.h"
 #include "engine/shaders.h"
 #include "engine/renderer2d.h"
 #include "engine/igui.h"
-#include "engine/strings.h"
-#include "engine/files.h"
+
+#include "game.h"
 
 #include "stdio.h"
 #include "stdlib.h"
@@ -13,23 +10,33 @@
 #include "time.h"
 #include <cstring>
 #include <vector>
+
+Game game;
+
+float BULLET_SCALE = 0.2;
+float BULLET_SPEED = 1.0;
+Vec4f BULLET_COLOR = { 0.5, 0.5, 0.4, 1.0 };
+
 float PLAYER_HEIGHT_STANDING = 2.0;
 float PLAYER_HEIGHT_CROUCHING = 1.0;
 float PLAYER_HEIGHT_SPEED = 0.1;
 float PLAYER_GRAVITY = 0.005;
 float PLAYER_JUMP_SPEED = 0.2;
+float PLAYER_WALK_RESISTANCE = 0.75;
+float PLAYER_LOOK_SPEED = 0.0015;
+float PLAYER_SPEED = 0.075;
 
-Vec3f playerPos = { 5.0, 10.0, 5.0 };
+Vec3f playerPos = { 5.0, 3.0, 5.0 };
+Vec3f lastPlayerPos = playerPos;
 Vec3f playerVelocity = { 0.0, 0.0, 0.0 };
 bool playerOnGround = false;
 float playerHeight = PLAYER_HEIGHT_STANDING;
 
 float windTime = 0.0;
 
-Model terrainModel;
+int TERRAIN_WIDTH = 20;
 float TERRAIN_SCALE = 100.0;
-Texture terrainHeightMapTexture;
-Vec3f *terrainTriangles;
+Vec4f TERRAIN_COLOR = { 0.14, 0.55, 0.17, 1.0 };
 //THIS VALUE (N_GRASS) WILL BE MODIFIED DANGER DANGER!!!
 int N_GRASS = 10000;
 TextureBuffer grassPositionsTextureBuffer;
@@ -62,21 +69,9 @@ float fov = M_PI / 4;
 Vec3f lightPos = { -10.0, 20.0, -10.0 };
 Vec3f lightDirection = { 0.3, -1.0, 0.5 };
 
-float PLAYER_LOOK_SPEED = 0.0015;
-float PLAYER_SPEED = 0.15;
-
 Vec3f cameraPos = getVec3f(4.0, 5.0, 0.0);
 Vec3f cameraDirection = getVec3f(0.0, 0.0, 1.0);
 Vec2f cameraRotation = getVec2f(M_PI / 2.0, 0.0);
-
-std::vector<Model> models;
-std::vector<Texture> textures;
-
-Vec3f pos = getVec3f(0.0, 0.0, 10.0);
-Vec3f rotation = getVec3f(0.0, 0.0, 0.0);
-float voxelScale = 0.05;
-
-int TERRAIN_WIDTH = 20;
 
 void Engine_start(){
 
@@ -107,7 +102,7 @@ void Engine_start(){
 		float *terrainMesh = (float *)malloc(terrainMeshSize);
 		memset(terrainMesh, 0, terrainMeshSize);
 
-		terrainTriangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * 2 * (TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1));
+		Vec3f *terrainTriangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * 2 * (TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1));
 
 		int meshIndex = 0;
 
@@ -157,9 +152,33 @@ void Engine_start(){
 			}
 		}
 
-		Model_initFromMeshData(&terrainModel, (unsigned char *)terrainMesh, n_terrainTriangles);
+		//create terrain model
+		Model model;
 
-		//generate grass positions
+		Model_initFromMeshData(&model, (unsigned char *)terrainMesh, n_terrainTriangles);
+
+		String_set(model.name, "terrain", STRING_SIZE);
+
+		game.models.push_back(model);
+
+		//create terrain triangle mesh
+		TriangleMesh triangleMesh;
+		triangleMesh.triangles = terrainTriangles;
+		triangleMesh.n_triangles = n_terrainTriangles;
+		String_set(triangleMesh.name, "terrain", STRING_SIZE);
+
+		game.triangleMeshes.push_back(triangleMesh);
+
+		//free unneeded terrain data
+		free(terrainPoints);
+		free(terrainMesh);
+
+	}
+
+	//generate grass positions
+	{
+		TriangleMesh *terrainTriangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
+
 		std::vector<Vec4f> grassPositions;
 
 		for(int i = 0; i < N_GRASS; i++){
@@ -190,11 +209,11 @@ void Engine_start(){
 				bool somethingHit = false;
 				bool hasTriangle = false;
 
-				for(int j = 0; j < n_terrainTriangles; j++){
+				for(int j = 0; j < terrainTriangleMesh_p->n_triangles; j++){
 
-					Vec3f p1 = terrainTriangles[j * 3 + 0];
-					Vec3f p2 = terrainTriangles[j * 3 + 1];
-					Vec3f p3 = terrainTriangles[j * 3 + 2];
+					Vec3f p1 = terrainTriangleMesh_p->triangles[j * 3 + 0];
+					Vec3f p2 = terrainTriangleMesh_p->triangles[j * 3 + 1];
+					Vec3f p3 = terrainTriangleMesh_p->triangles[j * 3 + 2];
 
 					float east = fmin(fmin(p1.x, p2.x), p3.x);
 					float west = fmax(fmax(p1.x, p2.x), p3.x);
@@ -248,21 +267,39 @@ void Engine_start(){
 
 		Model_initFromFile_mesh(&model, "assets/models/quad.mesh");
 
-		String_set(model.name, "teapot", STRING_SIZE);
+		String_set(model.name, "quad", STRING_SIZE);
 
-		models.push_back(model);
+		game.models.push_back(model);
+	}
+	{
+		Model model;
+
+		Model_initFromFile_mesh(&model, "assets/models/cube.mesh");
+
+		String_set(model.name, "cube", STRING_SIZE);
+
+		game.models.push_back(model);
 	}
 
 	{
 		Texture texture;
 		Texture_initFromFile(&texture, "assets/textures/blank.png", "blank");
-		textures.push_back(texture);
+		game.textures.push_back(texture);
 	}
 
 	{
 		Texture texture;
 		Texture_initFromFile(&texture, "assets/textures/grass.png", "grass");
-		textures.push_back(texture);
+		game.textures.push_back(texture);
+	}
+	{
+		TriangleMesh triangleMesh;
+
+		TriangleMesh_initFromFile_mesh(&triangleMesh, "assets/models/cube.mesh");
+
+		String_set(triangleMesh.name, "cube", STRING_SIZE);
+
+		game.triangleMeshes.push_back(triangleMesh);
 	}
 
 	//OpenGL stuff
@@ -355,6 +392,28 @@ void Engine_start(){
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
+	//init game
+	{
+		Obstacle obstacle;	
+		obstacle.pos = getVec3f(30.0, 2.0, 20.0);
+		obstacle.scale = 2.0;
+		obstacle.modelIndex = Game_getModelIndexByName(&game, "cube");
+		obstacle.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "cube");
+		obstacle.color = getVec4f(0.7, 0.7, 0.7, 1.0);
+
+		game.obstacles.push_back(obstacle);
+	}
+	{
+		Obstacle obstacle;	
+		obstacle.pos = getVec3f(0.0, 0.0, 0.0);
+		obstacle.scale = TERRAIN_SCALE;
+		obstacle.modelIndex = Game_getModelIndexByName(&game, "terrain");
+		obstacle.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "terrain");
+		obstacle.color = TERRAIN_COLOR;
+
+		game.obstacles.push_back(obstacle);
+	}
+
 }
 
 void Engine_update(float deltaTime){
@@ -384,12 +443,12 @@ void Engine_update(float deltaTime){
 	Vec2f_normalize(&cameraDirectionXZ);
 
 	if(Engine_keys[ENGINE_KEY_W].down){
-		playerPos.x += cameraDirectionXZ.x * PLAYER_SPEED;
-		playerPos.z += cameraDirectionXZ.y * PLAYER_SPEED;
+		playerVelocity.x += cameraDirectionXZ.x * PLAYER_SPEED;
+		playerVelocity.z += cameraDirectionXZ.y * PLAYER_SPEED;
 	}
 	if(Engine_keys[ENGINE_KEY_S].down){
-		playerPos.x += -cameraDirectionXZ.x * PLAYER_SPEED;
-		playerPos.z += -cameraDirectionXZ.y * PLAYER_SPEED;
+		playerVelocity.x += -cameraDirectionXZ.x * PLAYER_SPEED;
+		playerVelocity.z += -cameraDirectionXZ.y * PLAYER_SPEED;
 	}
 	/*
 	if(Engine_keys[ENGINE_KEY_SPACE].down){
@@ -402,20 +461,28 @@ void Engine_update(float deltaTime){
 	if(Engine_keys[ENGINE_KEY_A].down){
 		Vec3f left = getCrossVec3f(cameraDirection, getVec3f(0, 1.0, 0));
 		Vec3f_normalize(&left);
-		playerPos.x += left.x * PLAYER_SPEED;
-		playerPos.z += left.z * PLAYER_SPEED;
+		playerVelocity.x += left.x * PLAYER_SPEED;
+		playerVelocity.z += left.z * PLAYER_SPEED;
 	}
 	if(Engine_keys[ENGINE_KEY_D].down){
 		Vec3f right = getCrossVec3f(getVec3f(0, 1.0, 0), cameraDirection);
 		Vec3f_normalize(&right);
-		playerPos.x += right.x * PLAYER_SPEED;
-		playerPos.z += right.z * PLAYER_SPEED;
+		playerVelocity.x += right.x * PLAYER_SPEED;
+		playerVelocity.z += right.z * PLAYER_SPEED;
 	}
 
 	if(Engine_keys[ENGINE_KEY_SPACE].down
 	&& playerOnGround){
 		playerVelocity.y += PLAYER_JUMP_SPEED;
 	}
+
+	if(!Engine_keys[ENGINE_KEY_SPACE].down
+	&& playerVelocity.y > 0.0){
+		playerVelocity.y *= 0.9;
+	}
+
+	playerVelocity.x *= PLAYER_WALK_RESISTANCE;
+	playerVelocity.z *= PLAYER_WALK_RESISTANCE;
 
 	if(Engine_keys[ENGINE_KEY_CONTROL].down){
 		if(playerHeight > PLAYER_HEIGHT_CROUCHING){
@@ -428,6 +495,8 @@ void Engine_update(float deltaTime){
 	}
 
 	playerVelocity.y += -PLAYER_GRAVITY;
+
+	lastPlayerPos = playerPos;
 	Vec3f_add(&playerPos, playerVelocity);
 
 	playerOnGround = false;
@@ -438,25 +507,78 @@ void Engine_update(float deltaTime){
 		playerOnGround = true;
 	}
 
-	for(int i = 0; i < TERRAIN_WIDTH * TERRAIN_WIDTH * 2; i++){
+	//handle collision between player and obstacles
+	for(int i = 0; i < game.obstacles.size(); i++){
 
-		Vec3f t1 = terrainTriangles[i * 3 + 0];
-		Vec3f t2 = terrainTriangles[i * 3 + 1];
-		Vec3f t3 = terrainTriangles[i * 3 + 2];
+		Obstacle *obstacle_p = &game.obstacles[i];
+		TriangleMesh *triangleMesh_p = &game.triangleMeshes[obstacle_p->triangleMeshIndex];
 
-		Vec3f_mulByFloat(&t1, TERRAIN_SCALE);
-		Vec3f_mulByFloat(&t2, TERRAIN_SCALE);
-		Vec3f_mulByFloat(&t3, TERRAIN_SCALE);
+		for(int j = 0; j < triangleMesh_p->n_triangles; j++){
 
-		Vec3f intersectionPoint;
+			Vec3f triangle1 = triangleMesh_p->triangles[j * 3 + 0];
+			Vec3f triangle2 = triangleMesh_p->triangles[j * 3 + 1];
+			Vec3f triangle3 = triangleMesh_p->triangles[j * 3 + 2];
 
-		bool hit = checkLineToTriangleIntersectionVec3f(playerPos, getAddVec3f(playerPos, getVec3f(0.0, -1.0, 0.0)), t1, t2, t3, &intersectionPoint);
+			Vec3f_mulByFloat(&triangle1, obstacle_p->scale);
+			Vec3f_mulByFloat(&triangle2, obstacle_p->scale);
+			Vec3f_mulByFloat(&triangle3, obstacle_p->scale);
 
-		if(hit
-		&& playerPos.y < intersectionPoint.y){
-			playerPos = intersectionPoint;
-			playerVelocity.y = 0.0;
-			playerOnGround = true;
+			Vec3f_add(&triangle1, obstacle_p->pos);
+			Vec3f_add(&triangle2, obstacle_p->pos);
+			Vec3f_add(&triangle3, obstacle_p->pos);
+
+			//printf("%i\n", i);
+			//Vec3f_log(triangle1);
+			//Vec3f_log(triangle2);
+			//Vec3f_log(triangle3);
+
+			Vec3f up = getVec3f(0.0, 1.0, 0.0);
+
+			Vec3f u = getSubVec3f(triangle2, triangle1);
+			Vec3f v = getSubVec3f(triangle3, triangle1);
+			Vec3f N = getCrossVec3f(u, v);
+			Vec3f_normalize(&N);
+
+			float r = 0.2;
+			Vec3f playerFeetPos = playerPos;
+			playerFeetPos.y += r;
+
+			if(getDotVec3f(up, N) > 0.7){
+
+				Vec3f intersectionPoint;
+				bool hit = checkLineToTriangleIntersectionVec3f(playerPos, getAddVec3f(playerPos, up), triangle1, triangle2, triangle3, &intersectionPoint);
+
+				if(hit
+				&& intersectionPoint.y > playerPos.y
+				&& intersectionPoint.y < lastPlayerPos.y + r){
+					playerPos.y = intersectionPoint.y;
+					playerVelocity.y = 0.0;
+					playerOnGround = true;
+				}
+
+			}else{
+
+				bool hit = checkSphereToTriangleCollision(playerFeetPos, r, triangle1, triangle2, triangle3);
+
+				if(hit){
+
+					float distance = r - fabs((getDotVec3f(playerFeetPos, N) - getDotVec3f(triangle1, N)) / getDotVec3f(N, N));
+
+					Vec3f_add(&playerPos, getMulVec3fFloat(N, distance));
+					Vec3f_add(&playerVelocity, getMulVec3fFloat(N, distance));
+					//Vec3f_add(&playerVelocity, N);
+				}
+			
+			}
+
+			/*
+			float r = 0.2;
+			Vec3f playerFeetPos = playerPos;
+			playerFeetPos.y += r;
+
+			bool hit = checkSphereToTriangleCollision(playerFeetPos, r, t1, t2, t3);
+			*/
+
 		}
 
 	}
@@ -469,6 +591,46 @@ void Engine_update(float deltaTime){
 	cameraDirection.x = cos(cameraRotation.x) * cos(cameraRotation.y);
 	cameraDirection.z = sin(cameraRotation.x) * cos(cameraRotation.y);
 	Vec3f_normalize(&cameraDirection);
+
+	//handle shooting
+	if(Engine_pointer.downed){
+		
+		Bullet bullet;
+		bullet.pos = cameraPos;
+		bullet.pos.y -= 0.5;
+
+		Vec3f target = cameraPos;
+		Vec3f_add(&target, getMulVec3fFloat(cameraDirection, 10));
+
+		bullet.velocity = getSubVec3f(target, bullet.pos);
+		Vec3f_normalize(&bullet.velocity);
+		Vec3f_mulByFloat(&bullet.velocity, BULLET_SPEED);
+
+		game.bullets.push_back(bullet);
+
+	}
+
+	//update bullets
+	for(int i = 0; i < game.bullets.size(); i++){
+		
+		Bullet *bullet_p = &game.bullets[i];
+
+		//move bullets
+		Vec3f_add(&bullet_p->pos, bullet_p->velocity);
+
+		//remove oub bullets
+		if(bullet_p->pos.x < 0.0
+		|| bullet_p->pos.y < 0.0
+		|| bullet_p->pos.z < 0.0
+		|| bullet_p->pos.x > TERRAIN_SCALE
+		|| bullet_p->pos.y > TERRAIN_SCALE
+		|| bullet_p->pos.z > TERRAIN_SCALE){
+			game.bullets.erase(game.bullets.begin() + i);
+			i--;
+			continue;
+		}
+
+	}
 
 }
 
@@ -485,6 +647,7 @@ void Engine_draw(){
 
 	Mat4f cameraMatrix = getLookAtMat4f(cameraPos, cameraDirection);
 
+	/*
 	//draw terrain
 	{
 		Vec3f pos = getVec3f(0.0, 0.0, 0.0);
@@ -500,10 +663,10 @@ void Engine_draw(){
 
 		glUseProgram(currentShaderProgram);
 		
-		Model *model_p;
+		Model *model_p = Game_getModelPointerByName(&game, "terrain");
 
 		//model_p = &models[0];
-		model_p = &terrainModel;
+		//model_p = &terrainModel;
 
 		glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
 		glBindVertexArray(model_p->VAO);
@@ -512,8 +675,11 @@ void Engine_draw(){
 		GL3D_uniformMat4f(currentShaderProgram, "perspectiveMatrix", perspectiveMatrix);
 		GL3D_uniformMat4f(currentShaderProgram, "cameraMatrix", cameraMatrix);
 
+		GL3D_uniformVec4f(currentShaderProgram, "inputColor", TERRAIN_COLOR);
+
 		glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
 	}
+	*/
 
 	//draw grass
 	{
@@ -526,11 +692,9 @@ void Engine_draw(){
 
 		glUseProgram(currentShaderProgram);
 
-		Texture *texture_p = &textures[1];
+		Texture *texture_p = Game_getTexturePointerByName(&game, "grass");
 
-		Model *model_p;
-
-		model_p = &models[0];
+		Model *model_p = Game_getModelPointerByName(&game, "quad");
 
 		glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
 		glBindVertexArray(model_p->VAO);
@@ -561,6 +725,71 @@ void Engine_draw(){
 		glDrawArraysInstanced(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3, N_GRASS);
 
 		glEnable(GL_CULL_FACE);
+	}
+
+	//draw bullets
+	for(int i = 0; i < game.bullets.size(); i++){
+
+		Bullet *bullet_p = &game.bullets[i];
+
+		float scale = BULLET_SCALE;
+
+		Mat4f modelMatrix = getIdentityMat4f();
+		
+		Mat4f_mulByMat4f(&modelMatrix, getTranslationMat4f(bullet_p->pos.x, bullet_p->pos.y, bullet_p->pos.z));
+
+		Mat4f_mulByMat4f(&modelMatrix, getScalingMat4f(scale));
+
+		unsigned int currentShaderProgram = modelShader;
+
+		glUseProgram(currentShaderProgram);
+		
+		Model *model_p = Game_getModelPointerByName(&game, "cube");
+
+		glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+		glBindVertexArray(model_p->VAO);
+
+		GL3D_uniformMat4f(currentShaderProgram, "modelMatrix", modelMatrix);
+		GL3D_uniformMat4f(currentShaderProgram, "perspectiveMatrix", perspectiveMatrix);
+		GL3D_uniformMat4f(currentShaderProgram, "cameraMatrix", cameraMatrix);
+
+		GL3D_uniformVec4f(currentShaderProgram, "inputColor", BULLET_COLOR);
+
+		glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+
+	}
+
+	//draw obstacles
+	for(int i = 0; i < game.obstacles.size(); i++){
+
+		Obstacle *obstacle_p = &game.obstacles[i];
+
+		float scale = obstacle_p->scale;
+
+		Mat4f modelMatrix = getIdentityMat4f();
+		
+		Mat4f_mulByMat4f(&modelMatrix, getTranslationMat4f(obstacle_p->pos.x, obstacle_p->pos.y, obstacle_p->pos.z));
+
+		Mat4f_mulByMat4f(&modelMatrix, getScalingMat4f(scale));
+
+		unsigned int currentShaderProgram = modelShader;
+
+		glUseProgram(currentShaderProgram);
+		
+		Model *model_p = &game.models[obstacle_p->modelIndex];
+
+		glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+		glBindVertexArray(model_p->VAO);
+
+		GL3D_uniformMat4f(currentShaderProgram, "modelMatrix", modelMatrix);
+		GL3D_uniformMat4f(currentShaderProgram, "perspectiveMatrix", perspectiveMatrix);
+		GL3D_uniformMat4f(currentShaderProgram, "cameraMatrix", cameraMatrix);
+
+		GL3D_uniformVec4f(currentShaderProgram, "inputColor", obstacle_p->color);
+
+		glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+
+		
 	}
 
 }

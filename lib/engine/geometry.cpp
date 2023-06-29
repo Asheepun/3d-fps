@@ -317,6 +317,76 @@ bool checkLineToTriangleIntersectionVec3f(Vec3f l1, Vec3f l2, Vec3f t1, Vec3f t2
 
 }
 
+bool checkSphereToTriangleCollision(Vec3f s, float r, Vec3f t1, Vec3f t2, Vec3f t3){
+
+	//check collision with triangle plane
+	Vec3f u = getSubVec3f(t2, t1);
+	Vec3f v = getSubVec3f(t3, t1);
+
+	Vec3f N = getCrossVec3f(u, v);
+
+	float t = getDotVec3f(getSubVec3f(s, t1), N) / getDotVec3f(N, N);
+
+	if(fabs(t * getMagVec3f(N)) > r){
+		return false;
+	}
+	
+	//check if projected point is inside triangle
+	Vec3f P = getAddVec3f(s, getMulVec3fFloat(N, t));
+
+	Vec3f b = getSubVec3f(P, t1);
+
+	float a11 = getDotVec3f(u, u);
+	float a12 = getDotVec3f(u, v);
+	float a21 = a12;
+	float a22 = getDotVec3f(v, v);
+
+	float b1 = getDotVec3f(b, u);
+	float b2 = getDotVec3f(b, v);
+
+	float denominator = 1.0 / (a11 * a22 - a21 * a12);
+
+	float x = (b1 * a22 - b2 * a21) * denominator;
+	float y = (b2 * a11 - b1 * a12) * denominator;
+
+	if(x >= 0.0 && y >= 0.0 && x + y <= 1.0){
+		return true;
+	}
+
+	Vec3f w = getSubVec3f(t2, t3);
+
+	//check collision against triangle edges
+	Vec3f s1 = getSubVec3f(t1, s);
+	Vec3f s2 = getSubVec3f(t2, s);
+	Vec3f s3 = getSubVec3f(t3, s);
+
+	float x1 = getDotVec3f(s1, u) / getDotVec3f(u, u);
+	float x2 = getDotVec3f(s1, v) / getDotVec3f(v, v);
+	float x3 = getDotVec3f(s3, w) / getDotVec3f(u, u);
+
+	Vec3f ps1 = getAddVec3f(s1, getMulVec3fFloat(u, -x1));
+	Vec3f ps2 = getAddVec3f(s2, getMulVec3fFloat(v, -x2));
+	Vec3f ps3 = getAddVec3f(s3, getMulVec3fFloat(w, -x3));
+
+	if(getDotVec3f(ps1, ps1) <= r * r
+	&& x1 >= 0.0 && x1 <= 1.0
+	|| getDotVec3f(ps2, ps2) <= r * r
+	&& x2 >= 0.0 && x2 <= 1.0
+	|| getDotVec3f(ps3, ps3) <= r * r
+	&& x3 >= 0.0 && x3 <= 1.0){
+		return true;
+	}
+
+	if(getDotVec3f(s1, s1) <= r * r
+	|| getDotVec3f(s2, s2) <= r * r
+	|| getDotVec3f(s3, s3) <= r * r){
+		return true;
+	}
+
+	return false;
+
+}
+
 void Vec3f_mulByMat4f(Vec3f *v_p, Mat4f m, float w){
 
 	Vec4f v4 = getVec4f(v_p->x, v_p->y, v_p->z, w);

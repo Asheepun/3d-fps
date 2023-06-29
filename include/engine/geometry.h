@@ -150,6 +150,8 @@ Vec3f getNormalFromTriangleVec3f(Vec3f, Vec3f, Vec3f);
 
 bool checkLineToTriangleIntersectionVec3f(Vec3f, Vec3f, Vec3f, Vec3f, Vec3f, Vec3f *);
 
+bool checkSphereToTriangleCollision(Vec3f, float, Vec3f, Vec3f, Vec3f);
+
 void Vec3f_mulByMat4f(Vec3f *, Mat4f, float);
 
 //VEC4F FUNCTIONS

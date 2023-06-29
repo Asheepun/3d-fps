@@ -12,6 +12,10 @@ void String_set(char *destString, const char *sourceString, int size){
 
 	memset(destString, 0, size);
 
+	if(strlen(sourceString) >= size){
+		printf("SOURCE STRING TO BIG!\n");
+	}
+
 	memcpy(destString, sourceString, strlen(sourceString));
 	
 }

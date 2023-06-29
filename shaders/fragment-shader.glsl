@@ -3,15 +3,17 @@
 in vec4 input_fragmentPosition;
 in vec4 input_fragmentNormal;
 
+out vec4 FragColor;
+
 uniform mat4 perspectiveMatrix;
 uniform mat4 cameraMatrix;
 
-out vec4 FragColor;
+uniform vec4 inputColor;
 
-float ambientLightFactor = 0.1;
-float diffuseLightFactor = 0.9;
+float ambientLightFactor = 0.3;
+float diffuseLightFactor = 0.7;
 
-vec3 lightDirection = vec3(1.0, -1.0, 1.0);
+vec3 lightDirection = vec3(0.7, -1.0, 0.5);
 
 void main(){
 
@@ -19,7 +21,7 @@ void main(){
 	vec3 fragmentNormal = (input_fragmentNormal).xyz;
 	vec3 cameraRelativeFragmentPosition = (input_fragmentPosition * cameraMatrix).xyz;
 
-	FragColor = vec4(0.14, 0.55, 0.17, 1.0);
+	FragColor = inputColor;
 
 	float diffuseLight = max(dot(-lightDirection, fragmentNormal), 0.0);
 
