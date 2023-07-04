@@ -30,6 +30,10 @@ float getRandom(){
 	
 }
 
+void setRandomSeed(int seed){
+	___x = seed;
+}
+
 bool checkEqualsFloat(float x, float y, float tolerance){
 	return fabs(x - y) < tolerance;
 }

@@ -53,6 +53,8 @@ float getSquared(float);
 
 float getRandom();
 
+void setRandomSeed(int);
+
 bool checkEqualsFloat(float, float, float);
 
 int getSign(float);

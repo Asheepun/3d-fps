@@ -58,6 +58,38 @@ void Model_initFromFile_mesh(Model *model_p, const char *path){
 
 }
 
+unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh triangleMesh){
+
+	float *data = (float *)malloc(8 * sizeof(float) * 3 * triangleMesh.n_triangles);
+
+	for(int i = 0; i < triangleMesh.n_triangles; i++){
+		
+		int trianglesIndex = i * 3;
+		int dataIndex = i * 8 * 3;
+
+		Vec3f point1 = triangleMesh.triangles[trianglesIndex + 0];
+		Vec3f point2 = triangleMesh.triangles[trianglesIndex + 1];
+		Vec3f point3 = triangleMesh.triangles[trianglesIndex + 2];
+
+		Vec3f normal = getCrossVec3f(getSubVec3f(point2, point1), getSubVec3f(point3, point1));
+		Vec3f_normalize(&normal);
+		//normal = getVec3f(0.0, 1.0, 0.0);
+
+		memcpy(data + dataIndex + 8 * 0, &point1, sizeof(Vec3f));
+		memcpy(data + dataIndex + 8 * 0 + 5, &normal, sizeof(Vec3f));
+
+		memcpy(data + dataIndex + 8 * 1, &point2, sizeof(Vec3f));
+		memcpy(data + dataIndex + 8 * 1 + 5, &normal, sizeof(Vec3f));
+
+		memcpy(data + dataIndex + 8 * 2, &point3, sizeof(Vec3f));
+		memcpy(data + dataIndex + 8 * 2 + 5, &normal, sizeof(Vec3f));
+
+	}
+
+	return (unsigned char *)data;
+
+}
+
 void VertexMesh_initFromFile_mesh(VertexMesh *vertexMesh_p, const char *path){
 
 	long int fileSize;

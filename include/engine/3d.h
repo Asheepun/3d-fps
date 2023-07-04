@@ -56,6 +56,8 @@ void Model_initFromMeshData(Model *, const unsigned char *, int);
 
 void Model_initFromFile_mesh(Model *, const char *);
 
+unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh);
+
 void VertexMesh_initFromFile_mesh(VertexMesh *, const char *);
 
 void TriangleMesh_initFromFile_mesh(TriangleMesh *, const char *);
