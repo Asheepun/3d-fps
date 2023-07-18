@@ -56,6 +56,8 @@ void Model_initFromFile_mesh(Model *model_p, const char *path){
 
 	Model_initFromMeshData(model_p, (unsigned char *)data, numberOfTriangles);
 
+	free(data);
+
 }
 
 unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh triangleMesh){
@@ -87,6 +89,172 @@ unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh triangleMesh){
 	}
 
 	return (unsigned char *)data;
+
+}
+
+void BoneModel_initFromFile(BoneModel *model_p, const char *meshPath, const char *bonesPath){
+
+	//load bone mesh
+	{
+		long int fileSize;
+		char *data = getFileData_mustFree(meshPath, &fileSize);
+
+		//Vec3f testNormal;
+		//memcpy(&testNormal, data + 3 * sizeof(float) + BONE_MODEL_COMPONENT_SIZE * 90, 3 * sizeof(float));
+
+		//Vec3f_log(testNormal);
+		//printf("%f\n", getMagVec3f(testNormal));
+
+		//printf("done testing bone mesh\n");
+
+		int n_triangles = fileSize / (BONE_MODEL_COMPONENT_SIZE * 3);
+
+		//printf("%i\n", fileSize);
+		//printf("%i\n", n_triangles);
+
+		glGenBuffers(1, &model_p->VBO);
+		glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+		glBufferData(GL_ARRAY_BUFFER, BONE_MODEL_COMPONENT_SIZE * 3 * n_triangles, data, GL_STATIC_DRAW);
+
+		glGenVertexArrays(1, &model_p->VAO);
+		glBindVertexArray(model_p->VAO);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)0);
+		glEnableVertexAttribArray(0);
+
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(3 * sizeof(float)));
+		glEnableVertexAttribArray(1);
+
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(6 * sizeof(float)));
+		glEnableVertexAttribArray(2);
+
+		glVertexAttribPointer(3, 4, GL_UNSIGNED_BYTE, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(8 * sizeof(float)));
+		glEnableVertexAttribArray(3);
+
+		glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(8 * sizeof(float) + 4 * sizeof(unsigned char)));
+		glEnableVertexAttribArray(4);
+
+		model_p->n_triangles = n_triangles;
+
+		free(data);
+	
+	}
+
+	//load bones
+	{
+		int n_lines;
+		FileLine *fileLines = getFileLines_mustFree(bonesPath, &n_lines);
+
+		for(int i = 0; i < n_lines; i++){
+
+			if(strcmp(fileLines[i], ":BONE") == 0){
+				Bone bone;
+
+				String_set(bone.name, fileLines[i + 1], STRING_SIZE);
+
+				char *ptr = fileLines[i + 2];
+				bone.parent = strtol(ptr, &ptr, 10);
+
+				ptr = fileLines[i + 3];
+				bone.rotation.x = strtof(ptr, &ptr);
+				bone.rotation.y = strtof(ptr + 1, &ptr);
+				bone.rotation.z = strtof(ptr + 1, &ptr);
+				bone.rotation.w = strtof(ptr + 1, &ptr);
+
+				ptr = fileLines[i + 4];
+				bone.scale.x = strtof(ptr, &ptr);
+				bone.scale.y = strtof(ptr + 1, &ptr);
+				bone.scale.z = strtof(ptr + 1, &ptr);
+
+				ptr = fileLines[i + 5];
+				bone.translation.x = strtof(ptr, &ptr);
+				bone.translation.y = strtof(ptr + 1, &ptr);
+				bone.translation.z = strtof(ptr + 1, &ptr);
+
+				model_p->bones.push_back(bone);
+			}
+
+		}
+
+		std::vector<Mat4f> boneTransformations = getBindMatricesFromBones(model_p->bones);
+
+		model_p->inverseBoneTransformations.clear();
+
+		for(int i = 0; i < boneTransformations.size(); i++){
+			model_p->inverseBoneTransformations.push_back(inverse(boneTransformations[i]));
+		}
+
+	}
+
+}
+
+std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone> bones){
+
+
+	Mat4f matrices[bones.size()];
+	bool matrixCalculationFlags[bones.size()];
+	memset(matrixCalculationFlags, 0, bones.size() * sizeof(bool));
+
+	for(int iteration = 0; iteration < bones.size(); iteration++){
+		for(int i = 0; i < bones.size(); i++){
+
+			if(matrixCalculationFlags[i]){
+				continue;
+			}
+
+			Bone *bone_p = &bones[i];
+
+			if(bone_p->parent == -1){
+
+				//printf("%i\n", i);
+
+				Mat4f transformation = getIdentityMat4f();
+
+				transformation *= getScalingMat4f(bone_p->scale);
+				transformation *= getQuaternionMat4f(bone_p->rotation);
+				transformation *= getTranslationMat4f(bone_p->translation);
+
+				//Vec3f_log(bone_p->scale);
+				//Vec4f_log(bone_p->rotation);
+				//Vec3f_log(bone_p->translation);
+				//Mat4f_log(transformation);
+
+				matrices[i] = transformation;
+				matrixCalculationFlags[i] = true;
+				
+			}else if(matrixCalculationFlags[bone_p->parent]){
+
+				//printf("%i\n", i);
+				
+				Mat4f transformation = getIdentityMat4f();
+
+				transformation *= getScalingMat4f(bone_p->scale);
+				transformation *= getQuaternionMat4f(bone_p->rotation);
+				transformation *= getTranslationMat4f(bone_p->translation);
+
+				transformation *= matrices[bone_p->parent];
+
+				//Vec3f_log(bone_p->scale);
+				//Vec4f_log(bone_p->rotation);
+				//Vec3f_log(bone_p->translation);
+				//Mat4f_log(transformation);
+
+				matrices[i] = transformation;
+				matrixCalculationFlags[i] = true;
+
+			}
+
+
+		}
+	}
+
+	std::vector<Mat4f> outputMatrices;
+
+	for(int i = 0; i < bones.size(); i++){
+		outputMatrices.push_back(matrices[i]);
+	}
+
+	return outputMatrices;
 
 }
 
@@ -296,6 +464,14 @@ void GL3D_uniformMat4f(unsigned int shaderProgram, const char *locationName, Mat
 	unsigned int location = glGetUniformLocation(shaderProgram, locationName);
 
 	glUniformMatrix4fv(location, 1, GL_FALSE, (float *)m.values);
+
+}
+
+void GL3D_uniformMat4fArray(unsigned int shaderProgram, const char *locationName, Mat4f *matrices, int n_matrices){
+
+	unsigned int location = glGetUniformLocation(shaderProgram, locationName);
+
+	glUniformMatrix4fv(location, n_matrices, GL_FALSE, (float *)matrices);
 
 }
 

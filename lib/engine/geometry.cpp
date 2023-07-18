@@ -449,6 +449,7 @@ void Mat4f_log(Mat4f m){
 
 }
 
+/*
 void Mat4f_mulByMat4f(Mat4f *m1_p, Mat4f m2){
 
 	Mat4f newMatrix;
@@ -465,6 +466,7 @@ void Mat4f_mulByMat4f(Mat4f *m1_p, Mat4f m2){
 	memcpy(m1_p->values, newMatrix.values, 16 * sizeof(float));
 	
 }
+*/
 
 Mat4f getIdentityMat4f(){
 
@@ -479,6 +481,7 @@ Mat4f getIdentityMat4f(){
 
 }
 
+/*
 Mat4f getRotationMat4f(float x, float y, float z){
 
 	Mat4f xRotationMat4f = {
@@ -502,37 +505,51 @@ Mat4f getRotationMat4f(float x, float y, float z){
 		0, 		0, 		 0, 1,
 	};
 
+	
 	Mat4f_mulByMat4f(&xRotationMat4f, yRotationMat4f);
 	Mat4f_mulByMat4f(&xRotationMat4f, zRotationMat4f);
 
 	return xRotationMat4f;
 	
 }
+*/
 
 Mat4f getTranslationMat4f(float x, float y, float z){
 
 	Mat4f translationMat4f = {
-		1, 0, 0, x,
-		0, 1, 0, y,
-		0, 0, 1, z,
-		0, 0, 0, 1,
+		1.0, 0.0, 0.0, x,
+		0.0, 1.0, 0.0, y,
+		0.0, 0.0, 1.0, z,
+		0.0, 0.0, 0.0, 1.0,
 	};
 
 	return translationMat4f;
 
 }
 
-Mat4f getScalingMat4f(float scale){
+Mat4f getTranslationMat4f(Vec3f v){
+	return getTranslationMat4f(v.x, v.y, v.z);
+}
+
+Mat4f getScalingMat4f(float x, float y, float z){
 
 	Mat4f scalingMat4f = {
-		scale, 0, 0, 0,
-		0, scale, 0, 0,
-		0, 0, scale, 0,
+		x, 0, 0, 0,
+		0, y, 0, 0,
+		0, 0, z, 0,
 		0, 0, 0, 1,
 	};
 
 	return scalingMat4f;
 
+}
+
+Mat4f getScalingMat4f(Vec3f v){
+	return getScalingMat4f(v.x, v.y, v.z);
+}
+
+Mat4f getScalingMat4f(float scale){
+	return getScalingMat4f(scale, scale, scale);
 }
 
 Mat4f getPerspectiveMat4f(float fov, float aspectRatio){
@@ -557,15 +574,246 @@ Mat4f getLookAtMat4f(Vec3f pos, Vec3f direction){
 	Vec3f_normalize(&right);
 	Vec3f_normalize(&up);
 
-	Mat4f lookAtMat4f = { 
+	Mat4f matrix = getTranslationMat4f(-pos.x, -pos.y, -pos.z);
+
+	Mat4f lookAtMatrix = { 
 		right.x,	 right.y, 	  right.z, 	   0.0,
 		up.x, 	   	 up.y, 		  up.z, 	   0.0,
 		direction.x, direction.y, direction.z, 0.0,
 		0.0, 		 0.0,  		  0.0, 		   1.0,
 	};
 
-	Mat4f_mulByMat4f(&lookAtMat4f, getTranslationMat4f(-pos.x, -pos.y, -pos.z));
+	matrix *= lookAtMatrix;
 
-	return lookAtMat4f;
+	return matrix;
 
+}
+
+Mat4f getQuaternionMat4f(Vec4f q){
+
+	Mat4f matrix = { 
+		(float)(1.0 - 2.0 * (q.y * q.y + q.z * q.z)), (float)(2.0 * (q.x * q.y - q.z * q.w)),		(float)(2.0 * (q.x * q.z + q.y * q.w)), 0.0,
+		(float)(2.0 * (q.x * q.y + q.z * q.w)), 	  (float)(1.0 - 2.0 * (q.x * q.x + q.z * q.z)), (float)(2.0 * (q.y * q.z - q.x * q.w)), 0.0,
+		(float)(2.0 * (q.x * q.z - q.y * q.w)), 	  (float)(2.0 * (q.y * q.z + q.x * q.w)),		(float)(1.0 - 2.0 * (q.x * q.x + q.y * q.y)), 0.0,
+		0.0, 0.0, 0.0, 1.0
+	};
+
+	return matrix;
+	
+}
+
+//VECTOR FUNCTIONS
+
+float length(Vec2f v){
+	return sqrt(v.x * v.x + v.y * v.y);
+}
+
+float length(Vec3f v){
+	return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
+float length(Vec4f v){
+	return sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
+}
+
+Vec2f normalize(Vec2f v){
+	return v / length(v);
+}
+
+Vec3f normalize(Vec3f v){
+	return v / length(v);
+}
+
+Vec4f normalize(Vec4f v){
+	return v / length(v);
+}
+
+float dot(Vec2f v1, Vec2f v2){
+	return v1.x * v2.x + v1.y * v2.y;
+}
+
+float dot(Vec3f v1, Vec3f v2){
+	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+}
+
+float dot(Vec4f v1, Vec4f v2){
+	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w;
+}
+
+Vec3f cross(Vec3f v1, Vec3f v2){
+	return getVec3f(
+		v1.y * v2.z - v1.z * v2.y,
+		v1.z * v2.x - v1.x * v2.z,
+		v1.x * v2.y - v1.y * v2.x
+	);
+}
+
+//MATRIX FUNCTIONS
+
+float det(Mat2f m){
+	return m.values[0][0] * m.values[1][1] - m.values[0][1] * m.values[1][0];
+}
+
+float det(Mat3f m){
+
+	Mat2f m1 = {
+		m[1][1], m[1][2],
+		m[2][1], m[2][2],
+	};
+
+	Mat2f m2 = {
+		m[1][0], m[1][2],
+		m[2][0], m[2][2],
+	};
+
+	Mat2f m3 = {
+		m[1][0], m[1][1],
+		m[2][0], m[2][1],
+	};
+
+	return m[0][0] * det(m1) - m[0][1] * det(m2) + m[0][2] * det(m3);
+
+}
+
+float det(Mat4f m){
+	
+	Mat3f m1 = {
+		m[1][1], m[1][2], m[1][3],
+		m[2][1], m[2][2], m[2][3],
+		m[3][1], m[3][2], m[3][3],
+	};
+	
+	Mat3f m2 = {
+		m[1][0], m[1][2], m[1][3],
+		m[2][0], m[2][2], m[2][3],
+		m[3][0], m[3][2], m[3][3],
+	};
+	
+	Mat3f m3 = {
+		m[1][0], m[1][1], m[1][3],
+		m[2][0], m[2][1], m[2][3],
+		m[3][0], m[3][1], m[3][3],
+	};
+	
+	Mat3f m4 = {
+		m[1][0], m[1][1], m[1][2],
+		m[2][0], m[2][1], m[2][2],
+		m[3][0], m[3][1], m[3][2],
+	};
+
+	return m[0][0] * det(m1) - m[0][1] * det(m2) + m[0][2] * det(m3) - m[0][3] * det(m4);
+
+}
+
+Mat4f inverse(Mat4f m){
+	
+	Mat3f a00 = {
+		m[1][1], m[1][2], m[1][3],
+		m[2][1], m[2][2], m[2][3],
+		m[3][1], m[3][2], m[3][3],
+	};
+	
+	Mat3f a01 = {
+		m[1][0], m[1][2], m[1][3],
+		m[2][0], m[2][2], m[2][3],
+		m[3][0], m[3][2], m[3][3],
+	};
+	
+	Mat3f a02 = {
+		m[1][0], m[1][1], m[1][3],
+		m[2][0], m[2][1], m[2][3],
+		m[3][0], m[3][1], m[3][3],
+	};
+	
+	Mat3f a03 = {
+		m[1][0], m[1][1], m[1][2],
+		m[2][0], m[2][1], m[2][2],
+		m[3][0], m[3][1], m[3][2],
+	};
+	
+	Mat3f a10 = {
+		m[0][1], m[0][2], m[0][3],
+		m[2][1], m[2][2], m[2][3],
+		m[3][1], m[3][2], m[3][3],
+	};
+	
+	Mat3f a11 = {
+		m[0][0], m[0][2], m[0][3],
+		m[2][0], m[2][2], m[2][3],
+		m[3][0], m[3][2], m[3][3],
+	};
+	
+	Mat3f a12 = {
+		m[0][0], m[0][1], m[0][3],
+		m[2][0], m[2][1], m[2][3],
+		m[3][0], m[3][1], m[3][3],
+	};
+	
+	Mat3f a13 = {
+		m[0][0], m[0][1], m[0][2],
+		m[2][0], m[2][1], m[2][2],
+		m[3][0], m[3][1], m[3][2],
+	};
+	
+	
+	Mat3f a20 = {
+		m[0][1], m[0][2], m[0][3],
+		m[1][1], m[1][2], m[1][3],
+		m[3][1], m[3][2], m[3][3],
+	};
+	
+	Mat3f a21 = {
+		m[0][0], m[0][2], m[0][3],
+		m[1][0], m[1][2], m[1][3],
+		m[3][0], m[3][2], m[3][3],
+	};
+	
+	Mat3f a22 = {
+		m[0][0], m[0][1], m[0][3],
+		m[1][0], m[1][1], m[1][3],
+		m[3][0], m[3][1], m[3][3],
+	};
+	
+	Mat3f a23 = {
+		m[0][0], m[0][1], m[0][2],
+		m[1][0], m[1][1], m[1][2],
+		m[3][0], m[3][1], m[3][2],
+	};
+	
+	
+	Mat3f a30 = {
+		m[0][1], m[0][2], m[0][3],
+		m[1][1], m[1][2], m[1][3],
+		m[2][1], m[2][2], m[2][3],
+	};
+	
+	Mat3f a31 = {
+		m[0][0], m[0][2], m[0][3],
+		m[1][0], m[1][2], m[1][3],
+		m[2][0], m[2][2], m[2][3],
+	};
+	
+	Mat3f a32 = {
+		m[0][0], m[0][1], m[0][3],
+		m[1][0], m[1][1], m[1][3],
+		m[2][0], m[2][1], m[2][3],
+	};
+	
+	Mat3f a33 = {
+		m[0][0], m[0][1], m[0][2],
+		m[1][0], m[1][1], m[1][2],
+		m[2][0], m[2][1], m[2][2],
+	};
+
+	float d = det(m);
+	
+	Mat4f inverseM = {
+		det(a00) / d, -det(a10) / d, det(a20) / d, -det(a30) / d,
+		-det(a01) / d, det(a11) / d, -det(a21) / d, det(a31) / d,
+		det(a02) / d, -det(a12) / d, det(a22) / d, -det(a32) / d,
+		-det(a03) / d, det(a13) / -d, det(a23) / d, det(a33) / d,
+	};
+
+	return inverseM;
+	
 }

@@ -26,6 +26,7 @@ struct Connection{
 	Inputs inputQueue[INPUT_QUEUE_SIZE];
 	long int n_receivedInputs;
 	long int n_handledInputs;
+	long int ticksSinceLastInput;
 };
 
 struct Message{
@@ -63,6 +64,23 @@ void *gameLoop(void *){
 
 			Connection *connection_p = &connections[i];
 
+			//check if connection is lost
+			if(connection_p->ticksSinceLastInput > 120){
+
+				int playerIndex;
+				for(int j = 0; j < players.size(); j++){
+					if(players[j].connectionID == connection_p->ID){
+						playerIndex = j;
+					}
+				}
+				printf("disconnected client!\n");
+				connections.erase(connections.begin() + i);
+				players.erase(players.begin() + playerIndex);
+				i--;
+				continue;
+
+			}
+
 			Player *player_p;
 			for(int j = 0; j < players.size(); j++){
 				if(players[j].connectionID == connection_p->ID){
@@ -71,6 +89,8 @@ void *gameLoop(void *){
 			}
 
 			if(connection_p->n_handledInputs < connection_p->n_receivedInputs){
+
+				connection_p->ticksSinceLastInput = 0;
 
 				//printf("handling inputs\n");
 				//printf("%i, %i\n", connection_p->n_handledInputs, connection_p->n_receivedInputs);
@@ -128,11 +148,7 @@ void *gameLoop(void *){
 					Obstacle *obstacle_p = &obstacles[i];
 					TriangleMesh *triangleMesh_p = &triangleMeshes[obstacle_p->triangleMeshIndex];
 
-					//printf("obstacle: %i\n", i);
-
 					for(int j = 0; j < triangleMesh_p->n_triangles; j++){
-
-						//printf("triangle: %i\n", j);
 
 						Vec3f triangle1 = triangleMesh_p->triangles[j * 3 + 0];
 						Vec3f triangle2 = triangleMesh_p->triangles[j * 3 + 1];
@@ -145,10 +161,6 @@ void *gameLoop(void *){
 						Vec3f_add(&triangle1, obstacle_p->pos);
 						Vec3f_add(&triangle2, obstacle_p->pos);
 						Vec3f_add(&triangle3, obstacle_p->pos);
-
-						Vec3f_log(triangle1);
-						Vec3f_log(triangle2);
-						Vec3f_log(triangle3);
 
 						Vec3f up = getVec3f(0.0, 1.0, 0.0);
 
@@ -193,6 +205,8 @@ void *gameLoop(void *){
 				
 				}
 			
+			}else{
+				connection_p->ticksSinceLastInput++;
 			}
 
 		}
@@ -308,6 +322,7 @@ int main(int argc, char **argv){
 			connection.clientAddressSize = addr_size;
 			connection.n_handledInputs = 0;
 			connection.n_receivedInputs = 0;
+			connection.ticksSinceLastInput = 0;
 			currentConnectionID++;
 
 			connections.push_back(connection);

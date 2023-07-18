@@ -25,6 +25,23 @@ typedef struct Model{
 	unsigned int numberOfTriangles;
 }Model;
 
+struct Bone{
+	char name[STRING_SIZE];
+	int parent;
+	Vec4f rotation;
+	Vec3f scale;
+	Vec3f translation;
+};
+
+typedef struct BoneModel{
+	char name[STRING_SIZE];
+	unsigned int VBO;
+	unsigned int VAO;
+	unsigned int n_triangles;
+	std::vector<Bone> bones;
+	std::vector<Mat4f> inverseBoneTransformations;
+}BoneModel;
+
 typedef struct Texture{
 	char name[STRING_SIZE];
 	unsigned int ID;
@@ -52,9 +69,17 @@ struct TriangleMesh{
 	char name[STRING_SIZE];
 };
 
+static const int MODEL_COMPONENT_SIZE = sizeof(float) * 8;
+
+static const int BONE_MODEL_COMPONENT_SIZE = sizeof(float) * 12 + sizeof(unsigned char) * 4;
+
 void Model_initFromMeshData(Model *, const unsigned char *, int);
 
 void Model_initFromFile_mesh(Model *, const char *);
+
+void BoneModel_initFromFile(BoneModel *, const char *, const char *);
+
+std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone>);
 
 unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh);
 
@@ -77,6 +102,8 @@ void TextureBuffer_init(TextureBuffer *, void *, int, enum Type3D);
 void TextureBuffer_free(TextureBuffer *);
 
 void GL3D_uniformMat4f(unsigned int, const char *, Mat4f);
+
+void GL3D_uniformMat4fArray(unsigned int, const char *, Mat4f *, int);
 
 void GL3D_uniformVec3f(unsigned int, const char *, Vec3f);
 

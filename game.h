@@ -54,6 +54,7 @@ struct Game{
 	std::vector<Particle> particles;
 
 	std::vector<Model> models;
+	std::vector<BoneModel> boneModels;
 	std::vector<Texture> textures;
 	std::vector<TriangleMesh> triangleMeshes;
 

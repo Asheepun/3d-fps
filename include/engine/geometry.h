@@ -2,13 +2,56 @@
 #define GEOMETRY_H_
 
 #include "stdbool.h"
+#include "stdlib.h"
+#include "string.h"
 
-typedef struct Vec2f{
+struct Vec2f{
 	float x;
 	float y;
-}Vec2f;
 
-typedef struct Vec3f{
+	float& operator[] (int i){
+		switch(i){
+			case 0: return x;
+			case 1: return y;
+			default: throw "Coord index outside of vector bound";
+		}
+	}
+
+	Vec2f operator+(Vec2f vIn){
+		Vec2f vOut = { x + vIn.x, y + vIn.y };
+		return vOut;
+	}
+	Vec2f operator-(Vec2f vIn){
+		Vec2f vOut = { x - vIn.x, y - vIn.y };
+		return vOut;
+	}
+	Vec2f operator*(float a){
+		Vec2f vOut = { x * a, y * a };
+		return vOut;
+	}
+	Vec2f operator/(float a){
+		Vec2f vOut = { x / a, y / a };
+		return vOut;
+	}
+	void operator+=(Vec2f vIn){
+		x += vIn.x;
+		y += vIn.y;
+	}
+	void operator-=(Vec2f vIn){
+		x -= vIn.x;
+		y -= vIn.y;
+	}
+	void operator*=(float a){
+		x *= a;
+		y *= a;
+	}
+	void operator/=(float a){
+		x /= a;
+		y /= a;
+	}
+};
+
+struct Vec3f{
 	float x;
 	float y;
 	float z;
@@ -22,9 +65,45 @@ typedef struct Vec3f{
 		}
 	}
 
-}Vec3f;
+	Vec3f operator+(Vec3f vIn){
+		Vec3f vOut = { x + vIn.x, y + vIn.y, z + vIn.z };
+		return vOut;
+	}
+	Vec3f operator-(Vec3f vIn){
+		Vec3f vOut = { x - vIn.x, y - vIn.y, z - vIn.z };
+		return vOut;
+	}
+	Vec3f operator*(float a){
+		Vec3f vOut = { x * a, y * a, z * a };
+		return vOut;
+	}
+	Vec3f operator/(float a){
+		Vec3f vOut = { x / a, y / a, z / a };
+		return vOut;
+	}
+	void operator+=(Vec3f vIn){
+		x += vIn.x;
+		y += vIn.y;
+		z += vIn.z;
+	}
+	void operator-=(Vec3f vIn){
+		x -= vIn.x;
+		y -= vIn.y;
+		z -= vIn.z;
+	}
+	void operator*=(float a){
+		x *= a;
+		y *= a;
+		z *= a;
+	}
+	void operator/=(float a){
+		x /= a;
+		y /= a;
+		z /= a;
+	}
+};
 
-typedef struct Vec4f{
+struct Vec4f{
 	float x;
 	float y;
 	float z;
@@ -40,11 +119,87 @@ typedef struct Vec4f{
 		}
 	}
 
-}Vec4f;
+	Vec4f operator+(Vec4f vIn){
+		Vec4f vOut = { x + vIn.x, y + vIn.y, z + vIn.z, w + vIn.w };
+		return vOut;
+	}
+	Vec4f operator-(Vec4f vIn){
+		Vec4f vOut = { x - vIn.x, y - vIn.y, z - vIn.z, w - vIn.w };
+		return vOut;
+	}
+	Vec4f operator*(float a){
+		Vec4f vOut = { x * a, y * a, z * a, w * a };
+		return vOut;
+	}
+	Vec4f operator/(float a){
+		Vec4f vOut = { x / a, y / a, z / a, w / a };
+		return vOut;
+	}
+	void operator+=(Vec4f vIn){
+		x += vIn.x;
+		y += vIn.y;
+		z += vIn.z;
+		w += vIn.w;
+	}
+	void operator-=(Vec4f vIn){
+		x -= vIn.x;
+		y -= vIn.y;
+		z -= vIn.z;
+		w -= vIn.w;
+	}
+	void operator*=(float a){
+		x *= a;
+		y *= a;
+		z *= a;
+		w *= a;
+	}
+	void operator/=(float a){
+		x /= a;
+		y /= a;
+		z /= a;
+		w /= a;
+	}
+};
 
-typedef struct Mat4f{
+struct Mat2f{
+	float values[2][2];
+
+	float *operator[] (int i){
+		return values[i];
+	}
+};
+
+struct Mat3f{
+	float values[3][3];
+
+	float *operator[] (int i){
+		return values[i];
+	}
+};
+
+struct Mat4f{
 	float values[4][4];
-}Mat4f;
+
+	float *operator[] (int i){
+		return values[i];
+	}
+
+	void operator*= (Mat4f vIn){
+		Mat4f newMatrix;
+		memset(newMatrix.values, 0, 16 * sizeof(float));
+		
+		for(int i = 0; i < 4; i++){
+			for(int j = 0; j < 4; j++){
+				for(int k = 0; k < 4; k++){
+					//newMatrix.values[i][j] += values[i][k] * m2.values[k][j];
+					newMatrix.values[i][j] += values[k][j] * vIn.values[i][k];
+				}
+			}
+		}
+	
+		memcpy(values, newMatrix.values, 16 * sizeof(float));
+	}
+};
 
 //GENERAL MATH FUNCTIONS
 float normalize(float);
@@ -64,7 +219,6 @@ int min(int, int);
 int max(int, int);
 
 //VEC2F FUNCTIONS
-Vec2f getVec2f(float, float);
 
 void Vec2f_set(Vec2f *, float, float);
 
@@ -103,8 +257,6 @@ Vec2f getInverseVec2f(Vec2f);
 float getDotVec2f(Vec2f, Vec2f);
 
 //VEC3F FUNCTIONS
-
-Vec3f getVec3f(float, float, float);
 
 void Vec3f_log(Vec3f);
 
@@ -150,15 +302,9 @@ float getAreaFromTriangleVec3f(Vec3f, Vec3f, Vec3f);
 
 Vec3f getNormalFromTriangleVec3f(Vec3f, Vec3f, Vec3f);
 
-bool checkLineToTriangleIntersectionVec3f(Vec3f, Vec3f, Vec3f, Vec3f, Vec3f, Vec3f *);
-
-bool checkSphereToTriangleCollision(Vec3f, float, Vec3f, Vec3f, Vec3f);
-
 void Vec3f_mulByMat4f(Vec3f *, Mat4f, float);
 
 //VEC4F FUNCTIONS
-
-Vec4f getVec4f(float, float, float, float);
 
 float getMagVec4f(Vec4f);
 
@@ -168,20 +314,63 @@ void Vec4f_mulByMat4f(Vec4f *, Mat4f);
 
 //MAT4F FUNCTIONS
 
-void Mat4f_mulByMat4f(Mat4f *, Mat4f);
+//void Mat4f_mulByMat4f(Mat4f *, Mat4f);
 
-void Mat4f_log(Mat4f);
+//VECTOR FUNCTIONS
+
+void plog(Vec2f);
+void plog(Vec3f);
+void plog(Vec4f);
+
+Vec2f getVec2f(float, float);
+Vec3f getVec3f(float, float, float);
+Vec4f getVec4f(float, float, float, float);
+
+float length(Vec2f);
+float length(Vec3f);
+float length(Vec4f);
+
+Vec2f normalize(Vec2f);
+Vec3f normalize(Vec3f);
+Vec4f normalize(Vec4f);
+
+float dot(Vec2f, Vec2f);
+float dot(Vec3f, Vec3f);
+float dot(Vec4f, Vec4f);
+
+Vec3f cross(Vec3f);
+
+//MATRIX FUNCTIONS
+
+void plog(Mat4f);
+
+float det(Mat2f);
+float det(Mat3f);
+float det(Mat4f);
+
+Mat4f inverse(Mat4f);
 
 Mat4f getIdentityMat4f();
 
-Mat4f getRotationMat4f(float, float, float);
+//Mat4f getRotationMat4f(float, float, float);
 
 Mat4f getTranslationMat4f(float, float, float);
+Mat4f getTranslationMat4f(Vec3f);
 
+Mat4f getScalingMat4f(float, float, float);
+Mat4f getScalingMat4f(Vec3f);
 Mat4f getScalingMat4f(float);
 
 Mat4f getPerspectiveMat4f(float, float);
 
 Mat4f getLookAtMat4f(Vec3f, Vec3f);
+
+Mat4f getQuaternionMat4f(Vec4f);
+
+//GEOMETRIC FUNCTIONS
+
+bool checkLineToTriangleIntersectionVec3f(Vec3f, Vec3f, Vec3f, Vec3f, Vec3f, Vec3f *);
+
+bool checkSphereToTriangleCollision(Vec3f, float, Vec3f, Vec3f, Vec3f);
 
 #endif

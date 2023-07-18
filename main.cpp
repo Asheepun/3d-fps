@@ -29,6 +29,7 @@ int WIDTH = 1920;
 int HEIGHT = 1080;
 
 unsigned int modelShader;
+unsigned int boneModelShader;
 unsigned int shadowMapShader;
 unsigned int grassShader;
 
@@ -271,6 +272,16 @@ void Engine_start(){
 	Engine_setFPSMode(true);
 
 	{
+		BoneModel model;
+
+		BoneModel_initFromFile(&model, "assets/models/dude-bones.bonemesh", "assets/models/dude-bones.bones");
+
+		String_set(model.name, "dude", STRING_SIZE);
+
+		game.boneModels.push_back(model);
+	}
+
+	{
 		Model model;
 
 		Model_initFromFile_mesh(&model, "assets/models/quad.mesh");
@@ -333,6 +344,17 @@ void Engine_start(){
 		glLinkProgram(shaderProgram);
 
 		modelShader = shaderProgram;
+	}
+	{
+		unsigned int vertexShader = getCompiledShader("shaders/bone-model-vertex-shader.glsl", GL_VERTEX_SHADER);
+		unsigned int fragmentShader = getCompiledShader("shaders/bone-model-fragment-shader.glsl", GL_FRAGMENT_SHADER);
+
+		unsigned int shaderProgram = glCreateProgram();
+		glAttachShader(shaderProgram, vertexShader);
+		glAttachShader(shaderProgram, fragmentShader);
+		glLinkProgram(shaderProgram);
+
+		boneModelShader = shaderProgram;
 	}
 
 	/*
@@ -814,7 +836,6 @@ void Engine_draw(){
 
 	Mat4f cameraMatrix = getLookAtMat4f(cameraPos, cameraDirection);
 
-	/*
 	//draw grass
 	{
 		glDisable(GL_CULL_FACE);
@@ -860,7 +881,6 @@ void Engine_draw(){
 
 		glEnable(GL_CULL_FACE);
 	}
-	*/
 
 	//draw bullets
 	for(int i = 0; i < game.bullets.size(); i++){
@@ -870,10 +890,10 @@ void Engine_draw(){
 		float scale = BULLET_SCALE;
 
 		Mat4f modelMatrix = getIdentityMat4f();
-		
-		Mat4f_mulByMat4f(&modelMatrix, getTranslationMat4f(bullet_p->pos.x, bullet_p->pos.y, bullet_p->pos.z));
 
-		Mat4f_mulByMat4f(&modelMatrix, getScalingMat4f(scale));
+		modelMatrix *= getScalingMat4f(scale);
+		
+		modelMatrix *= getTranslationMat4f(bullet_p->pos);
 
 		unsigned int currentShaderProgram = modelShader;
 
@@ -904,12 +924,12 @@ void Engine_draw(){
 		float scale = 0.05;
 
 		Mat4f modelMatrix = getIdentityMat4f();
+
+		//modelMatrix *= getRotationMat4f(particle_p->rotation.x, particle_p->rotation.y, particle_p->rotation.z);
+
+		modelMatrix *= getScalingMat4f(scale);
 		
-		Mat4f_mulByMat4f(&modelMatrix, getTranslationMat4f(particle_p->pos.x, particle_p->pos.y, particle_p->pos.z));
-
-		Mat4f_mulByMat4f(&modelMatrix, getScalingMat4f(scale));
-
-		Mat4f_mulByMat4f(&modelMatrix, getRotationMat4f(particle_p->rotation.x, particle_p->rotation.y, particle_p->rotation.z));
+		modelMatrix *= getTranslationMat4f(particle_p->pos);
 
 		unsigned int currentShaderProgram = modelShader;
 
@@ -940,10 +960,10 @@ void Engine_draw(){
 		float scale = obstacle_p->scale;
 
 		Mat4f modelMatrix = getIdentityMat4f();
-		
-		Mat4f_mulByMat4f(&modelMatrix, getTranslationMat4f(obstacle_p->pos.x, obstacle_p->pos.y, obstacle_p->pos.z));
 
-		Mat4f_mulByMat4f(&modelMatrix, getScalingMat4f(scale));
+		modelMatrix *= getScalingMat4f(scale);
+
+		modelMatrix *= getTranslationMat4f(obstacle_p->pos);
 
 		unsigned int currentShaderProgram = modelShader;
 
@@ -973,10 +993,10 @@ void Engine_draw(){
 		float scale = 1.0;
 
 		Mat4f modelMatrix = getIdentityMat4f();
-		
-		Mat4f_mulByMat4f(&modelMatrix, getTranslationMat4f(player_p->pos.x, player_p->pos.y, player_p->pos.z));
 
-		Mat4f_mulByMat4f(&modelMatrix, getScalingMat4f(scale));
+		modelMatrix *= getScalingMat4f(scale);
+
+		modelMatrix *= getTranslationMat4f(player_p->pos);
 
 		unsigned int currentShaderProgram = modelShader;
 
@@ -992,6 +1012,81 @@ void Engine_draw(){
 		GL3D_uniformMat4f(currentShaderProgram, "cameraMatrix", cameraMatrix);
 
 		GL3D_uniformVec4f(currentShaderProgram, "inputColor", BULLET_COLOR);
+
+		glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+
+	}
+
+	std::vector<Mat4f> boneTransformations = getBindMatricesFromBones(game.boneModels[0].bones);
+
+	//Mat4f m = boneTransformations[0];
+	//Mat4f_log(m);
+	//Mat4f_log(inverse(m));
+	//m *= inverse(m);
+	//Mat4f_log(m);
+
+	//draw bone model
+	{
+		Vec3f pos = getVec3f(10.0, 2.0, 10.0);
+		float scale = 0.5;
+
+		Mat4f modelMatrix = getIdentityMat4f();
+
+		modelMatrix *= getScalingMat4f(scale);
+
+		modelMatrix *= getTranslationMat4f(pos);
+
+		unsigned int currentShaderProgram = boneModelShader;
+
+		glUseProgram(currentShaderProgram);
+
+		BoneModel *model_p = &game.boneModels[0];
+
+		glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+		glBindVertexArray(model_p->VAO);
+
+		GL3D_uniformMat4f(currentShaderProgram, "modelMatrix", modelMatrix);
+		GL3D_uniformMat4f(currentShaderProgram, "perspectiveMatrix", perspectiveMatrix);
+		GL3D_uniformMat4f(currentShaderProgram, "cameraMatrix", cameraMatrix);
+
+		GL3D_uniformVec4f(currentShaderProgram, "inputColor", getVec4f(0.7, 0.7, 0.7, 1.0));
+
+		GL3D_uniformMat4fArray(currentShaderProgram, "boneTransformations", &boneTransformations[0], boneTransformations.size());
+		GL3D_uniformMat4fArray(currentShaderProgram, "inverseBoneTransformations", &model_p->inverseBoneTransformations[0], model_p->inverseBoneTransformations.size());
+
+		glDrawArrays(GL_TRIANGLES, 0, model_p->n_triangles * 3);
+
+	}
+
+	for(int i = 0; i < game.boneModels[0].bones.size(); i++){
+		//printf("bone: %i\n", i);
+
+		Vec3f pos = getVec3f(5.0, 2.0, 10.0);
+
+		float scale = BULLET_SCALE;
+
+		Mat4f modelMatrix = getIdentityMat4f();
+		
+		modelMatrix *= boneTransformations[i];
+
+		modelMatrix *= getTranslationMat4f(pos);
+
+		//Mat4f_mulByMat4f(&modelMatrix, getScalingMat4f(scale));
+
+		unsigned int currentShaderProgram = modelShader;
+
+		glUseProgram(currentShaderProgram);
+		
+		Model *model_p = Game_getModelPointerByName(&game, "cube");
+
+		glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+		glBindVertexArray(model_p->VAO);
+
+		GL3D_uniformMat4f(currentShaderProgram, "modelMatrix", modelMatrix);
+		GL3D_uniformMat4f(currentShaderProgram, "perspectiveMatrix", perspectiveMatrix);
+		GL3D_uniformMat4f(currentShaderProgram, "cameraMatrix", cameraMatrix);
+
+		GL3D_uniformVec4f(currentShaderProgram, "inputColor", getVec4f(1.0, 0.0, 0.0, 1.0));
 
 		glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
 
