@@ -109,6 +109,32 @@ void BoneModel_initFromFile(BoneModel *model_p, const char *meshPath, const char
 
 		int n_triangles = fileSize / (BONE_MODEL_COMPONENT_SIZE * 3);
 
+		/*
+		for(int i = 0; i < n_triangles; i++){
+			
+			Vec3f p1 = *(Vec3f *)(data + (i * 3 + 0) * BONE_MODEL_COMPONENT_SIZE);
+			Vec3f p2 = *(Vec3f *)(data + (i * 3 + 1) * BONE_MODEL_COMPONENT_SIZE);
+			Vec3f p3 = *(Vec3f *)(data + (i * 3 + 2) * BONE_MODEL_COMPONENT_SIZE);
+
+			Vec3f n = normalize(cross(p1 - p2, p1 - p3));
+
+			Vec3f *n1_p = (Vec3f *)(data + (i * 3 + 0) * BONE_MODEL_COMPONENT_SIZE + sizeof(Vec3f));
+			Vec3f *n2_p = (Vec3f *)(data + (i * 3 + 1) * BONE_MODEL_COMPONENT_SIZE + sizeof(Vec3f));
+			Vec3f *n3_p = (Vec3f *)(data + (i * 3 + 2) * BONE_MODEL_COMPONENT_SIZE + sizeof(Vec3f));
+
+			printf("---\n");
+			Vec3f_log(*n1_p);
+			Vec3f_log(*n2_p);
+			Vec3f_log(*n3_p);
+			Vec3f_log(n);
+
+			*n1_p = n;
+			*n2_p = n;
+			*n3_p = n;
+
+		}
+		*/
+
 		//printf("%i\n", fileSize);
 		//printf("%i\n", n_triangles);
 
@@ -128,7 +154,7 @@ void BoneModel_initFromFile(BoneModel *model_p, const char *meshPath, const char
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(6 * sizeof(float)));
 		glEnableVertexAttribArray(2);
 
-		glVertexAttribPointer(3, 4, GL_UNSIGNED_BYTE, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(8 * sizeof(float)));
+		glVertexAttribIPointer(3, 4, GL_UNSIGNED_BYTE, BONE_MODEL_COMPONENT_SIZE, (void *)(8 * sizeof(float)));
 		glEnableVertexAttribArray(3);
 
 		glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(8 * sizeof(float) + 4 * sizeof(unsigned char)));
@@ -176,16 +202,25 @@ void BoneModel_initFromFile(BoneModel *model_p, const char *meshPath, const char
 
 		}
 
-		std::vector<Mat4f> boneTransformations = getBindMatricesFromBones(model_p->bones);
+		std::vector<Mat4f> bindMatrices = getBindMatricesFromBones(model_p->bones);
 
-		model_p->inverseBoneTransformations.clear();
+		model_p->inverseBindMatrices.clear();
 
-		for(int i = 0; i < boneTransformations.size(); i++){
-			model_p->inverseBoneTransformations.push_back(inverse(boneTransformations[i]));
+		for(int i = 0; i < bindMatrices.size(); i++){
+			model_p->inverseBindMatrices.push_back(inverse(bindMatrices[i]));
 		}
 
 	}
 
+}
+
+int BoneModel_getBoneIndexByName(BoneModel *model_p, const char *name){
+	for(int i = 0; i < model_p->bones.size(); i++){
+		if(strcmp(model_p->bones[i].name, name) == 0){
+			return i;
+		}
+	}
+	return -1;
 }
 
 std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone> bones){

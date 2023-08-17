@@ -338,7 +338,14 @@ float dot(Vec2f, Vec2f);
 float dot(Vec3f, Vec3f);
 float dot(Vec4f, Vec4f);
 
-Vec3f cross(Vec3f);
+float lerp(float, float, float);
+Vec2f lerp(Vec2f, Vec2f, float);
+Vec3f lerp(Vec3f, Vec3f, float);
+Vec4f lerp(Vec4f, Vec4f, float);
+
+Vec3f cross(Vec3f, Vec3f);
+
+Vec4f getQuaternion(float, Vec3f);
 
 //MATRIX FUNCTIONS
 

@@ -11,6 +11,8 @@
 #include <cstring>
 #include <vector>
 
+float gameTime = 0.0;
+
 Game game;
 
 //Vec3f game.player.pos = { 5.0, 3.0, 5.0 };
@@ -60,109 +62,10 @@ Vec2f cameraRotation = getVec2f(M_PI / 2.0, 0.0);
 
 void Engine_start(){
 
+#ifndef RUN_OFFLINE
 	Game_initClient(&game);
+#endif
 
-	/*
-	//generate terrain
-	{
-
-		Vec3f *terrainPoints = (Vec3f *)malloc(sizeof(Vec3f) * TERRAIN_WIDTH * TERRAIN_WIDTH);
-
-		for(int x = 0; x < TERRAIN_WIDTH; x++){
-			for(int y = 0; y < TERRAIN_WIDTH; y++){
-
-				int index = y * TERRAIN_WIDTH + x;
-
-				terrainPoints[index].x = x;
-				terrainPoints[index].z = y;
-				terrainPoints[index].y = getRandom() / TERRAIN_SCALE * 2.0;
-
-				terrainPoints[index].x /= (float)TERRAIN_WIDTH;
-				terrainPoints[index].z /= (float)TERRAIN_WIDTH;
-			
-			}
-		}
-
-		int componentSize = 8;
-		int n_terrainTriangles = 2 * (TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1);
-
-		int terrainMeshSize = sizeof(float) * componentSize * 3 * n_terrainTriangles;
-		float *terrainMesh = (float *)malloc(terrainMeshSize);
-		memset(terrainMesh, 0, terrainMeshSize);
-
-		Vec3f *terrainTriangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * 2 * (TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1));
-
-		int meshIndex = 0;
-
-		for(int x = 0; x < TERRAIN_WIDTH - 1; x++){
-			for(int y = 0; y < TERRAIN_WIDTH - 1; y++){
-
-				int pointsIndex1 = y * TERRAIN_WIDTH + x;
-				int pointsIndex2 = (y + 1) * TERRAIN_WIDTH + x;
-				int pointsIndex3 = y * TERRAIN_WIDTH + (x + 1);
-				int pointsIndex4 = (y + 1) * TERRAIN_WIDTH + (x + 1);
-
-				Vec3f point1 = terrainPoints[pointsIndex1];
-				Vec3f point2 = terrainPoints[pointsIndex2];
-				Vec3f point3 = terrainPoints[pointsIndex3];
-				Vec3f point4 = terrainPoints[pointsIndex4];
-
-				Vec3f normal1 = getCrossVec3f(getSubVec3f(point1, point2), getSubVec3f(point1, point4));
-				Vec3f normal2 = getCrossVec3f(getSubVec3f(point1, point4), getSubVec3f(point1, point3));
-				Vec3f_normalize(&normal1);
-				Vec3f_normalize(&normal2);
-
-				//copy into mesh
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 0, &point1, sizeof(Vec3f));
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 1, &point2, sizeof(Vec3f));
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 2, &point4, sizeof(Vec3f));
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 3, &point1, sizeof(Vec3f));
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 4, &point4, sizeof(Vec3f));
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 5, &point3, sizeof(Vec3f));
-
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 0 + 5, &normal1, sizeof(Vec3f));
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 1 + 5, &normal1, sizeof(Vec3f));
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 2 + 5, &normal1, sizeof(Vec3f));
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 3 + 5, &normal2, sizeof(Vec3f));
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 4 + 5, &normal2, sizeof(Vec3f));
-				memcpy(terrainMesh + meshIndex * componentSize * 3 * 2 + componentSize * 5 + 5, &normal2, sizeof(Vec3f));
-
-				//push into triangles
-				terrainTriangles[meshIndex * 3 * 2 + 0] = point1;
-				terrainTriangles[meshIndex * 3 * 2 + 1] = point2;
-				terrainTriangles[meshIndex * 3 * 2 + 2] = point4;
-				terrainTriangles[meshIndex * 3 * 2 + 3] = point1;
-				terrainTriangles[meshIndex * 3 * 2 + 4] = point4;
-				terrainTriangles[meshIndex * 3 * 2 + 5] = point3;
-
-				meshIndex++;
-
-			}
-		}
-
-		//create terrain model
-		Model model;
-
-		Model_initFromMeshData(&model, (unsigned char *)terrainMesh, n_terrainTriangles);
-
-		String_set(model.name, "terrain", STRING_SIZE);
-
-		game.models.push_back(model);
-
-		//create terrain triangle mesh
-		TriangleMesh triangleMesh;
-		triangleMesh.triangles = terrainTriangles;
-		triangleMesh.n_triangles = n_terrainTriangles;
-		String_set(triangleMesh.name, "terrain", STRING_SIZE);
-
-		game.triangleMeshes.push_back(triangleMesh);
-
-		//free unneeded terrain data
-		free(terrainPoints);
-		free(terrainMesh);
-
-	}
-*/
 	//generate terrain
 	{
 		setRandomSeed(1);
@@ -275,6 +178,15 @@ void Engine_start(){
 		BoneModel model;
 
 		BoneModel_initFromFile(&model, "assets/models/dude-bones.bonemesh", "assets/models/dude-bones.bones");
+
+		String_set(model.name, "dude", STRING_SIZE);
+
+		game.boneModels.push_back(model);
+	}
+	{
+		BoneModel model;
+
+		BoneModel_initFromFile(&model, "assets/models/dude-bones.bonemesh", "assets/models/dude-bones2.bones");
 
 		String_set(model.name, "dude", STRING_SIZE);
 
@@ -469,7 +381,7 @@ void Engine_update(float deltaTime){
 		Engine_toggleFullscreen();
 	}
 
-	printf("---\n");
+	//printf("---\n");
 
 	//get latest server game state
 	pthread_mutex_lock(&game.serverStateMutex);
@@ -480,7 +392,7 @@ void Engine_update(float deltaTime){
 
 	//game.player.pos = latestServerGameState.playerPos;
 
-	printf("%i, %i\n", latestServerGameState.n_handledInputs, game.n_sentInputs);
+	//printf("%i, %i\n", latestServerGameState.n_handledInputs, game.n_sentInputs);
 
 	//Vec3f_log(latestServerGameState.playerPos);
 
@@ -528,6 +440,7 @@ void Engine_update(float deltaTime){
 	//buffer inputs
 	game.inputsBuffer.push_back(inputs);
 
+#ifndef RUN_OFFLINE
 	//send inputs to server
 	Game_sendInputsToServer(&game, inputs);
 
@@ -550,6 +463,7 @@ void Engine_update(float deltaTime){
 	while(game.inputsBuffer.size() > game.n_sentInputs - latestServerGameState.n_handledInputs){
 		game.inputsBuffer.erase(game.inputsBuffer.begin());
 	}
+#endif
 
 	//simulate inputs on client
 	for(int i = 0; i < game.inputsBuffer.size(); i++){
@@ -668,6 +582,10 @@ void Engine_update(float deltaTime){
 		}
 
 	}
+
+#ifdef RUN_OFFLINE
+		game.inputsBuffer.clear();
+#endif
 	//Game_simulateInputsOnClient(&game, inputs);
 
 	//handle camera movement
@@ -836,6 +754,7 @@ void Engine_draw(){
 
 	Mat4f cameraMatrix = getLookAtMat4f(cameraPos, cameraDirection);
 
+	/*
 	//draw grass
 	{
 		glDisable(GL_CULL_FACE);
@@ -881,38 +800,7 @@ void Engine_draw(){
 
 		glEnable(GL_CULL_FACE);
 	}
-
-	//draw bullets
-	for(int i = 0; i < game.bullets.size(); i++){
-
-		Bullet *bullet_p = &game.bullets[i];
-
-		float scale = BULLET_SCALE;
-
-		Mat4f modelMatrix = getIdentityMat4f();
-
-		modelMatrix *= getScalingMat4f(scale);
-		
-		modelMatrix *= getTranslationMat4f(bullet_p->pos);
-
-		unsigned int currentShaderProgram = modelShader;
-
-		glUseProgram(currentShaderProgram);
-		
-		Model *model_p = Game_getModelPointerByName(&game, "cube");
-
-		glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
-		glBindVertexArray(model_p->VAO);
-
-		GL3D_uniformMat4f(currentShaderProgram, "modelMatrix", modelMatrix);
-		GL3D_uniformMat4f(currentShaderProgram, "perspectiveMatrix", perspectiveMatrix);
-		GL3D_uniformMat4f(currentShaderProgram, "cameraMatrix", cameraMatrix);
-
-		GL3D_uniformVec4f(currentShaderProgram, "inputColor", BULLET_COLOR);
-
-		glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
-
-	}
+	*/
 
 	//draw particles
 	glDisable(GL_CULL_FACE);
@@ -1017,17 +905,39 @@ void Engine_draw(){
 
 	}
 
-	std::vector<Mat4f> boneTransformations = getBindMatricesFromBones(game.boneModels[0].bones);
+	std::vector<Bone> bones0 = game.boneModels[0].bones;
+	std::vector<Bone> bones1 = game.boneModels[1].bones;
 
-	//Mat4f m = boneTransformations[0];
-	//Mat4f_log(m);
-	//Mat4f_log(inverse(m));
-	//m *= inverse(m);
-	//Mat4f_log(m);
+	std::vector<Bone> interpolatedBones;
+
+	for(int i = 0; i < bones0.size(); i++){
+
+		Bone interpolatedBone = bones0[i];
+
+		float t = (1.0 + sin(gameTime * 0.1)) * 0.5;
+
+		interpolatedBone.rotation = lerp(bones0[i].rotation, bones1[i].rotation, t);
+		interpolatedBone.scale = lerp(bones0[i].scale, bones1[i].scale, t);
+		interpolatedBone.translation = lerp(bones0[i].translation, bones1[i].translation, t);
+
+		interpolatedBones.push_back(interpolatedBone);
+
+	}
+
+	std::vector<Mat4f> bindMatrices = getBindMatricesFromBones(interpolatedBones);
+
+	std::vector<Mat4f> boneTransformations;
+
+	for(int i = 0; i < bindMatrices.size(); i++){
+		Mat4f transformation = game.boneModels[0].inverseBindMatrices[i];
+		transformation *= bindMatrices[i];
+		boneTransformations.push_back(transformation);
+	}
 
 	//draw bone model
 	{
-		Vec3f pos = getVec3f(10.0, 2.0, 10.0);
+
+		Vec3f pos = getVec3f(10.0, 3.0, 10.0);
 		float scale = 0.5;
 
 		Mat4f modelMatrix = getIdentityMat4f();
@@ -1052,7 +962,7 @@ void Engine_draw(){
 		GL3D_uniformVec4f(currentShaderProgram, "inputColor", getVec4f(0.7, 0.7, 0.7, 1.0));
 
 		GL3D_uniformMat4fArray(currentShaderProgram, "boneTransformations", &boneTransformations[0], boneTransformations.size());
-		GL3D_uniformMat4fArray(currentShaderProgram, "inverseBoneTransformations", &model_p->inverseBoneTransformations[0], model_p->inverseBoneTransformations.size());
+		//GL3D_uniformMat4fArray(currentShaderProgram, "inverseBoneTransformations", &model_p->inverseBoneTransformations[0], model_p->inverseBoneTransformations.size());
 
 		glDrawArrays(GL_TRIANGLES, 0, model_p->n_triangles * 3);
 
@@ -1061,13 +971,17 @@ void Engine_draw(){
 	for(int i = 0; i < game.boneModels[0].bones.size(); i++){
 		//printf("bone: %i\n", i);
 
-		Vec3f pos = getVec3f(5.0, 2.0, 10.0);
+		Vec3f pos = getVec3f(5.0, 3.0, 10.0);
 
-		float scale = BULLET_SCALE;
+		float scale = 0.1;
 
 		Mat4f modelMatrix = getIdentityMat4f();
+
+		modelMatrix *= getTranslationMat4f(0.0, 1.0, 0.0);
+
+		modelMatrix *= getScalingMat4f(0.05, 0.1, 0.05);
 		
-		modelMatrix *= boneTransformations[i];
+		modelMatrix *= bindMatrices[i];
 
 		modelMatrix *= getTranslationMat4f(pos);
 
@@ -1086,11 +1000,17 @@ void Engine_draw(){
 		GL3D_uniformMat4f(currentShaderProgram, "perspectiveMatrix", perspectiveMatrix);
 		GL3D_uniformMat4f(currentShaderProgram, "cameraMatrix", cameraMatrix);
 
+		//if(i == index1){
+			//GL3D_uniformVec4f(currentShaderProgram, "inputColor", getVec4f(0.0, 1.0, 0.0, 1.0));
+		//}else{
 		GL3D_uniformVec4f(currentShaderProgram, "inputColor", getVec4f(1.0, 0.0, 0.0, 1.0));
+		//}
 
 		glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
 
 	}
+
+	gameTime += 0.1;
 
 }
 

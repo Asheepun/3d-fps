@@ -39,7 +39,7 @@ typedef struct BoneModel{
 	unsigned int VAO;
 	unsigned int n_triangles;
 	std::vector<Bone> bones;
-	std::vector<Mat4f> inverseBoneTransformations;
+	std::vector<Mat4f> inverseBindMatrices;
 }BoneModel;
 
 typedef struct Texture{
@@ -78,6 +78,8 @@ void Model_initFromMeshData(Model *, const unsigned char *, int);
 void Model_initFromFile_mesh(Model *, const char *);
 
 void BoneModel_initFromFile(BoneModel *, const char *, const char *);
+
+int BoneModel_getBoneIndexByName(BoneModel *, const char *);
 
 std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone>);
 

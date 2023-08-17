@@ -640,12 +640,41 @@ float dot(Vec4f v1, Vec4f v2){
 	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w;
 }
 
+float lerp(float a, float b, float t){
+	return a + (b - a) * t;
+}
+
+Vec2f lerp(Vec2f v1, Vec2f v2, float t){
+	return v1 + (v2 - v1) * t;
+}
+
+Vec3f lerp(Vec3f v1, Vec3f v2, float t){
+	return v1 + (v2 - v1) * t;
+}
+
+Vec4f lerp(Vec4f v1, Vec4f v2, float t){
+	return v1 + (v2 - v1) * t;
+}
+
 Vec3f cross(Vec3f v1, Vec3f v2){
 	return getVec3f(
 		v1.y * v2.z - v1.z * v2.y,
 		v1.z * v2.x - v1.x * v2.z,
 		v1.x * v2.y - v1.y * v2.x
 	);
+}
+
+Vec4f getQuaternion(float angle, Vec3f axis){
+
+	Vec3f normalizedAxis = normalize(axis);
+
+	return getVec4f(
+		cos(angle / 2.0),
+		sin(angle / 2.0) * normalizedAxis.x,
+		sin(angle / 2.0) * normalizedAxis.y,
+		sin(angle / 2.0) * normalizedAxis.z
+	);
+
 }
 
 //MATRIX FUNCTIONS

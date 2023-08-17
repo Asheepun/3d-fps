@@ -27,8 +27,8 @@ void main(){
 
 	FragColor.xyz *= ambientLightFactor + diffuseLight * diffuseLightFactor;
 
-	FragColor = input_fragmentNormal;
-	//FragColor.xyz = vec3(1.0, 0.0, 0.0);
+	//FragColor.xyz = vec3(0.5, 0.5, 0.5) + fragmentNormal / 2.0;
+
 	FragColor.w = 1.0;
 
 	gl_FragDepth = cameraRelativeFragmentPosition.z / 100.0;

@@ -13,6 +13,8 @@
 #include <cstring>
 #include <vector>
 
+#define RUN_OFFLINE
+
 struct Bullet{
 	Vec3f pos;
 	Vec3f velocity;
