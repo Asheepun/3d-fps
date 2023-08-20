@@ -56,6 +56,8 @@ struct TextureAtlas{
 struct TextureBuffer{
 	unsigned int VBO;
 	unsigned int TB;
+	unsigned int n_elements;
+	unsigned int elementSize;
 };
 
 typedef struct VertexMesh{
@@ -81,6 +83,7 @@ void BoneModel_initFromFile(BoneModel *, const char *, const char *);
 
 int BoneModel_getBoneIndexByName(BoneModel *, const char *);
 
+std::vector<Bone> getInterpolatedBones(std::vector<Bone>, std::vector<Bone>, float);
 std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone>);
 
 unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh);
@@ -100,6 +103,9 @@ void Texture_initAsColorMap(Texture *, int, int);
 void TextureAtlas_init(TextureAtlas *, const char **, int);
 
 void TextureBuffer_init(TextureBuffer *, void *, int, enum Type3D);
+
+void TextureBuffer_initAsVec4fArray(TextureBuffer *, Vec4f *, int);
+void TextureBuffer_initAsMat4fArray(TextureBuffer *, Mat4f *, int, bool);
 
 void TextureBuffer_free(TextureBuffer *);
 

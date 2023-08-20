@@ -15,6 +15,11 @@
 
 #define RUN_OFFLINE
 
+struct Box{
+	Vec3f pos;
+	Vec3f size;
+};
+
 struct Bullet{
 	Vec3f pos;
 	Vec3f velocity;
@@ -59,6 +64,9 @@ struct Game{
 	std::vector<BoneModel> boneModels;
 	std::vector<Texture> textures;
 	std::vector<TriangleMesh> triangleMeshes;
+
+	std::vector<Box> boundingBoxes;
+	std::vector<bool> boundingBoxesCulled;
 
 	ServerGameState latestServerGameState_mutexed;
 	pthread_mutex_t serverStateMutex;

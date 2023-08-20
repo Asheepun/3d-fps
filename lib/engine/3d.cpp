@@ -223,6 +223,27 @@ int BoneModel_getBoneIndexByName(BoneModel *model_p, const char *name){
 	return -1;
 }
 
+std::vector<Bone> getInterpolatedBones(std::vector<Bone> bones0, std::vector<Bone> bones1, float t){
+
+	std::vector<Bone> interpolatedBones;
+
+	for(int i = 0; i < bones0.size(); i++){
+
+		Bone interpolatedBone = bones0[i];
+
+		interpolatedBone.rotation = lerp(bones0[i].rotation, bones1[i].rotation, t);
+		interpolatedBone.scale = lerp(bones0[i].scale, bones1[i].scale, t);
+		interpolatedBone.translation = lerp(bones0[i].translation, bones1[i].translation, t);
+
+		interpolatedBones.push_back(interpolatedBone);
+
+	}
+
+	return interpolatedBones;
+
+}
+
+
 std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone> bones){
 
 
@@ -355,8 +376,10 @@ void Texture_initAsDepthMap(Texture *texture_p, int width, int height){
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	Vec4f borderColor = getVec4f(1.0, 1.0, 1.0, 1.0);
+	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, (float *)&borderColor);
 
 }
 
@@ -486,6 +509,37 @@ void TextureBuffer_init(TextureBuffer *textureBuffer_p, void *data, int size, en
 	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, textureBuffer_p->VBO);
 
 }
+
+void TextureBuffer_initAsVec4fArray(TextureBuffer *textureBuffer_p, Vec4f *vectors, int n_vectors){
+
+	textureBuffer_p->n_elements = n_vectors;
+	textureBuffer_p->elementSize = sizeof(Vec4f);
+
+	glGenBuffers(1, &textureBuffer_p->VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, textureBuffer_p->VBO);
+	glBufferData(GL_ARRAY_BUFFER, textureBuffer_p->n_elements * textureBuffer_p->elementSize, vectors, GL_STATIC_DRAW);
+
+	glGenTextures(1, &textureBuffer_p->TB);
+	glBindTexture(GL_TEXTURE_BUFFER, textureBuffer_p->TB);
+	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, textureBuffer_p->VBO);
+
+}
+
+void TextureBuffer_initAsMat4fArray(TextureBuffer *textureBuffer_p, Mat4f *matrices, int n_matrices, bool compress){
+
+	textureBuffer_p->n_elements = n_matrices;
+	textureBuffer_p->elementSize = sizeof(Mat4f);
+
+	glGenBuffers(1, &textureBuffer_p->VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, textureBuffer_p->VBO);
+	glBufferData(GL_ARRAY_BUFFER, textureBuffer_p->n_elements * textureBuffer_p->elementSize, matrices, GL_STATIC_DRAW);
+
+	glGenTextures(1, &textureBuffer_p->TB);
+	glBindTexture(GL_TEXTURE_BUFFER, textureBuffer_p->TB);
+	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, textureBuffer_p->VBO);
+
+}
+
 
 void TextureBuffer_free(TextureBuffer *textureBuffer_p){
 	

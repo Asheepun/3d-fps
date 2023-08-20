@@ -214,6 +214,8 @@ bool checkEqualsFloat(float, float, float);
 
 int getSign(float);
 
+int sign(float);
+
 int min(int, int);
 
 int max(int, int);
@@ -345,7 +347,7 @@ Vec4f lerp(Vec4f, Vec4f, float);
 
 Vec3f cross(Vec3f, Vec3f);
 
-Vec4f getQuaternion(float, Vec3f);
+Vec4f getQuaternion(Vec3f, float);
 
 //MATRIX FUNCTIONS
 

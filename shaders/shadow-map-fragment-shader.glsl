@@ -1,15 +1,18 @@
 #version 330 core
-in float depth;
 
-uniform mat4 modelMatrix;
-uniform mat4 modelRotationMatrix;
+in vec4 input_fragmentPosition;
+in vec4 input_fragmentNormal;
+
 uniform mat4 cameraMatrix;
-uniform vec4 inputColor;
 
 void main(){
 
-	gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+	vec3 cameraRelativeFragmentPosition = (input_fragmentPosition * cameraMatrix).xyz;
 
-	gl_FragDepth = depth;
+	float fragmentDepth = cameraRelativeFragmentPosition.z / 100.0;
+
+	gl_FragColor = vec4(fragmentDepth, fragmentDepth, fragmentDepth, 1.0);
+
+	gl_FragDepth = fragmentDepth;
 
 } 

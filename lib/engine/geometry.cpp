@@ -42,6 +42,10 @@ int getSign(float x){
 	return 1 * (x > 0) + -1 * (x < 0) + 0 * (x == 0) + 0;
 }
 
+int sign(float x){
+	return 1 * (x > 0) + -1 * (x < 0) + 0 * (x == 0) + 0;
+}
+
 int min(int a, int b){
 	return (a <= b) * a + (a > b) * b;
 }
@@ -664,16 +668,25 @@ Vec3f cross(Vec3f v1, Vec3f v2){
 	);
 }
 
-Vec4f getQuaternion(float angle, Vec3f axis){
+Vec4f getQuaternion(Vec3f axis, float angle){
 
 	Vec3f normalizedAxis = normalize(axis);
 
+	return getVec4f(
+		sin(angle / 2.0) * normalizedAxis.x,
+		sin(angle / 2.0) * normalizedAxis.y,
+		sin(angle / 2.0) * normalizedAxis.z,
+		cos(angle / 2.0)
+	);
+
+	/*
 	return getVec4f(
 		cos(angle / 2.0),
 		sin(angle / 2.0) * normalizedAxis.x,
 		sin(angle / 2.0) * normalizedAxis.y,
 		sin(angle / 2.0) * normalizedAxis.z
 	);
+	*/
 
 }
 
@@ -845,4 +858,15 @@ Mat4f inverse(Mat4f m){
 
 	return inverseM;
 	
+}
+
+void plog(Mat4f m){
+	printf("{\n");
+	for(int i = 0; i < 4; i++){
+		for(int j = 0; j < 4; j++){
+			printf("%f, ", m[i][j]);
+		}
+		printf("\n");
+	}
+	printf("}\n");
 }
