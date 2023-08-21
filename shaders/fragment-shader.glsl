@@ -1,10 +1,12 @@
 #version 330 core
 
 in vec4 input_fragmentPosition;
+in vec2 input_texturePosition;
 in vec4 input_fragmentNormal;
 
 out vec4 FragColor;
 
+uniform sampler2D colorTexture;
 uniform sampler2D shadowMapTexture;
 
 uniform mat4 perspectiveMatrix;
@@ -33,7 +35,9 @@ void main(){
 	float shadowDepthTolerance = 0.001;
 	bool inShadow = fragmentShadowDepth - shadowMapDepth > shadowDepthTolerance;
 
-	FragColor = inputColor;
+	FragColor = texture2D(colorTexture, input_texturePosition);
+
+	FragColor *= inputColor;
 
 	float diffuseLight = max(dot(-lightDirection, fragmentNormal), 0.0);
 

@@ -86,7 +86,7 @@ int BoneModel_getBoneIndexByName(BoneModel *, const char *);
 std::vector<Bone> getInterpolatedBones(std::vector<Bone>, std::vector<Bone>, float);
 std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone>);
 
-unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh);
+unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh, Vec2f *);
 
 void VertexMesh_initFromFile_mesh(VertexMesh *, const char *);
 

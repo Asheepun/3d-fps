@@ -7,7 +7,11 @@ uniform mat4 modelMatrix;
 uniform mat4 perspectiveMatrix;
 uniform mat4 cameraMatrix;
 
+uniform sampler2D colorTexture;
+uniform sampler2D shadowMapTexture;
+
 out vec4 input_fragmentPosition;
+out vec2 input_texturePosition;
 out vec4 input_fragmentNormal;
 
 void main(){
@@ -18,6 +22,7 @@ void main(){
 	vertexPosition *= modelMatrix;
 
 	input_fragmentPosition = vertexPosition;
+	input_texturePosition = attribute_textureVertex;
 	input_fragmentNormal = vertexNormal;
 
 	vertexPosition *= cameraMatrix * perspectiveMatrix;

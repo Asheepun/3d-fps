@@ -60,7 +60,7 @@ void Model_initFromFile_mesh(Model *model_p, const char *path){
 
 }
 
-unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh triangleMesh){
+unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh triangleMesh, Vec2f *textureData){
 
 	float *data = (float *)malloc(8 * sizeof(float) * 3 * triangleMesh.n_triangles);
 
@@ -75,6 +75,7 @@ unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh triangleMesh){
 
 		Vec3f normal = getCrossVec3f(getSubVec3f(point2, point1), getSubVec3f(point3, point1));
 		Vec3f_normalize(&normal);
+
 		//normal = getVec3f(0.0, 1.0, 0.0);
 
 		memcpy(data + dataIndex + 8 * 0, &point1, sizeof(Vec3f));
@@ -85,6 +86,12 @@ unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh triangleMesh){
 
 		memcpy(data + dataIndex + 8 * 2, &point3, sizeof(Vec3f));
 		memcpy(data + dataIndex + 8 * 2 + 5, &normal, sizeof(Vec3f));
+
+		if(textureData != NULL){
+			memcpy(data + dataIndex + 8 * 0 + 3, textureData + trianglesIndex + 0, sizeof(Vec2f));
+			memcpy(data + dataIndex + 8 * 1 + 3, textureData + trianglesIndex + 1, sizeof(Vec2f));
+			memcpy(data + dataIndex + 8 * 2 + 3, textureData + trianglesIndex + 2, sizeof(Vec2f));
+		}
 
 	}
 

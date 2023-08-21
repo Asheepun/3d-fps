@@ -37,6 +37,7 @@ struct Obstacle{
 	Vec3f pos;
 	float scale;
 	int modelIndex;
+	int textureIndex;
 	int triangleMeshIndex;
 };
 
@@ -74,6 +75,11 @@ struct Game{
 	std::vector<Inputs> inputsBuffer;
 
 	int connectionID;
+
+	unsigned int modelShader;
+	unsigned int boneModelShader;
+	unsigned int grassShader;
+	unsigned int leafShader;
 
 };
 
@@ -113,5 +119,9 @@ TriangleMesh *Game_getTriangleMeshPointerByName(Game *, const char *);
 void Game_initClient(Game *);
 void Game_sendInputsToServer(Game *, Inputs);
 void *receiveServerMessages(void *);
+
+//FILE: assets.cpp
+
+void Game_loadAssets(Game *);
 
 #endif

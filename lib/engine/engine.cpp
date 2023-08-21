@@ -288,7 +288,8 @@ int main(){
 	cmap = XCreateColormap(dpy, root, vi->visual, AllocNone);
 
 	swa.colormap = cmap;
-	swa.event_mask = KeyPressMask | KeyReleaseMask | ButtonPressMask | StructureNotifyMask | ButtonReleaseMask | PointerMotionMask;
+	//swa.event_mask = KeyPressMask | KeyReleaseMask | ButtonPressMask | StructureNotifyMask | ButtonReleaseMask | PointerMotionMask;
+	swa.event_mask = StructureNotifyMask;
 
 	win = XCreateWindow(dpy, root, 0, 0, Engine_clientWidth, Engine_clientHeight, 0, vi->depth, InputOutput, vi->visual, CWColormap | CWEventMask, &swa);
 
@@ -373,7 +374,7 @@ int main(){
 		//startTicks = clock();
 		auto frameStartTime = std::chrono::high_resolution_clock::now();
 
-		//handle events
+		//handle window events
 		while(XPending(dpy) > 0){
 
 			XNextEvent(dpy, &xev);
@@ -395,86 +396,49 @@ int main(){
 
 			}
 
-			if(xev.type == KeyPress){
+		}
 
-				//if(xev.xkey.keycode == XKeysymToKeycode(dpy, XK_Q)){
-					//quit = true;
-				//}
-				char buffer[SMALL_STRING_SIZE];
-				String_set(buffer, "", SMALL_STRING_SIZE);
+		//get keyboard state
+		{
+			char keys[32];
+			XQueryKeymap(dpy, keys);
 
-				XLookupString((XKeyPressedEvent *)&xev, buffer, STRING_SIZE, NULL, NULL);
+			for(int i = 0; i < ENGINE_KEYS_LENGTH; i++){
 
-				if(!(strcmp(buffer, "") == 0)){
-					Engine_textInput.push_back(*buffer);
-					//char *text = Array_addItem(&Engine_textInput);
-					//String_set(text, buffer, SMALL_STRING_SIZE);
-				}
+				int keyCode = XKeysymToKeycode(dpy, OS_KEY_IDENTIFIERS[i]);
+				int byteIndex = keyCode / 8;
+				int bitIndex = keyCode % 8;
 
-				for(int i = 0; i < ENGINE_KEYS_LENGTH; i++){
-					if(xev.xkey.keycode == XKeysymToKeycode(dpy, Engine_keys[i].OSIdentifier)){
-						if(!Engine_keys[i].down){
-							Engine_keys[i].downed = true;
-						}
-						Engine_keys[i].down = true;
+				if((keys[byteIndex] >> bitIndex) & 0x01){
+					if(!Engine_keys[i].down){
+						Engine_keys[i].downed = true;
 					}
-				}
-			}
-
-			if(xev.type == KeyRelease){
-
-				for(int i = 0; i < ENGINE_KEYS_LENGTH; i++){
-					if(xev.xkey.keycode == XKeysymToKeycode(dpy, Engine_keys[i].OSIdentifier)){
-						if(Engine_keys[i].down){
-							Engine_keys[i].upped = true;
-						}
-						Engine_keys[i].down = false;
+					Engine_keys[i].down = true;
+				}else{
+					if(Engine_keys[i].down){
+						Engine_keys[i].upped = true;
 					}
+					Engine_keys[i].down = false;
 				}
+				
+			}
+		}
+
+		//get pointer state
+		{
+			Window returnWindow;
+			int returnInt;
+			unsigned int returnUInt;
+			int XPointerX, XPointerY;
+			if(XQueryPointer(dpy, win, &returnWindow, &returnWindow, &returnInt, &returnInt, &XPointerX, &XPointerY, &returnUInt)){
+
+				Engine_pointer.pos.x = XPointerX;
+				Engine_pointer.pos.y = XPointerY;
+
+				Engine_pointer.movement.x = Engine_pointer.pos.x - Engine_clientWidth / 2;
+				Engine_pointer.movement.y = Engine_pointer.pos.y - Engine_clientHeight / 2;
 
 			}
-
-			if(xev.type == ButtonPress){
-				XButtonEvent *buttonEvent_p = (XButtonEvent *)&xev;
-
-				if(buttonEvent_p->button == 1){
-					Engine_pointer.down = true;
-					Engine_pointer.downed = true;
-					Engine_pointer.lastDownedPos = Engine_pointer.pos;
-				}
-
-			}
-			if(xev.type == ButtonRelease){
-
-				XButtonEvent *buttonEvent_p = (XButtonEvent *)&xev;
-
-				if(buttonEvent_p->button == 1){
-					Engine_pointer.down = false;
-					Engine_pointer.upped = true;
-					Engine_pointer.lastUppedPos = Engine_pointer.pos;
-				}
-
-				if(buttonEvent_p->button == 4){
-					Engine_pointer.scroll++;
-				}
-				if(buttonEvent_p->button == 5){
-					Engine_pointer.scroll--;
-				}
-
-			}
-
-			if(xev.type == MotionNotify){
-				XMotionEvent *motionEvent_p = (XMotionEvent *)&xev;
-
-				Engine_pointer.pos.x = motionEvent_p->x;
-				Engine_pointer.pos.y = motionEvent_p->y;
-
-				{
-					Engine_pointer.movement.x = motionEvent_p->x - Engine_clientWidth / 2;
-					Engine_pointer.movement.y = motionEvent_p->y - Engine_clientHeight / 2;
-				}
-			}
-		
 		}
 
 		//do fps magic
@@ -514,6 +478,8 @@ int main(){
 
 		Engine_draw();
 
+		//glFinish();
+
 		stopTime = std::chrono::high_resolution_clock::now();
 
 		long int drawTime = (long int)(std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count());
@@ -521,6 +487,8 @@ int main(){
 		//glDrawPixels(screenWidth, screenHeight, GL_RGB, GL_UNSIGNED_BYTE, screenPixels);
 
 		glXSwapBuffers(dpy, win);
+
+		glFinish();
 
 		Engine_elapsedFrames++;
 

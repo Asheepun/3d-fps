@@ -65,6 +65,8 @@ void Engine_start(){
 	Game_initClient(&game);
 #endif
 
+	Game_loadAssets(&game);
+
 	//generate tree
 	{
 		setRandomSeed(1);
@@ -208,6 +210,7 @@ void Engine_start(){
 
 		//create triangle mesh
 		std::vector<Vec3f> triangles;
+		std::vector<Vec2f> textureCoords;
 
 		for(int i = 0; i < nodes.size(); i++){
 
@@ -264,6 +267,19 @@ void Engine_start(){
 						triangles.push_back(p2);
 						triangles.push_back(p4);
 
+						Vec2f t1 = getVec2f((float)(i % edges) / (float)edges, 0.0);
+						Vec2f t2 = getVec2f((float)((i + 1) % edges) / (float)edges, 0.0);
+						Vec2f t3 = getVec2f((float)(i % edges) / (float)edges, 1.0);
+						Vec2f t4 = getVec2f((float)((i + 1) % edges) / (float)edges, 1.0);
+
+						textureCoords.push_back(t1);
+						textureCoords.push_back(t2);
+						textureCoords.push_back(t3);
+
+						textureCoords.push_back(t3);
+						textureCoords.push_back(t2);
+						textureCoords.push_back(t4);
+
 					}
 					
 				}
@@ -280,7 +296,7 @@ void Engine_start(){
 		triangleMesh.triangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * triangleMesh.n_triangles);
 		memcpy(triangleMesh.triangles, &triangles[0], sizeof(Vec3f) * 3 * triangleMesh.n_triangles);
 
-		unsigned char *meshData = generateMeshDataFromTriangleMesh(triangleMesh);
+		unsigned char *meshData = generateMeshDataFromTriangleMesh(triangleMesh, &textureCoords[0]);
 
 		Model model;
 
@@ -367,7 +383,7 @@ void Engine_start(){
 		TriangleMesh triangleMesh = generateTerrainTriangleMesh(TERRAIN_WIDTH, 1.0 / (TERRAIN_SCALE / 2.0));
 		game.triangleMeshes.push_back(triangleMesh);
 
-		unsigned char *meshData = generateMeshDataFromTriangleMesh(triangleMesh);
+		unsigned char *meshData = generateMeshDataFromTriangleMesh(triangleMesh, NULL);
 
 		Model model;
 
@@ -468,81 +484,6 @@ void Engine_start(){
 			}
 		}
 
-		/*
-		for(int i = 0; i < N_GRASS; i++){
-
-			Vec2f mapPos = getVec2f(
-				floor(i / (int)(sqrt(N_GRASS))),
-				floor(i % (int)(sqrt(N_GRASS)))
-			);
-
-			mapPos.x += getRandom() * 0.5;
-			mapPos.y += getRandom() * 0.5;
-
-			//Vec2f_mulByFloat(&mapPos, TERRAIN_SCALE / sqrt(N_GRASS));
-
-			Vec3f rayOrigin = getVec3f(mapPos.x / sqrt(N_GRASS), 10.0, mapPos.y / sqrt(N_GRASS));
-			Vec3f rayDirection = getVec3f(0.0, -1.0, 0.0);
-			Vec3f_normalize(&rayDirection);
-
-			//Vec3f_log(rayOrigin);
-
-			Vec3f intersectionPoint;
-			bool hit = false;
-
-			//printf("test\n");
-
-			{
-
-				bool somethingHit = false;
-				bool hasTriangle = false;
-
-				for(int j = 0; j < terrainTriangleMesh_p->n_triangles; j++){
-
-					Vec3f p1 = terrainTriangleMesh_p->triangles[j * 3 + 0];
-					Vec3f p2 = terrainTriangleMesh_p->triangles[j * 3 + 1];
-					Vec3f p3 = terrainTriangleMesh_p->triangles[j * 3 + 2];
-
-					float east = fmin(fmin(p1.x, p2.x), p3.x);
-					float west = fmax(fmax(p1.x, p2.x), p3.x);
-					float north = fmin(fmin(p1.z, p2.z), p3.z);
-					float south = fmax(fmax(p1.z, p2.z), p3.z);
-
-					if(rayOrigin.x > east && rayOrigin.x < west
-					&& rayOrigin.z > north && rayOrigin.z < south){
-
-						Vec3f checkIntersectionPoint;
-						bool checkHit = checkLineToTriangleIntersectionVec3f(rayOrigin, getAddVec3f(rayOrigin, rayDirection), p1, p2, p3, &checkIntersectionPoint);
-
-						if(checkHit){
-							intersectionPoint = checkIntersectionPoint;
-							hit = true;
-						}
-
-					}
-
-				}
-
-			}
-
-			//Vec4f pos = getVec4f(mapPos.x, 5.0, mapPos.y, 0.0);
-			Vec4f pos = getVec4f(intersectionPoint.x * TERRAIN_SCALE, intersectionPoint.y * TERRAIN_SCALE + 0.5, intersectionPoint.z * TERRAIN_SCALE, 0.0);
-
-			//pos.w
-			pos.w = getRandom() * M_PI;
-
-			if(hit){
-				grassPositions.push_back(pos);
-			}
-
-		}
-
-		//DANGEROUS!!!
-		N_GRASS = grassPositions.size();
-
-		TextureBuffer_init(&grassPositionsTextureBuffer, &grassPositions[0], sizeof(Vec4f) * N_GRASS, TYPE_F32);
-		*/
-
 	}
 
 	Engine_setWindowSize(WIDTH / 2, HEIGHT / 2);
@@ -550,69 +491,6 @@ void Engine_start(){
 	Engine_centerWindow();
 
 	Engine_setFPSMode(true);
-
-	{
-		BoneModel model;
-
-		BoneModel_initFromFile(&model, "assets/models/dude-bones.bonemesh", "assets/models/dude-bones.bones");
-
-		String_set(model.name, "dude", STRING_SIZE);
-
-		game.boneModels.push_back(model);
-	}
-	{
-		BoneModel model;
-
-		BoneModel_initFromFile(&model, "assets/models/dude-bones.bonemesh", "assets/models/dude-bones2.bones");
-
-		String_set(model.name, "dude", STRING_SIZE);
-
-		game.boneModels.push_back(model);
-	}
-
-	{
-		Model model;
-
-		Model_initFromFile_mesh(&model, "assets/models/quad.mesh");
-
-		String_set(model.name, "quad", STRING_SIZE);
-
-		game.models.push_back(model);
-	}
-	{
-		Model model;
-
-		Model_initFromFile_mesh(&model, "assets/models/cube.mesh");
-
-		String_set(model.name, "cube", STRING_SIZE);
-
-		game.models.push_back(model);
-	}
-
-	{
-		Texture texture;
-		Texture_initFromFile(&texture, "assets/textures/blank.png", "blank");
-		game.textures.push_back(texture);
-	}
-	{
-		Texture texture;
-		Texture_initFromFile(&texture, "assets/textures/grass.png", "grass");
-		game.textures.push_back(texture);
-	}
-	{
-		Texture texture;
-		Texture_initFromFile(&texture, "assets/textures/leaves.png", "leaves");
-		game.textures.push_back(texture);
-	}
-	{
-		TriangleMesh triangleMesh;
-
-		TriangleMesh_initFromFile_mesh(&triangleMesh, "assets/models/cube.mesh");
-
-		String_set(triangleMesh.name, "cube", STRING_SIZE);
-
-		game.triangleMeshes.push_back(triangleMesh);
-	}
 
 	//OpenGL stuff
 	glEnable(GL_BLEND);
@@ -625,66 +503,6 @@ void Engine_start(){
 
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
-
-	//compile shaders
-	{
-		unsigned int vertexShader = getCompiledShader("shaders/vertex-shader.glsl", GL_VERTEX_SHADER);
-		unsigned int fragmentShader = getCompiledShader("shaders/fragment-shader.glsl", GL_FRAGMENT_SHADER);
-
-		unsigned int shaderProgram = glCreateProgram();
-		glAttachShader(shaderProgram, vertexShader);
-		glAttachShader(shaderProgram, fragmentShader);
-		glLinkProgram(shaderProgram);
-
-		modelShader = shaderProgram;
-	}
-	{
-		unsigned int vertexShader = getCompiledShader("shaders/bone-model-vertex-shader.glsl", GL_VERTEX_SHADER);
-		unsigned int fragmentShader = getCompiledShader("shaders/bone-model-fragment-shader.glsl", GL_FRAGMENT_SHADER);
-
-		unsigned int shaderProgram = glCreateProgram();
-		glAttachShader(shaderProgram, vertexShader);
-		glAttachShader(shaderProgram, fragmentShader);
-		glLinkProgram(shaderProgram);
-
-		boneModelShader = shaderProgram;
-	}
-
-	/*
-	{
-		unsigned int vertexShader = getCompiledShader("shaders/shadow-map-vertex-shader.glsl", GL_VERTEX_SHADER);
-		unsigned int fragmentShader = getCompiledShader("shaders/shadow-map-fragment-shader.glsl", GL_FRAGMENT_SHADER);
-
-		unsigned int shaderProgram = glCreateProgram();
-		glAttachShader(shaderProgram, vertexShader);
-		glAttachShader(shaderProgram, fragmentShader);
-		glLinkProgram(shaderProgram);
-
-		shadowMapShader = shaderProgram;
-	}
-	*/
-	{
-		unsigned int vertexShader = getCompiledShader("shaders/grass-vertex-shader.glsl", GL_VERTEX_SHADER);
-		unsigned int fragmentShader = getCompiledShader("shaders/grass-fragment-shader.glsl", GL_FRAGMENT_SHADER);
-
-		unsigned int shaderProgram = glCreateProgram();
-		glAttachShader(shaderProgram, vertexShader);
-		glAttachShader(shaderProgram, fragmentShader);
-		glLinkProgram(shaderProgram);
-
-		grassShader = shaderProgram;
-	}
-	{
-		unsigned int vertexShader = getCompiledShader("shaders/leaf-vertex-shader.glsl", GL_VERTEX_SHADER);
-		unsigned int fragmentShader = getCompiledShader("shaders/leaf-fragment-shader.glsl", GL_FRAGMENT_SHADER);
-
-		unsigned int shaderProgram = glCreateProgram();
-		glAttachShader(shaderProgram, vertexShader);
-		glAttachShader(shaderProgram, fragmentShader);
-		glLinkProgram(shaderProgram);
-
-		leafShader = shaderProgram;
-	}
 
 	//generate shadow map depth texture
 	Texture_initAsDepthMap(&shadowMapDepthTexture, SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT);
@@ -706,6 +524,7 @@ void Engine_start(){
 		obstacle.pos = getVec3f(30.0, 2.0, 20.0);
 		obstacle.scale = 2.0;
 		obstacle.modelIndex = Game_getModelIndexByName(&game, "cube");
+		obstacle.textureIndex = Game_getTextureIndexByName(&game, "blank");
 		obstacle.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "cube");
 		obstacle.color = getVec4f(0.7, 0.7, 0.7, 1.0);
 
@@ -716,6 +535,7 @@ void Engine_start(){
 		obstacle.pos = getVec3f(0.0, 0.0, 0.0);
 		obstacle.scale = TERRAIN_SCALE;
 		obstacle.modelIndex = Game_getModelIndexByName(&game, "terrain");
+		obstacle.textureIndex = Game_getTextureIndexByName(&game, "blank");
 		obstacle.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "terrain");
 		obstacle.color = TERRAIN_COLOR;
 
@@ -726,8 +546,9 @@ void Engine_start(){
 		obstacle.pos = treePos;
 		obstacle.scale = TREE_SCALE;
 		obstacle.modelIndex = Game_getModelIndexByName(&game, "tree");
+		obstacle.textureIndex = Game_getTextureIndexByName(&game, "bark");
 		obstacle.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "tree");
-		obstacle.color = getVec4f(0.7, 0.7, 0.7, 1.0);
+		obstacle.color = getVec4f(1.0, 1.0, 1.0, 1.0);
 
 		game.obstacles.push_back(obstacle);
 	}
@@ -1255,14 +1076,15 @@ void Engine_draw(){
 				Vec3f boundingBoxCenter = boundingBox_p->pos + boundingBox_p->size / 2.0;
 				float distanceToCamera = getMagVec2f(getVec2f(cameraPos.x, cameraPos.y) - getVec2f(boundingBoxCenter.x, boundingBoxCenter.y));
 
-				float LODDistance1 = 20.0;
+				//float LODDistance1 = 20.0;
+				float LODDistance1 = 15.0;
 
 				drawnCells++;
 
 				Vec3f pos = getVec3f(0.0, 4.0, 0.0);
 				float scale = 1.0;
 
-				unsigned int currentShaderProgram = grassShader;
+				unsigned int currentShaderProgram = game.grassShader;
 
 				glUseProgram(currentShaderProgram);
 
@@ -1289,11 +1111,20 @@ void Engine_draw(){
 				float rotation = 0.0;
 
 				if(distanceToCamera > LODDistance1){
-					Vec3f up = getVec3f(0.0, 1.0, 0.0);
-					Vec3f cameraRight = normalize(cross(cameraDirection, up));
-					Vec3f right = getVec3f(1.0, 0.0, 0.0);
-					rotation = acos(dot(cameraRight, right)) * sign(dot(cameraDirection, right));
+
+					rotation = atan2(cameraDirection.z, cameraDirection.x) + M_PI / 2.0;
+
+					if(rotation > M_PI){
+						rotation -= M_PI;
+					}
+					if(rotation < 0.0){
+						rotation += M_PI;
+					}
+
+					rotation = round(rotation / (M_PI / 3.0)) * M_PI / 3.0;
+
 				}
+
 
 				GL3D_uniformFloat(currentShaderProgram, "rotation", rotation);
 
@@ -1330,16 +1161,19 @@ void Engine_draw(){
 
 			modelMatrix *= getTranslationMat4f(obstacle_p->pos);
 
-			unsigned int currentShaderProgram = modelShader;
+			unsigned int currentShaderProgram = game.modelShader;
 
 			glUseProgram(currentShaderProgram);
 			
 			Model *model_p = &game.models[obstacle_p->modelIndex];
 
+			Texture *texture_p = &game.textures[obstacle_p->textureIndex];
+
 			glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
 			glBindVertexArray(model_p->VAO);
 
-			GL3D_uniformTexture(currentShaderProgram, "shadowMapTexture", 0, shadowMapDepthTexture.ID);
+			GL3D_uniformTexture(currentShaderProgram, "colorTexture", 0, texture_p->ID);
+			GL3D_uniformTexture(currentShaderProgram, "shadowMapTexture", 1, shadowMapDepthTexture.ID);
 
 			GL3D_uniformMat4f(currentShaderProgram, "modelMatrix", modelMatrix);
 			GL3D_uniformMat4f(currentShaderProgram, "perspectiveMatrix", perspectiveMatrix);
@@ -1367,7 +1201,7 @@ void Engine_draw(){
 
 			modelMatrix *= getTranslationMat4f(player_p->pos);
 
-			unsigned int currentShaderProgram = modelShader;
+			unsigned int currentShaderProgram = game.modelShader;
 
 			glUseProgram(currentShaderProgram);
 			
@@ -1412,7 +1246,7 @@ void Engine_draw(){
 
 			modelMatrix *= getTranslationMat4f(pos);
 
-			unsigned int currentShaderProgram = boneModelShader;
+			unsigned int currentShaderProgram = game.boneModelShader;
 
 			glUseProgram(currentShaderProgram);
 
@@ -1437,7 +1271,7 @@ void Engine_draw(){
 		{
 			glDisable(GL_CULL_FACE);
 
-			unsigned int currentShaderProgram = leafShader;
+			unsigned int currentShaderProgram = game.leafShader;
 
 			glUseProgram(currentShaderProgram);
 
@@ -1484,7 +1318,7 @@ void Engine_draw(){
 
 				modelMatrix *= getTranslationMat4f(boundingBox_p->pos);
 
-				unsigned int currentShaderProgram = modelShader;
+				unsigned int currentShaderProgram = game.modelShader;
 
 				glUseProgram(currentShaderProgram);
 				
@@ -1519,7 +1353,7 @@ void Engine_draw(){
 
 			modelMatrix *= getTranslationMat4f(cameraPos);
 
-			unsigned int currentShaderProgram = modelShader;
+			unsigned int currentShaderProgram = game.modelShader;
 
 			glUseProgram(currentShaderProgram);
 			
