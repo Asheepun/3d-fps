@@ -1,18 +1,31 @@
 #version 330 core
 
-in vec4 input_fragmentPosition;
-in vec4 input_fragmentNormal;
+in vec2 input_texturePosition;
+in float input_depth;
+in float input_shadowDepth;
+in vec2 input_shadowMapPosition;
 
-uniform mat4 cameraMatrix;
+out vec4 FragColor;
+
+uniform sampler2D colorTexture;
+
+uniform float shadowStrength;
 
 void main(){
 
-	vec3 cameraRelativeFragmentPosition = (input_fragmentPosition * cameraMatrix).xyz;
+	float alpha = texture2D(colorTexture, input_texturePosition).a;
 
-	float fragmentDepth = cameraRelativeFragmentPosition.z / 100.0;
+	if(alpha < 0.001){
+		discard;
+	}
 
-	gl_FragColor = vec4(fragmentDepth, fragmentDepth, fragmentDepth, 1.0);
+	//float depth = input_depth + float(alpha < 0.001);
+	float depth = input_depth;
+	
+	FragColor = vec4(shadowStrength, shadowStrength, shadowStrength, depth);
+	//FragColor = vec4(0.0, 0.0, 0.0, 0.0);
 
-	gl_FragDepth = fragmentDepth;
+	//gl_FragDepth = 0.0;
+	gl_FragDepth = depth;
 
-} 
+}

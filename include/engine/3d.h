@@ -47,6 +47,11 @@ typedef struct Texture{
 	unsigned int ID;
 }Texture;
 
+struct Shader{
+	char name[STRING_SIZE];
+	unsigned int ID;
+};
+
 struct TextureAtlas{
 	std::vector<SmallString> names;
 	std::vector<Vec4f> textureCoordinates;
@@ -108,6 +113,8 @@ void TextureBuffer_initAsVec4fArray(TextureBuffer *, Vec4f *, int);
 void TextureBuffer_initAsMat4fArray(TextureBuffer *, Mat4f *, int, bool);
 
 void TextureBuffer_free(TextureBuffer *);
+
+void Shader_init(Shader *, const char *, const char *, const char *);
 
 void GL3D_uniformMat4f(unsigned int, const char *, Mat4f);
 

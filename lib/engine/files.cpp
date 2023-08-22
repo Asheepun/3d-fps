@@ -7,8 +7,13 @@
 char *getFileData_mustFree(const char *path, long int *fileSizeOut){
 
 	//printf("\nIN FILE READ\n");
-
 	FILE *fileHandle = fopen(path, "rb");
+
+	if(fileHandle == NULL){
+		printf("COULD NOT READ FILE: %s\n", path);
+		return NULL;
+	}
+
 	fseek(fileHandle, 0, SEEK_END);
 	long fileSize = ftell(fileHandle);
 	fseek(fileHandle, 0, SEEK_SET);
@@ -20,6 +25,7 @@ char *getFileData_mustFree(const char *path, long int *fileSizeOut){
 	data[fileSize] = 0;
 
 	*fileSizeOut = fileSize;
+
 
 	return data;
 

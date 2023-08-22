@@ -139,6 +139,20 @@ int Game_getTriangleMeshIndexByName(Game *game_p, const char *name){
 
 }
 
+int Game_getShaderIndexByName(Game *game_p, const char *name){
+
+	for(int i = 0; i < game_p->shaders.size(); i++){
+		if(strcmp(game_p->shaders[i].name, name) == 0){
+			return i;
+		}
+	}
+
+	printf("COULD NOT FIND SHADER: %s\n", name);
+
+	return -1;
+
+}
+
 Model *Game_getModelPointerByName(Game *game_p, const char *name){
 
 	int index = Game_getModelIndexByName(game_p, name);
@@ -172,5 +186,17 @@ TriangleMesh *Game_getTriangleMeshPointerByName(Game *game_p, const char *name){
 	}
 
 	return &game_p->triangleMeshes[index];
+
+}
+
+Shader *Game_getShaderPointerByName(Game *game_p, const char *name){
+
+	int index = Game_getShaderIndexByName(game_p, name);
+
+	if(index == -1){
+		return NULL;
+	}
+
+	return &game_p->shaders[index];
 
 }

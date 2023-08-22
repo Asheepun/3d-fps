@@ -117,48 +117,43 @@ void Game_loadAssets(Game *game_p){
 
 	//load shaders
 	{
-		unsigned int vertexShader = getCompiledShader("shaders/vertex-shader.glsl", GL_VERTEX_SHADER);
-		unsigned int fragmentShader = getCompiledShader("shaders/fragment-shader.glsl", GL_FRAGMENT_SHADER);
+		const char *names[] = {
 
-		unsigned int shaderProgram = glCreateProgram();
-		glAttachShader(shaderProgram, vertexShader);
-		glAttachShader(shaderProgram, fragmentShader);
-		glLinkProgram(shaderProgram);
+			"model", "vertex-shader", "fragment-shader",
+			"model-shadow", "vertex-shader", "shadow-map-fragment-shader",
 
-		game_p->modelShader = shaderProgram;
-	}
-	{
-		unsigned int vertexShader = getCompiledShader("shaders/bone-model-vertex-shader.glsl", GL_VERTEX_SHADER);
-		unsigned int fragmentShader = getCompiledShader("shaders/bone-model-fragment-shader.glsl", GL_FRAGMENT_SHADER);
+			"bone", "bone-model-vertex-shader", "bone-model-fragment-shader",
+			"bone-shadow", "bone-model-vertex-shader", "shadow-map-fragment-shader",
 
-		unsigned int shaderProgram = glCreateProgram();
-		glAttachShader(shaderProgram, vertexShader);
-		glAttachShader(shaderProgram, fragmentShader);
-		glLinkProgram(shaderProgram);
+			"grass", "grass-vertex-shader", "grass-fragment-shader",
+			"grass-shadow", "grass-vertex-shader", "shadow-map-fragment-shader",
 
-		game_p->boneModelShader = shaderProgram;
-	}
-	{
-		unsigned int vertexShader = getCompiledShader("shaders/grass-vertex-shader.glsl", GL_VERTEX_SHADER);
-		unsigned int fragmentShader = getCompiledShader("shaders/grass-fragment-shader.glsl", GL_FRAGMENT_SHADER);
+			"leaf", "leaf-vertex-shader", "leaf-fragment-shader",
+			"leaf-shadow", "leaf-vertex-shader", "shadow-map-fragment-shader",
 
-		unsigned int shaderProgram = glCreateProgram();
-		glAttachShader(shaderProgram, vertexShader);
-		glAttachShader(shaderProgram, fragmentShader);
-		glLinkProgram(shaderProgram);
+		};
 
-		game_p->grassShader = shaderProgram;
-	}
-	{
-		unsigned int vertexShader = getCompiledShader("shaders/leaf-vertex-shader.glsl", GL_VERTEX_SHADER);
-		unsigned int fragmentShader = getCompiledShader("shaders/leaf-fragment-shader.glsl", GL_FRAGMENT_SHADER);
+		int n_names = (sizeof(names) / sizeof(char *)) / 3;
 
-		unsigned int shaderProgram = glCreateProgram();
-		glAttachShader(shaderProgram, vertexShader);
-		glAttachShader(shaderProgram, fragmentShader);
-		glLinkProgram(shaderProgram);
+		for(int i = 0; i < n_names; i++){
+			
+			Shader shader;
 
-		game_p->leafShader = shaderProgram;
+			char vertexShaderPath[STRING_SIZE];
+			String_set(vertexShaderPath, "shaders/", STRING_SIZE);
+			String_append(vertexShaderPath, names[i * 3 + 1]);
+			String_append(vertexShaderPath, ".glsl");
+
+			char fragmentShaderPath[STRING_SIZE];
+			String_set(fragmentShaderPath, "shaders/", STRING_SIZE);
+			String_append(fragmentShaderPath, names[i * 3 + 2]);
+			String_append(fragmentShaderPath, ".glsl");
+
+			Shader_init(&shader, names[i * 3 + 0], vertexShaderPath, fragmentShaderPath);
+
+			game_p->shaders.push_back(shader);
+
+		}
 	}
 
 }

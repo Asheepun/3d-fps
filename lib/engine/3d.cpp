@@ -1,6 +1,7 @@
 #include "engine/geometry.h"
 #include "engine/files.h"
 #include "engine/3d.h"
+#include "engine/shaders.h"
 
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
@@ -385,6 +386,7 @@ void Texture_initAsDepthMap(Texture *texture_p, int width, int height){
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
 	Vec4f borderColor = getVec4f(1.0, 1.0, 1.0, 1.0);
 	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, (float *)&borderColor);
 
@@ -394,11 +396,15 @@ void Texture_initAsColorMap(Texture *texture_p, int width, int height){
 
 	glGenTextures(1, &texture_p->ID);
 	glBindTexture(GL_TEXTURE_2D, texture_p->ID);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+	Vec4f borderColor = getVec4f(1.0, 1.0, 1.0, 1.0);
+	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, (float *)&borderColor);
 
 }
 
@@ -552,6 +558,20 @@ void TextureBuffer_free(TextureBuffer *textureBuffer_p){
 	
 	glDeleteBuffers(1, &textureBuffer_p->VBO);
 	glDeleteTextures(1, &textureBuffer_p->TB);
+
+}
+
+void Shader_init(Shader *shader_p, const char *name, const char *vertexShaderPath, const char *fragmentShaderPath){
+
+	unsigned int vertexShader = getCompiledShader(vertexShaderPath, GL_VERTEX_SHADER);
+	unsigned int fragmentShader = getCompiledShader(fragmentShaderPath, GL_FRAGMENT_SHADER);
+
+	shader_p->ID = glCreateProgram();
+	glAttachShader(shader_p->ID, vertexShader);
+	glAttachShader(shader_p->ID, fragmentShader);
+	glLinkProgram(shader_p->ID);
+
+	String_set(shader_p->name, name, STRING_SIZE);
 
 }
 

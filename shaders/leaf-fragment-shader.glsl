@@ -16,7 +16,8 @@ uniform mat4 lightPerspectiveMatrix;
 
 uniform sampler2D colorTexture;
 uniform samplerBuffer modelTransformationsBuffer;
-uniform sampler2D shadowMapTexture;
+uniform sampler2D shadowMapDepthTexture;
+uniform sampler2D shadowMapDataTexture;
 
 float ambientLightFactor = 0.3;
 float diffuseLightFactor = 0.7;
@@ -25,22 +26,32 @@ vec3 lightDirection = vec3(0.7, -1.0, 0.5);
 
 void main(){
 
+	FragColor = texture2D(colorTexture, input_texturePosition);
+
+	if(FragColor.w < 0.001){
+		discard;
+	}
+
 	vec3 fragmentPosition = (input_fragmentPosition).xyz;
 	vec3 fragmentNormal = (input_fragmentNormal).xyz;
-	//vec3 cameraRelativeFragmentPosition = (input_fragmentPosition * cameraMatrix).xyz;
-	//vec4 lightRelativeFragmentPosition = input_fragmentPosition * lightCameraMatrix;
-	//vec2 shadowMapFragmentPosition = (lightRelativeFragmentPosition * lightPerspectiveMatrix).xy;
 
-	//float fragmentShadowDepth = lightRelativeFragmentPosition.z / 100.0;
-	float shadowMapDepth = texture2D(shadowMapTexture, input_shadowMapPosition).r;
-	float shadowDepthDiff = input_shadowDepth - shadowMapDepth;
+	float shadowMapDepth = texture2D(shadowMapDepthTexture, input_shadowMapPosition).r;
+	//vec4 shadowMapData = texture2D(shadowMapDataTexture, input_shadowMapPosition);
+	//float transparentShadowDepth = shadowMapData.a;
+	//float transparentShadowStrength = shadowMapData.r;
 
-	//float leafTolerance = 0.01;
 	float shadowDepthTolerance = 0.0005;
-	bool inShadow = shadowDepthDiff > shadowDepthTolerance;
+	float shadowDepthDiff = input_shadowDepth - shadowMapDepth;
+	//float shadowFactor = min(
+		//float(input_shadowDepth - shadowMapDepth < shadowDepthTolerance),
+		//max(float(input_shadowDepth - transparentShadowDepth < shadowDepthTolerance), 1.0 - transparentShadowStrength)
+	//);
+	float shadowFactor = min(
+		float(shadowDepthDiff < shadowDepthTolerance) + max(0.0, 0.5 - 10.0 * (shadowDepthDiff)),
+		1.0
+	);
 
 	//FragColor = inputColor;
-	FragColor = texture2D(colorTexture, input_texturePosition);
 
 	//float diffuseLight = max(dot(-lightDirection, fragmentNormal), 0.0);
 
@@ -49,6 +60,9 @@ void main(){
 
 	float totalLightFactor = ambientLightFactor;
 
+	totalLightFactor += diffuseLight * diffuseLightFactor * shadowFactor;
+
+	/*
 	if(!inShadow){
 		totalLightFactor += diffuseLight * diffuseLightFactor;
 	}
@@ -57,10 +71,12 @@ void main(){
 	if(inShadow){
 		totalLightFactor += diffuseLightFactor * max(0.0, 0.5 - 10.0 * (shadowDepthDiff));
 	}
+	*/
 
 	FragColor.xyz *= totalLightFactor;
 
-	gl_FragDepth = input_depth + float(FragColor.w < 0.001);
+	gl_FragDepth = input_depth;
+	//gl_FragDepth = input_depth + fl;
 
 } 
 

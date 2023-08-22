@@ -65,6 +65,7 @@ struct Game{
 	std::vector<BoneModel> boneModels;
 	std::vector<Texture> textures;
 	std::vector<TriangleMesh> triangleMeshes;
+	std::vector<Shader> shaders;
 
 	std::vector<Box> boundingBoxes;
 	std::vector<bool> boundingBoxesCulled;
@@ -75,11 +76,6 @@ struct Game{
 	std::vector<Inputs> inputsBuffer;
 
 	int connectionID;
-
-	unsigned int modelShader;
-	unsigned int boneModelShader;
-	unsigned int grassShader;
-	unsigned int leafShader;
 
 };
 
@@ -111,10 +107,12 @@ TriangleMesh generateTerrainTriangleMesh(int, float);
 int Game_getModelIndexByName(Game *, const char *);
 int Game_getTextureIndexByName(Game *, const char *);
 int Game_getTriangleMeshIndexByName(Game *, const char *);
+int Game_getShaderIndexByName(Game *, const char *);
 
 Model *Game_getModelPointerByName(Game *, const char *);
 Texture *Game_getTexturePointerByName(Game *, const char *);
 TriangleMesh *Game_getTriangleMeshPointerByName(Game *, const char *);
+Shader *Game_getShaderPointerByName(Game *, const char *);
 
 void Game_initClient(Game *);
 void Game_sendInputsToServer(Game *, Inputs);
