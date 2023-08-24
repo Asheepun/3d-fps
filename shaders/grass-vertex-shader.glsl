@@ -8,7 +8,9 @@ out vec2 input_texturePosition;
 //out vec4 input_fragmentNormal;
 out float input_depth;
 out float input_shadowDepth;
+out float input_bigShadowDepth;
 out vec2 input_shadowMapPosition;
+out vec2 input_bigShadowMapPosition;
 
 uniform sampler2D colorTexture;
 uniform samplerBuffer grassPositions;
@@ -18,6 +20,8 @@ uniform mat4 perspectiveMatrix;
 uniform mat4 cameraMatrix;
 uniform mat4 lightCameraMatrix;
 uniform mat4 lightPerspectiveMatrix;
+uniform mat4 bigLightCameraMatrix;
+uniform mat4 bigLightPerspectiveMatrix;
 
 uniform float rotation;
 
@@ -55,6 +59,12 @@ void main(){
 
 	input_shadowDepth = lightRelativeVertexPosition.z / 100.0;
 	input_shadowMapPosition = (vec2(1.0, 1.0) + shadowMapVertexPosition) / 2.0;
+
+	vec4 bigLightRelativeVertexPosition = vertexPosition * bigLightCameraMatrix;
+	vec2 bigShadowMapVertexPosition = (bigLightRelativeVertexPosition * bigLightPerspectiveMatrix).xy;
+
+	input_bigShadowDepth = bigLightRelativeVertexPosition.z / 100.0;
+	input_bigShadowMapPosition = (vec2(1.0, 1.0) + bigShadowMapVertexPosition) / 2.0;
 
 	vertexPosition *= cameraMatrix;
 

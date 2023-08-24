@@ -15,6 +15,14 @@
 
 #define RUN_OFFLINE
 
+enum RenderStages{
+	RENDER_STAGE_BIG_SHADOWS,
+	RENDER_STAGE_SHADOWS,
+	RENDER_STAGE_GRASS_SHADOWS,
+	RENDER_STAGE_SCENE,
+	N_RENDER_STAGES,
+};
+
 struct Box{
 	Vec3f pos;
 	Vec3f size;
@@ -51,6 +59,11 @@ struct Player{
 	int connectionID;
 };
 
+struct Tree{
+	float scale;
+	TextureBuffer leafTransformationsTextureBuffer;
+};
+
 struct Game{
 
 	Player player;
@@ -60,6 +73,7 @@ struct Game{
 	std::vector<Bullet> bullets;
 	std::vector<Obstacle> obstacles;
 	std::vector<Particle> particles;
+	std::vector<Tree> trees;
 
 	std::vector<Model> models;
 	std::vector<BoneModel> boneModels;
@@ -100,9 +114,7 @@ static float PLAYER_SPEED = 0.075;
 
 //FUNCTION_DEFINITIONS
 
-void Game_simulateInputsOnClient(Game *, Inputs);
-
-TriangleMesh generateTerrainTriangleMesh(int, float);
+//FILE: world.cpp
 
 int Game_getModelIndexByName(Game *, const char *);
 int Game_getTextureIndexByName(Game *, const char *);
@@ -114,6 +126,8 @@ Texture *Game_getTexturePointerByName(Game *, const char *);
 TriangleMesh *Game_getTriangleMeshPointerByName(Game *, const char *);
 Shader *Game_getShaderPointerByName(Game *, const char *);
 
+//FILE: client.cpp
+
 void Game_initClient(Game *);
 void Game_sendInputsToServer(Game *, Inputs);
 void *receiveServerMessages(void *);
@@ -121,5 +135,13 @@ void *receiveServerMessages(void *);
 //FILE: assets.cpp
 
 void Game_loadAssets(Game *);
+
+//FILE: trees.cpp
+
+void Game_addTree(Game *, Vec3f);
+
+//FILE: terrain.cpp
+
+TriangleMesh generateTerrainTriangleMesh(int, float);
 
 #endif

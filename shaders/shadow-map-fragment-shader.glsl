@@ -22,7 +22,8 @@ void main(){
 	//float depth = input_depth + float(alpha < 0.001);
 	float depth = input_depth;
 	
-	FragColor = vec4(shadowStrength, shadowStrength, shadowStrength, depth);
+	FragColor = vec4(depth, depth, depth, depth);
+	//FragColor = vec4(depth, depth, depth, depth);
 	//FragColor = vec4(0.0, 0.0, 0.0, 0.0);
 
 	//gl_FragDepth = 0.0;

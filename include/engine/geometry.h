@@ -349,6 +349,8 @@ Vec3f cross(Vec3f, Vec3f);
 
 Vec4f getQuaternion(Vec3f, float);
 
+Vec3f getRotatedVec3f(Vec3f, Vec3f, float);
+
 //MATRIX FUNCTIONS
 
 void plog(Mat4f);

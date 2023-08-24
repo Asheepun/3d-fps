@@ -690,6 +690,16 @@ Vec4f getQuaternion(Vec3f axis, float angle){
 
 }
 
+Vec3f getRotatedVec3f(Vec3f v, Vec3f axis, float angle){
+
+	Vec4f v4 = getVec4f(v.x, v.y, v.z, 1.0);
+
+	Vec4f_mulByMat4f(&v4, getQuaternionMat4f(getQuaternion(axis, angle)));
+
+	return getVec3f(v4.x, v4.y, v4.z);
+
+}
+
 //MATRIX FUNCTIONS
 
 float det(Mat2f m){

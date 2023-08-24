@@ -11,16 +11,8 @@
 #include <cstring>
 #include <vector>
 
-struct TreeNode{
-	int parent;
-	Vec3f pos;
-	float radius;
-};
-
-std::vector<Mat4f> leafTransformations;
 Vec3f treePos = { 10.0, 0.0, 15.0 };
 TextureBuffer leafTransformationsTextureBuffer;
-float TREE_SCALE = 1.5;
 
 float gameTime = 0.0;
 
@@ -40,12 +32,21 @@ int grassBoundingBoxIndices[GRASS_GRID_WIDTH * GRASS_GRID_WIDTH];
 int WIDTH = 1920;
 int HEIGHT = 1080;
 
+float GRASS_SHADOW_STRENGTH = 0.3;
+
 unsigned int shadowMapFBO;
 Texture shadowMapDepthTexture;
 Texture shadowMapDataTexture;
 int SHADOW_MAP_WIDTH = 1000;
 int SHADOW_MAP_HEIGHT = 1000;
 float shadowMapScale = 10.0;
+
+unsigned int bigShadowMapFBO;
+Texture bigShadowMapDepthTexture;
+int BIG_SHADOW_MAP_WIDTH = 1000;
+int BIG_SHADOW_MAP_HEIGHT = 1000;
+float bigShadowMapScale = 70.0;
+
 
 Vec3f lightPos = { 0.0, 20.0, 0.0 };
 Vec3f lightDirection = { 0.7, -1.0, 0.5 };
@@ -62,320 +63,6 @@ void Engine_start(){
 #endif
 
 	Game_loadAssets(&game);
-
-	//generate tree
-	{
-		setRandomSeed(1);
-
-		std::vector<TreeNode> nodes;
-
-		//main branch
-		{
-			TreeNode node;
-			node.parent = -1;
-			node.pos = getVec3f(0.0, 0.0, 0.0);
-			node.radius = 0.4;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = 0;
-			node.pos = getVec3f(0.0, 2.0, 0.0);
-			node.radius = 0.3;
-			nodes.push_back(node);
-		
-		}
-		{
-			TreeNode node;
-			node.parent = 1;
-			node.pos = getVec3f(0.0, 1.0, 0.3);
-			node.radius = 0.3;
-			nodes.push_back(node);
-		
-		}
-		{
-			TreeNode node;
-			node.parent = 2;
-			node.pos = getVec3f(-0.2, 1.5, 1.0);
-			node.radius = 0.2;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = 3;
-			node.pos = getVec3f(0.0, 1.0, 0.0);
-			node.radius = 0.1;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = 4;
-			node.pos = getVec3f(-1.0, 1.5, 0.0);
-			node.radius = 0.05;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = 5;
-			node.pos = getVec3f(-0.1, 1.0, 0.0);
-			node.radius = 0.0;
-			nodes.push_back(node);
-		}
-
-		//second branch
-		{
-			TreeNode node;
-			node.parent = 1;
-			node.pos = getVec3f(0.0, 1.0, -1.0);
-			node.radius = 0.2;
-			nodes.push_back(node);
-		}
-		int secondBranchIndex = nodes.size() - 1;
-		{
-			TreeNode node;
-			node.parent = secondBranchIndex;
-			node.pos = getVec3f(-0.5, 0.7, -0.7);
-			node.radius = 0.1;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = nodes.size() - 1;
-			node.pos = getVec3f(-0.3, 1.0, -0.3);
-			node.radius = 0.05;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = nodes.size() - 1;
-			node.pos = getVec3f(-0.1, 1.0, -0.1);
-			node.radius = 0.0;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = secondBranchIndex;
-			node.pos = getVec3f(0.5, 0.7, -0.7);
-			node.radius = 0.1;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = nodes.size() - 1;
-			node.pos = getVec3f(0.3, 1.0, -0.3);
-			node.radius = 0.05;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = nodes.size() - 1;
-			node.pos = getVec3f(0.1, 1.0, -0.1);
-			node.radius = 0.0;
-			nodes.push_back(node);
-		}
-
-		//third branch
-		{
-			TreeNode node;
-			node.parent = 2;
-			node.pos = getVec3f(0.7, 0.7, 0.0);
-			node.radius = 0.2;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = nodes.size() - 1;
-			node.pos = getVec3f(0.7, 1.0, 0.0);
-			node.radius = 0.1;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = nodes.size() - 1;
-			node.pos = getVec3f(0.3, 1.0, 0.0);
-			node.radius = 0.05;
-			nodes.push_back(node);
-		}
-		{
-			TreeNode node;
-			node.parent = nodes.size() - 1;
-			node.pos = getVec3f(0.1, 1.0, 0.0);
-			node.radius = 0.0;
-			nodes.push_back(node);
-		}
-
-		//create triangle mesh
-		std::vector<Vec3f> triangles;
-		std::vector<Vec2f> textureCoords;
-
-		for(int i = 0; i < nodes.size(); i++){
-
-			TreeNode *node1_p = &nodes[i];
-
-			for(int j = 0; j < nodes.size(); j++){
-
-				TreeNode *node2_p = &nodes[j];
-
-				if(i == node2_p->parent){
-
-					node2_p->pos += node1_p->pos;
-
-					Vec3f right2 = getVec3f(1.0, 0.0, 0.0);
-					Vec3f forward2 = normalize(cross(right2, node2_p->pos - node1_p->pos));
-					right2 = normalize(cross(forward2, node2_p->pos - node1_p->pos));
-
-					Vec3f right1 = right2;
-					Vec3f forward1 = forward2;
-
-					if(node1_p->parent != -1){
-						TreeNode *node3_p = &nodes[node1_p->parent];
-						right1 = getVec3f(1.0, 0.0, 0.0);
-						forward1 = normalize(cross(right1, node1_p->pos - node3_p->pos));
-						right1 = normalize(cross(forward1, node1_p->pos - node3_p->pos));
-					}
-
-					std::vector<Vec3f> bottomPoints;
-					std::vector<Vec3f> topPoints;
-
-					//float r1 = 0.3;
-					//float r2 = 0.3;
-
-					int edges = 5;
-
-					for(int i = 0; i < edges; i++){
-						float angle = 2.0 * M_PI * ((float)i / float(edges));
-						bottomPoints.push_back(node1_p->pos + right1 * cos(angle) * node1_p->radius + forward1 * sin(angle) * node1_p->radius);
-						topPoints.push_back(node2_p->pos + right2 * cos(angle) * node2_p->radius + forward2 * sin(angle) * node2_p->radius);
-					}
-
-					for(int i = 0; i < edges; i++){
-						
-						Vec3f p1 = bottomPoints[i % edges];
-						Vec3f p2 = bottomPoints[(i + 1) % edges];
-						Vec3f p3 = topPoints[i % edges];
-						Vec3f p4 = topPoints[(i + 1) % edges];
-
-						triangles.push_back(p1);
-						triangles.push_back(p2);
-						triangles.push_back(p3);
-
-						triangles.push_back(p3);
-						triangles.push_back(p2);
-						triangles.push_back(p4);
-
-						Vec2f t1 = getVec2f((float)(i % edges) / (float)edges, 0.0);
-						Vec2f t2 = getVec2f((float)((i + 1) % edges) / (float)edges, 0.0);
-						Vec2f t3 = getVec2f((float)(i % edges) / (float)edges, 1.0);
-						Vec2f t4 = getVec2f((float)((i + 1) % edges) / (float)edges, 1.0);
-
-						textureCoords.push_back(t1);
-						textureCoords.push_back(t2);
-						textureCoords.push_back(t3);
-
-						textureCoords.push_back(t3);
-						textureCoords.push_back(t2);
-						textureCoords.push_back(t4);
-
-					}
-					
-				}
-
-			}
-			
-		}
-
-		TriangleMesh triangleMesh;
-
-		String_set(triangleMesh.name, "tree", STRING_SIZE);
-
-		triangleMesh.n_triangles = triangles.size() / 3;
-		triangleMesh.triangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * triangleMesh.n_triangles);
-		memcpy(triangleMesh.triangles, &triangles[0], sizeof(Vec3f) * 3 * triangleMesh.n_triangles);
-
-		unsigned char *meshData = generateMeshDataFromTriangleMesh(triangleMesh, &textureCoords[0]);
-
-		Model model;
-
-		Model_initFromMeshData(&model, meshData, triangleMesh.n_triangles);
-
-		String_set(model.name, "tree", STRING_SIZE);
-
-		game.triangleMeshes.push_back(triangleMesh);
-		game.models.push_back(model);
-
-		free(meshData);
-
-		//create leaves
-		for(int i = 0; i < nodes.size(); i++){
-
-			TreeNode *node1_p = &nodes[i];
-			TreeNode *node2_p = &nodes[node1_p->parent];
-
-			if(node1_p->radius < 0.06){
-
-				int heightSegments = 5;
-				int radialSegments = 5;
-				//int heightSegments = 1;
-				//int radialSegments = 1;
-
-				//generate leaves pointing downards along branch
-				for(int j = 0; j < heightSegments; j++){
-					for(int n = 0; n < radialSegments; n++){
-
-						float h = (float)j / (float)heightSegments;
-						float t = (float)n / (float)radialSegments;
-
-						Mat4f transformations = getIdentityMat4f();
-
-						//transformations *= getTranslationMat4f(getVec3f(0.0, 1.0, 0.0));
-
-						transformations *= getScalingMat4f((0.5 + 0.5 * sin(h * M_PI)) * TREE_SCALE);
-
-						transformations *= getQuaternionMat4f(getQuaternion(getVec3f(1.0, 0.0, 0.0), M_PI / 2.0 + 0.2 + getRandom() * 0.3));
-
-						transformations *= getQuaternionMat4f(getQuaternion(getVec3f(0.0, 1.0, 0.0), t * M_PI * 2.0 + h));
-
-						transformations *= getTranslationMat4f(treePos + (node2_p->pos + (node1_p->pos - node2_p->pos) * h) * TREE_SCALE);
-
-						leafTransformations.push_back(transformations);
-					
-					}
-				}
-
-				heightSegments = 4;
-				radialSegments = 5;
-				//heightSegments = 1;
-				//radialSegments = 1;
-
-				//generate leaves pointing upwards on top
-				for(int j = 0; j < heightSegments; j++){
-					for(int n = 0; n < radialSegments; n++){
-
-						float h = (float)j / (float)heightSegments;
-						float t = (float)n / (float)radialSegments;
-
-						Mat4f transformations = getIdentityMat4f();
-
-						transformations *= getScalingMat4f((0.7 - 0.4 * h) * TREE_SCALE);
-
-						transformations *= getQuaternionMat4f(getQuaternion(getVec3f(1.0, 0.0, 0.0), M_PI / 2.0 - h * M_PI / 3.0 + 0.1 + 0.3 * getRandom()));
-
-						transformations *= getQuaternionMat4f(getQuaternion(getVec3f(0.0, 1.0, 0.0), t * M_PI * 2.0 + h));
-
-						transformations *= getTranslationMat4f(treePos + (node1_p->pos + getVec3f(0.0, -0.2, 0.0)) * TREE_SCALE);
-
-						leafTransformations.push_back(transformations);
-					
-					}
-				}
-			
-			}
-
-		}
-
-		TextureBuffer_initAsMat4fArray(&leafTransformationsTextureBuffer, &leafTransformations[0], leafTransformations.size(), false);
-
-	}
 
 	//generate terrain
 	{
@@ -513,6 +200,14 @@ void Engine_start(){
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMapDepthTexture.ID, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMapDataTexture.ID, 0);
 
+	//generate big shadow map depth texture
+	Texture_initAsDepthMap(&bigShadowMapDepthTexture, BIG_SHADOW_MAP_WIDTH, BIG_SHADOW_MAP_HEIGHT);
+
+	//generate big shadow map frame buffer
+	glGenFramebuffers(1, &bigShadowMapFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, bigShadowMapFBO);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, bigShadowMapDepthTexture.ID, 0);
+
 	//glDrawBuffer(GL_NONE);
 	//glReadBuffer(GL_NONE);
 
@@ -544,17 +239,6 @@ void Engine_start(){
 		game.obstacles.push_back(obstacle);
 	}
 	{
-		Obstacle obstacle;	
-		obstacle.pos = treePos;
-		obstacle.scale = TREE_SCALE;
-		obstacle.modelIndex = Game_getModelIndexByName(&game, "tree");
-		obstacle.textureIndex = Game_getTextureIndexByName(&game, "bark");
-		obstacle.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "tree");
-		obstacle.color = getVec4f(1.0, 1.0, 1.0, 1.0);
-
-		game.obstacles.push_back(obstacle);
-	}
-	{
 		game.player.pos = getVec3f(5.0, 3.0, 5.0);
 		game.player.lastPos = game.player.pos;
 		game.player.velocity = getVec3f(0.0, 0.0, 0.0);
@@ -565,6 +249,20 @@ void Engine_start(){
 		//bool playerOnGround = false;
 		//float game.player.height = PLAYER_HEIGHT_STANDING;
 	}
+
+	Game_addTree(&game, getVec3f(15.0, 0.0, 15.0));
+
+	Game_addTree(&game, getVec3f(25.0, 0.0, 15.0));
+
+	Game_addTree(&game, getVec3f(35.0, 0.0, 15.0));
+
+	Game_addTree(&game, getVec3f(90.0, 0.0, 15.0));
+
+	Game_addTree(&game, getVec3f(15.0, 0.0, 90.0));
+
+	Game_addTree(&game, getVec3f(90.0, 0.0, 90.0));
+
+	Game_addTree(&game, getVec3f(40.0, 0.0, 40.0));
 
 }
 
@@ -942,26 +640,46 @@ void Engine_draw(){
 
 	bool renderFromLightPerspective = false;
 
-	int n_renderingStages = 2;
+	//1. Render big shadow map
+	//2. Render small shadow map
+	//3. Render scene
+	int n_renderStage = 3;
 
-	for(int renderingStage = 0; renderingStage < n_renderingStages; renderingStage++){
+	for(int renderStage = 0; renderStage < n_renderStage; renderStage++){
 
 		glColorMask(true, true, true, true);
 
-		if(renderingStage == 0){
+		if(renderStage == 0){
+
+			glViewport(0.0, 0.0, BIG_SHADOW_MAP_WIDTH, BIG_SHADOW_MAP_HEIGHT);
+
+			glBindFramebuffer(GL_FRAMEBUFFER, bigShadowMapFBO);
+			glClearColor(1.0, 1.0, 1.0, 1.0);
+			glClearDepth(1.0);
+
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		
+		}
+
+		if(renderStage == 1){
 
 			glViewport(0.0, 0.0, SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT);
+
+			//glViewport(0.0, 0.0, SHADOW_MAP_WIDTH / 2, SHADOW_MAP_HEIGHT);
 			glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-			glClearColor(0.0, 0.0, 0.0, 1.0);
+			glClearColor(1.0, 1.0, 1.0, 1.0);
+			glClearDepth(1.0);
 
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-			glBlendFuncSeparate(GL_ONE, GL_NONE, GL_ONE, GL_ONE);
-			glBlendEquationSeparate(GL_FUNC_ADD, GL_MIN);
+			glBlendFunc(GL_ONE, GL_ONE);
+			glBlendEquation(GL_MIN);
 			glDisable(GL_DEPTH_TEST);
+			//glEnable(GL_SCISSOR_TEST);
+			//glScissor(0, 0, SHADOW_MAP_WIDTH / 7, SHADOW_MAP_WIDTH / 7);
 
 		}
-		if(renderingStage == 1){
+		if(renderStage == 2){
 
 			glViewport(0.0, 0.0, Engine_clientWidth, Engine_clientHeight);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);  
@@ -972,6 +690,7 @@ void Engine_draw(){
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glDepthFunc(GL_LESS);
 			glEnable(GL_DEPTH_TEST);
+			//glDisable(GL_SCISSOR_TEST);
 
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -986,18 +705,29 @@ void Engine_draw(){
 		Vec2f flatLightDirection = normalize(getVec2f(lightDirection.x, lightDirection.z));
 
 		Mat4f lightCameraMatrix = getTranslationMat4f(round(-game.player.pos.x), round(-game.player.pos.y), round(-game.player.pos.z));
+		//Mat4f lightCameraMatrix = getIdentityMat4f();
 
 		lightCameraMatrix *= getTranslationMat4f(getVec3f(lightDirection.x, 0.0, lightDirection.z) * lightPos.y);
+		//lightCameraMatrix *= getTranslationMat4f(getVec3f(-17.0, 0.0, -22.0));
 
 		lightCameraMatrix *= getTranslationMat4f(getVec3f(round(-cameraDirection.x * shadowMapScale), 0.0, round(-cameraDirection.z * shadowMapScale)));
 
 		lightCameraMatrix *= getLookAtMat4f(lightPos, lightDirection);
 
-		
-
 		Mat4f lightPerspectiveMatrix = getScalingMat4f(1.0 / shadowMapScale);
 
-		if(renderingStage == 0 || false){
+		Mat4f bigLightCameraMatrix = getTranslationMat4f(getVec3f(-17.0, 0.0, -22.0));
+		bigLightCameraMatrix *= getLookAtMat4f(lightPos, lightDirection);
+
+		Mat4f bigLightPerspectiveMatrix = getScalingMat4f(1.0 / bigShadowMapScale);
+
+		if(renderStage == 0){
+			lightCameraMatrix = bigLightCameraMatrix;
+			lightPerspectiveMatrix = bigLightPerspectiveMatrix;
+		}
+
+		if(renderStage == 0
+		|| renderStage == 1){
 			cameraMatrix = lightCameraMatrix;
 			perspectiveMatrix = lightPerspectiveMatrix;
 		}
@@ -1036,8 +766,9 @@ void Engine_draw(){
 				Vec4f_mulByMat4f(&positions[j], frustumMatrix);
 
 				if(positions[j].z > 0.0
-				&& (renderingStage == 0 && fabs(positions[j].x) < shadowMapScale && fabs(positions[j].y) < shadowMapScale)
-				|| renderingStage == 1 && fabs(positions[j].x) < positions[j].z){
+				&& (renderStage == 0 && fabs(positions[j].x) < shadowMapScale && fabs(positions[j].y) < shadowMapScale
+				|| renderStage == 1 && fabs(positions[j].x) < shadowMapScale && fabs(positions[j].y) < shadowMapScale
+				|| renderStage == 2 && fabs(positions[j].x) < positions[j].z)){
 					game.boundingBoxesCulled[i] = false;
 					break;
 				}
@@ -1047,7 +778,7 @@ void Engine_draw(){
 		}
 
 		//draw grass
-		{
+		if(renderStage != 0){
 			glDisable(GL_CULL_FACE);
 
 			int drawnCells = 0;
@@ -1071,7 +802,8 @@ void Engine_draw(){
 				float scale = 1.0;
 
 				Shader *shader_p = Game_getShaderPointerByName(&game, "grass");
-				if(renderingStage == 0){
+				if(renderStage == 0
+				|| renderStage == 1){
 					shader_p = Game_getShaderPointerByName(&game, "grass-shadow");
 				}
 
@@ -1088,6 +820,7 @@ void Engine_draw(){
 				GL3D_uniformTextureBuffer(shader_p->ID, "grassPositions", 1, grassPositionsTextureBufferGrid[i].TB);
 				GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 2, shadowMapDepthTexture.ID);
 				GL3D_uniformTexture(shader_p->ID, "shadowMapDataTexture", 3, shadowMapDataTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 4, bigShadowMapDepthTexture.ID);
 
 				//GL3D_uniformTexture(currentShaderProgram, "heightMap", 1, terrainHeightMapTexture.ID);
 
@@ -1095,10 +828,13 @@ void Engine_draw(){
 				GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
 				GL3D_uniformMat4f(shader_p->ID, "lightPerspectiveMatrix", lightPerspectiveMatrix);
 				GL3D_uniformMat4f(shader_p->ID, "lightCameraMatrix", lightCameraMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightPerspectiveMatrix", bigLightPerspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightCameraMatrix", bigLightCameraMatrix);
 
 				GL3D_uniformFloat(shader_p->ID, "windTime", windTime);
 
 				GL3D_uniformFloat(shader_p->ID, "shadowStrength", 0.3);
+				GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
 
 				float rotation = 0.0;
 
@@ -1140,18 +876,24 @@ void Engine_draw(){
 		}
 
 		//enable depth testing for objects with shadow strengths of 1.0
-		if(renderingStage == 0){
+		if(renderStage == 0
+		|| renderStage == 1){
 			glEnable(GL_DEPTH_TEST);
 			glColorMask(false, false, false, false);
 		}
 
 		//draw leaves
-		{
-			glDisable(GL_CULL_FACE);
+		glDisable(GL_CULL_FACE);
 
-			//unsigned int currentShaderProgram = game.leafShader;
+		for(int i = 0; i < game.trees.size(); i++){
+
+			//break;
+
+			Tree *tree_p = &game.trees[i];
+
 			Shader *shader_p = Game_getShaderPointerByName(&game, "leaf");
-			if(renderingStage == 0){
+			if(renderStage == 0
+			|| renderStage == 1){
 				shader_p = Game_getShaderPointerByName(&game, "leaf-shadow");
 			}
 
@@ -1164,13 +906,13 @@ void Engine_draw(){
 			glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
 			glBindVertexArray(model_p->VAO);
 
-			GL3D_uniformFloat(shader_p->ID, "shadowStrength", 0.2);
 			//GL3D_uniformFloat(shader_p->ID, "shadowStrength", 1.0);
 
 			GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
 			GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 1, shadowMapDepthTexture.ID);
 			GL3D_uniformTexture(shader_p->ID, "shadowMapDataTexture", 2, shadowMapDataTexture.ID);
-			GL3D_uniformTextureBuffer(shader_p->ID, "modelTransformationsBuffer", 3, leafTransformationsTextureBuffer.TB);
+			GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 3, bigShadowMapDepthTexture.ID);
+			GL3D_uniformTextureBuffer(shader_p->ID, "modelTransformationsBuffer", 4, tree_p->leafTransformationsTextureBuffer.TB);
 
 			GL3D_uniformFloat(shader_p->ID, "windTime", windTime);
 
@@ -1178,15 +920,17 @@ void Engine_draw(){
 			GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
 			GL3D_uniformMat4f(shader_p->ID, "lightPerspectiveMatrix", lightPerspectiveMatrix);
 			GL3D_uniformMat4f(shader_p->ID, "lightCameraMatrix", lightCameraMatrix);
+			GL3D_uniformMat4f(shader_p->ID, "bigLightPerspectiveMatrix", bigLightPerspectiveMatrix);
+			GL3D_uniformMat4f(shader_p->ID, "bigLightCameraMatrix", bigLightCameraMatrix);
 
 			//GL3D_uniformFloat(shader_p->ID, "shadowFactor", 0.1);
 			//GL3D_uniformFloat(shader_p->ID, "shadowFactor", 0.0);
 
-			glDrawArraysInstanced(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3, leafTransformations.size());
-
-			glEnable(GL_CULL_FACE);
+			glDrawArraysInstanced(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3, tree_p->leafTransformationsTextureBuffer.n_elements);
 
 		}
+
+		glEnable(GL_CULL_FACE);
 
 		//draw obstacles
 		for(int i = 0; i < game.obstacles.size(); i++){
@@ -1203,7 +947,8 @@ void Engine_draw(){
 
 			//unsigned int currentShaderProgram = game.modelShader;
 			Shader *shader_p = Game_getShaderPointerByName(&game, "model");
-			if(renderingStage == 0){
+			if(renderStage == 0
+			|| renderStage == 1){
 				shader_p = Game_getShaderPointerByName(&game, "model-shadow");
 			}
 
@@ -1216,18 +961,21 @@ void Engine_draw(){
 			glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
 			glBindVertexArray(model_p->VAO);
 
-			GL3D_uniformFloat(shader_p->ID, "shadowStrength", 1.0);
+			GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
 			//GL3D_uniformFloat(shader_p->ID, "shadowStrength", 0.1);
 
 			GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
 			GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 1, shadowMapDepthTexture.ID);
 			GL3D_uniformTexture(shader_p->ID, "shadowMapDataTexture", 2, shadowMapDataTexture.ID);
+			GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 3, bigShadowMapDepthTexture.ID);
 
 			GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
 			GL3D_uniformMat4f(shader_p->ID, "perspectiveMatrix", perspectiveMatrix);
 			GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
 			GL3D_uniformMat4f(shader_p->ID, "lightPerspectiveMatrix", lightPerspectiveMatrix);
 			GL3D_uniformMat4f(shader_p->ID, "lightCameraMatrix", lightCameraMatrix);
+			GL3D_uniformMat4f(shader_p->ID, "bigLightPerspectiveMatrix", bigLightPerspectiveMatrix);
+			GL3D_uniformMat4f(shader_p->ID, "bigLightCameraMatrix", bigLightCameraMatrix);
 
 			GL3D_uniformVec4f(shader_p->ID, "inputColor", obstacle_p->color);
 
@@ -1293,7 +1041,7 @@ void Engine_draw(){
 
 		/*
 		//draw bounding boxes
-		if(renderingStage == 1 && false){
+		if(renderStage == 1 && false){
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			glDisable(GL_CULL_FACE);
@@ -1379,6 +1127,8 @@ void Engine_draw(){
 
 	//glBindFramebuffer(GL_READ_FRAMEBUFFER, shadowMapFBO);
 	//glBlitFramebuffer(0, 0, SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT, 0, 0, Engine_clientWidth, Engine_clientHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	//glBindFramebuffer(GL_READ_FRAMEBUFFER, bigShadowMapFBO);
+	//glBlitFramebuffer(0, 0, BIG_SHADOW_MAP_WIDTH, BIG_SHADOW_MAP_HEIGHT, 0, 0, Engine_clientWidth, Engine_clientHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 	gameTime += 0.1;
 	windTime += 0.01;
