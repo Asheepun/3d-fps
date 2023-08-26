@@ -15,6 +15,7 @@ void Game_loadAssets(Game *game_p){
 
 		int n_names = sizeof(names) / sizeof(char *);
 
+		//load as color textures
 		for(int i = 0; i < n_names; i++){
 
 			char path[STRING_SIZE];
@@ -27,6 +28,25 @@ void Game_loadAssets(Game *game_p){
 			game_p->textures.push_back(texture);
 
 		}
+
+		//load as alpha textures
+		for(int i = 0; i < n_names; i++){
+
+			char path[STRING_SIZE];
+			String_set(path, "assets/textures/", STRING_SIZE);
+			String_append(path, names[i]);
+			String_append(path, ".png");
+
+			char name[STRING_SIZE];
+			String_set(name, names[i], STRING_SIZE);
+			String_append(name, "-alpha");
+
+			Texture texture;
+			Texture_initFromFileAsAlphaMap(&texture, path, name);
+			game_p->textures.push_back(texture);
+
+		}
+
 	}
 
 	//load static models

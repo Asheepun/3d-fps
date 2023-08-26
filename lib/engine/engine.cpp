@@ -45,8 +45,8 @@
 
 #endif
 
-//bool ENGINE_PRINT_FRAME_TIME = true;
-bool ENGINE_PRINT_FRAME_TIME = false;
+bool ENGINE_PRINT_FRAME_TIME = true;
+//bool ENGINE_PRINT_FRAME_TIME = false;
 
 #ifdef __linux__
 Display *dpy;
@@ -81,6 +81,10 @@ HWND hwnd;
 int Engine_clientWidth = 800;
 int Engine_clientHeight = 450;
 bool Engine_isFullscreen = false;
+
+float Engine_frameUpdateTime = 0.0;
+float Engine_frameDrawTime = 0.0;
+float Engine_frameTime = 0.0;
 
 int Engine_elapsedFrames = 0;
 
@@ -480,15 +484,15 @@ int main(){
 
 		//glFinish();
 
-		stopTime = std::chrono::high_resolution_clock::now();
-
-		long int drawTime = (long int)(std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count());
-
 		//glDrawPixels(screenWidth, screenHeight, GL_RGB, GL_UNSIGNED_BYTE, screenPixels);
 
 		glXSwapBuffers(dpy, win);
 
 		glFinish();
+
+		stopTime = std::chrono::high_resolution_clock::now();
+
+		long int drawTime = (long int)(std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count());
 
 		Engine_elapsedFrames++;
 
@@ -497,6 +501,10 @@ int main(){
 
 		//deltaTime = (endTicks - startTicks) / (CLOCKS_PER_SEC / 1000000);
 		long int totalFrameTime = (long int)(std::chrono::duration_cast<std::chrono::microseconds>(frameStopTime - frameStartTime).count());
+
+		Engine_frameUpdateTime = (float)updateTime / 1000.0;
+		Engine_frameDrawTime = (float)drawTime / 1000.0;
+		Engine_frameTime = (float)totalFrameTime / 1000.0;
 
 		//printf("\nframeTime: %i\n", deltaTime);
 
@@ -512,6 +520,7 @@ int main(){
 
 		usleep(lag);
 
+		/*
 		if(ENGINE_PRINT_FRAME_TIME){
 
 			printf("\n\nENGINE TIMINGS\n");
@@ -523,6 +532,7 @@ int main(){
 			printf("total frame time: %f ms\n\n", (float)totalFrameTime / 1000.0);
 
 		}
+		*/
 
 		//accumilatedTime += deltaTime;
 

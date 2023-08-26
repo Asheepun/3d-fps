@@ -359,6 +359,8 @@ float det(Mat2f);
 float det(Mat3f);
 float det(Mat4f);
 
+Mat2f getRotationMat2f(float);
+
 Mat4f inverse(Mat4f);
 
 Mat4f getIdentityMat4f();
@@ -372,7 +374,9 @@ Mat4f getScalingMat4f(float, float, float);
 Mat4f getScalingMat4f(Vec3f);
 Mat4f getScalingMat4f(float);
 
-Mat4f getPerspectiveMat4f(float, float);
+Mat4f getPerspectiveMat4f(float, float, float, float);
+
+Mat4f getOrthographicMat4f(float, float, float, float);
 
 Mat4f getLookAtMat4f(Vec3f, Vec3f);
 

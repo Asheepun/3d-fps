@@ -101,6 +101,8 @@ void Texture_init(Texture *, const char *, unsigned char *, int, int);
 
 void Texture_initFromFile(Texture *, const char *, const char *);
 
+void Texture_initFromFileAsAlphaMap(Texture *, const char *, const char *);
+
 void Texture_initAsDepthMap(Texture *, int, int);
 
 void Texture_initAsColorMap(Texture *, int, int);
@@ -114,7 +116,11 @@ void TextureBuffer_initAsMat4fArray(TextureBuffer *, Mat4f *, int, bool);
 
 void TextureBuffer_free(TextureBuffer *);
 
+void Texture_free(Texture *);
+
 void Shader_init(Shader *, const char *, const char *, const char *);
+
+void GL3D_uniformMat2f(unsigned int, const char *, Mat2f);
 
 void GL3D_uniformMat4f(unsigned int, const char *, Mat4f);
 

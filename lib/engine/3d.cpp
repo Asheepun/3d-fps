@@ -420,6 +420,32 @@ void Texture_initFromFile(Texture *texture_p, const char *path, const char *name
 
 }
 
+void Texture_initFromFileAsAlphaMap(Texture *texture_p, const char *path, const char *name){
+
+	int width, height, channels;
+	unsigned char *data = stbi_load(path, &width, &height, &channels, 4);
+
+	unsigned char *alphaData = (unsigned char *)malloc(width * height * sizeof(unsigned char));
+
+	for(int i = 0; i < width * height; i++){
+		alphaData[i] = data[i * 4 + 3];
+	}
+
+	glGenTextures(1, &texture_p->ID);
+	glBindTexture(GL_TEXTURE_2D, texture_p->ID);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, alphaData);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	String_set(texture_p->name, name, STRING_SIZE);
+
+	//Texture_init(texture_p, name, data, width, height);
+
+	free(data);
+	free(alphaData);
+
+}
+
 void TextureAtlas_init(TextureAtlas *textureAtlas_p, const char **pathsAndNames, int numberOfPaths){
 
 	int atlasWidth = 0;
@@ -562,6 +588,12 @@ void TextureBuffer_free(TextureBuffer *textureBuffer_p){
 
 }
 
+void Texture_free(Texture *texture_p){
+	
+	glDeleteTextures(1, &texture_p->ID);
+
+}
+
 void Shader_init(Shader *shader_p, const char *name, const char *vertexShaderPath, const char *fragmentShaderPath){
 
 	unsigned int vertexShader = getCompiledShader(vertexShaderPath, GL_VERTEX_SHADER);
@@ -573,6 +605,14 @@ void Shader_init(Shader *shader_p, const char *name, const char *vertexShaderPat
 	glLinkProgram(shader_p->ID);
 
 	String_set(shader_p->name, name, STRING_SIZE);
+
+}
+
+void GL3D_uniformMat2f(unsigned int shaderProgram, const char *locationName, Mat2f m){
+
+	unsigned int location = glGetUniformLocation(shaderProgram, locationName);
+
+	glUniformMatrix2fv(location, 1, GL_FALSE, (float *)m.values);
 
 }
 

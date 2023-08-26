@@ -34,19 +34,13 @@ void main(){
 
 	vertexPosition *= modelMatrix;
 
-	vec4 lightRelativeVertexPosition = vertexPosition * lightCameraMatrix;
-	vec2 shadowMapVertexPosition = (lightRelativeVertexPosition * lightPerspectiveMatrix).xy;
+	vec4 lightProjectedVertexPosition = vertexPosition * lightCameraMatrix * lightPerspectiveMatrix;;
+	input_shadowDepth = 0.5 * lightProjectedVertexPosition.z + 0.5;
+	input_shadowMapPosition = (vec2(1.0, 1.0) + lightProjectedVertexPosition.xy) / 2.0;
 
-	input_shadowDepth = lightRelativeVertexPosition.z / 100.0;
-	input_shadowMapPosition = (vec2(1.0, 1.0) + shadowMapVertexPosition) / 2.0;
-
-	vec4 bigLightRelativeVertexPosition = vertexPosition * bigLightCameraMatrix;
-	vec2 bigShadowMapVertexPosition = (bigLightRelativeVertexPosition * bigLightPerspectiveMatrix).xy;
-
-	input_bigShadowDepth = bigLightRelativeVertexPosition.z / 100.0;
-	input_bigShadowMapPosition = (vec2(1.0, 1.0) + bigShadowMapVertexPosition) / 2.0;
-
-	//input_fragmentPosition = vertexPosition;
+	vec4 bigLightProjectedVertexPosition = vertexPosition * bigLightCameraMatrix * bigLightPerspectiveMatrix;
+	input_bigShadowDepth = 0.5 * bigLightProjectedVertexPosition.z + 0.5;
+	input_bigShadowMapPosition = (vec2(1.0, 1.0) + bigLightProjectedVertexPosition.xy) / 2.0;
 
 	vertexPosition *= cameraMatrix;
 
@@ -55,7 +49,5 @@ void main(){
 	vertexPosition *= perspectiveMatrix;
 
 	gl_Position = vertexPosition;
-
-	gl_Position.z = 0.0;
 
 }

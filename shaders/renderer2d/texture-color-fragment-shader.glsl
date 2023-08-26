@@ -6,12 +6,14 @@ in vec2 textureCoord;
 
 uniform sampler2D tex;
 
+uniform vec4 color;
+
 void main(){
 
-	float alpha = 1.0;
-
-	gl_FragColor = texture2D(tex, textureCoord);
+	gl_FragColor = color;
+	gl_FragColor.w *= texture2D(tex, textureCoord).w;
 
 	gl_FragDepth = 0.0;
 
 }
+

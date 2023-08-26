@@ -439,6 +439,7 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 		obstacle.scale = TREE_SCALE;
 		obstacle.modelIndex = modelIndex;
 		obstacle.textureIndex = Game_getTextureIndexByName(game_p, "bark");
+		obstacle.alphaTextureIndex = Game_getTextureIndexByName(game_p, "bark-alpha");
 		obstacle.triangleMeshIndex = triangleMeshIndex;
 		obstacle.color = getVec4f(1.0, 1.0, 1.0, 1.0);
 

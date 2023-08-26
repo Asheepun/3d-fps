@@ -15,10 +15,11 @@
 
 #define RUN_OFFLINE
 
-enum RenderStages{
+enum RenderStage{
 	RENDER_STAGE_BIG_SHADOWS,
 	RENDER_STAGE_SHADOWS,
 	RENDER_STAGE_GRASS_SHADOWS,
+	RENDER_STAGE_SCENE_DEPTH,
 	RENDER_STAGE_SCENE,
 	N_RENDER_STAGES,
 };
@@ -46,6 +47,7 @@ struct Obstacle{
 	float scale;
 	int modelIndex;
 	int textureIndex;
+	int alphaTextureIndex;
 	int triangleMeshIndex;
 };
 

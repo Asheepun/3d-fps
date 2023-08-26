@@ -1,6 +1,5 @@
 #include "engine/shaders.h"
 #include "engine/renderer2d.h"
-#include "engine/igui.h"
 
 #include "game.h"
 
@@ -36,10 +35,12 @@ float GRASS_SHADOW_STRENGTH = 0.3;
 
 unsigned int shadowMapFBO;
 Texture shadowMapDepthTexture;
-Texture shadowMapDataTexture;
 int SHADOW_MAP_WIDTH = 1000;
 int SHADOW_MAP_HEIGHT = 1000;
 float shadowMapScale = 10.0;
+
+unsigned int grassShadowMapFBO;
+Texture grassShadowMapDepthTexture;
 
 unsigned int bigShadowMapFBO;
 Texture bigShadowMapDepthTexture;
@@ -47,11 +48,12 @@ int BIG_SHADOW_MAP_WIDTH = 1000;
 int BIG_SHADOW_MAP_HEIGHT = 1000;
 float bigShadowMapScale = 70.0;
 
-
 Vec3f lightPos = { 0.0, 20.0, 0.0 };
 Vec3f lightDirection = { 0.7, -1.0, 0.5 };
 
 float fov = M_PI / 4;
+float farPlane = 100.0;
+float nearPlane = 0.1;
 Vec3f cameraPos = getVec3f(4.0, 5.0, 0.0);
 Vec3f cameraDirection = getVec3f(0.0, 0.0, 1.0);
 Vec2f cameraRotation = getVec2f(M_PI / 2.0, 0.0);
@@ -190,18 +192,22 @@ void Engine_start(){
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
 
-	//generate shadow map depth texture
+	//generate shadow map depth textures
 	Texture_initAsDepthMap(&shadowMapDepthTexture, SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT);
-	Texture_initAsColorMap(&shadowMapDataTexture, SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT);
+	Texture_initAsDepthMap(&grassShadowMapDepthTexture, SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT);
+	Texture_initAsDepthMap(&bigShadowMapDepthTexture, BIG_SHADOW_MAP_WIDTH, BIG_SHADOW_MAP_HEIGHT);
+	//Texture_initAsColorMap(&shadowMapDataTexture, SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT);
 
 	//generate shadow map frame buffer
 	glGenFramebuffers(1, &shadowMapFBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMapDepthTexture.ID, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMapDataTexture.ID, 0);
+	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMapDataTexture.ID, 0);
 
-	//generate big shadow map depth texture
-	Texture_initAsDepthMap(&bigShadowMapDepthTexture, BIG_SHADOW_MAP_WIDTH, BIG_SHADOW_MAP_HEIGHT);
+	//generate grass shadow map frame buffer
+	glGenFramebuffers(1, &grassShadowMapFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, grassShadowMapFBO);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, grassShadowMapDepthTexture.ID, 0);
 
 	//generate big shadow map frame buffer
 	glGenFramebuffers(1, &bigShadowMapFBO);
@@ -222,6 +228,7 @@ void Engine_start(){
 		obstacle.scale = TERRAIN_SCALE;
 		obstacle.modelIndex = Game_getModelIndexByName(&game, "terrain");
 		obstacle.textureIndex = Game_getTextureIndexByName(&game, "blank");
+		obstacle.alphaTextureIndex = Game_getTextureIndexByName(&game, "blank-alpha");
 		obstacle.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "terrain");
 		obstacle.color = TERRAIN_COLOR;
 
@@ -233,6 +240,7 @@ void Engine_start(){
 		obstacle.scale = 2.0;
 		obstacle.modelIndex = Game_getModelIndexByName(&game, "cube");
 		obstacle.textureIndex = Game_getTextureIndexByName(&game, "blank");
+		obstacle.alphaTextureIndex = Game_getTextureIndexByName(&game, "blank-alpha");
 		obstacle.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "cube");
 		obstacle.color = getVec4f(0.7, 0.7, 0.7, 1.0);
 
@@ -634,100 +642,103 @@ void Engine_update(float deltaTime){
 
 	}
 
+	printf("update: %f ms\n", Engine_frameUpdateTime);
+	printf("draw: %f ms\n", Engine_frameDrawTime);
+
 }
 
 void Engine_draw(){
 
 	bool renderFromLightPerspective = false;
+	for(int renderStage = 0; renderStage < N_RENDER_STAGES; renderStage++){
 
-	//1. Render big shadow map
-	//2. Render small shadow map
-	//3. Render scene
-	int n_renderStage = 3;
-
-	for(int renderStage = 0; renderStage < n_renderStage; renderStage++){
-
-		glColorMask(true, true, true, true);
-
-		if(renderStage == 0){
-
+		if(renderStage == RENDER_STAGE_BIG_SHADOWS){
 			glViewport(0.0, 0.0, BIG_SHADOW_MAP_WIDTH, BIG_SHADOW_MAP_HEIGHT);
-
 			glBindFramebuffer(GL_FRAMEBUFFER, bigShadowMapFBO);
-			glClearColor(1.0, 1.0, 1.0, 1.0);
-			glClearDepth(1.0);
-
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
+			//glColorMask(true, true, true, true);
+			glColorMask(false, false, false, false);
+			glDepthMask(true);
+			//glViewport(0.0, 0.0, Engine_clientWidth, Engine_clientHeight);
+			//glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+		}else{
+			//continue;
 		}
 
-		if(renderStage == 1){
-
+		if(renderStage == RENDER_STAGE_GRASS_SHADOWS){
 			glViewport(0.0, 0.0, SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT);
-
-			//glViewport(0.0, 0.0, SHADOW_MAP_WIDTH / 2, SHADOW_MAP_HEIGHT);
-			glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-			glClearColor(1.0, 1.0, 1.0, 1.0);
-			glClearDepth(1.0);
-
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-			glBlendFunc(GL_ONE, GL_ONE);
-			glBlendEquation(GL_MIN);
-			glDisable(GL_DEPTH_TEST);
-			//glEnable(GL_SCISSOR_TEST);
-			//glScissor(0, 0, SHADOW_MAP_WIDTH / 7, SHADOW_MAP_WIDTH / 7);
-
+			glBindFramebuffer(GL_FRAMEBUFFER, grassShadowMapFBO);
+			glColorMask(false, false, false, false);
+			glDepthMask(true);
 		}
-		if(renderStage == 2){
-
+		if(renderStage == RENDER_STAGE_SHADOWS){
+			glViewport(0.0, 0.0, SHADOW_MAP_WIDTH, SHADOW_MAP_HEIGHT);
+			glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+			glColorMask(false, false, false, false);
+			//glColorMask(true, true, true, true);
+			glDepthMask(true);
+			//glViewport(0.0, 0.0, Engine_clientWidth, Engine_clientHeight);
+			//glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+		}else{
+			//continue;
+		}
+		if(renderStage == RENDER_STAGE_SCENE_DEPTH){
+			continue;
 			glViewport(0.0, 0.0, Engine_clientWidth, Engine_clientHeight);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);  
-			glClearColor(0.5, 0.7, 0.9, 1.0);
-			glClearDepth(1.0);
+			glColorMask(false, false, false, false);
+			//glDepthMask(true);
+		}
+		if(renderStage == RENDER_STAGE_SCENE){
+			glViewport(0.0, 0.0, Engine_clientWidth, Engine_clientHeight);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);  
+			glColorMask(true, true, true, true);
+			//glDepthMask(false);
+		}
 
-			glBlendEquation(GL_FUNC_ADD);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			glDepthFunc(GL_LESS);
-			glEnable(GL_DEPTH_TEST);
-			//glDisable(GL_SCISSOR_TEST);
+		//printf("%i\n", renderStage);
 
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClearColor(0.5, 0.7, 0.9, 1.0);
+		glClearDepth(1.0);
 
+		if(renderStage == RENDER_STAGE_SCENE){
+			glClear(GL_COLOR_BUFFER_BIT);
+			glClear(GL_DEPTH_BUFFER_BIT);
+			//glClear(GL_DEPTH_BUFFER_BIT);
+		}else{
+			//printf("cleared buffer\n");
+			glClear(GL_COLOR_BUFFER_BIT);
+			glClear(GL_DEPTH_BUFFER_BIT);
 		}
 
 
 		Mat4f cameraMatrix = getLookAtMat4f(cameraPos, cameraDirection);
 
-		Mat4f perspectiveMatrix = getPerspectiveMat4f(fov, (float)Engine_clientWidth / (float)Engine_clientHeight);
-
-		Vec2f flatCameraDirection = normalize(getVec2f(cameraDirection.x, cameraDirection.z));
-		Vec2f flatLightDirection = normalize(getVec2f(lightDirection.x, lightDirection.z));
+		Mat4f perspectiveMatrix = getPerspectiveMat4f(fov, (float)Engine_clientWidth / (float)Engine_clientHeight, farPlane, nearPlane);
 
 		Mat4f lightCameraMatrix = getTranslationMat4f(round(-game.player.pos.x), round(-game.player.pos.y), round(-game.player.pos.z));
-		//Mat4f lightCameraMatrix = getIdentityMat4f();
 
 		lightCameraMatrix *= getTranslationMat4f(getVec3f(lightDirection.x, 0.0, lightDirection.z) * lightPos.y);
-		//lightCameraMatrix *= getTranslationMat4f(getVec3f(-17.0, 0.0, -22.0));
 
 		lightCameraMatrix *= getTranslationMat4f(getVec3f(round(-cameraDirection.x * shadowMapScale), 0.0, round(-cameraDirection.z * shadowMapScale)));
 
 		lightCameraMatrix *= getLookAtMat4f(lightPos, lightDirection);
 
-		Mat4f lightPerspectiveMatrix = getScalingMat4f(1.0 / shadowMapScale);
+		//Mat4f lightPerspectiveMatrix = getScalingMat4f(1.0 / shadowMapScale);
+		Mat4f lightPerspectiveMatrix = getOrthographicMat4f(shadowMapScale, 1.0, farPlane, nearPlane);
 
 		Mat4f bigLightCameraMatrix = getTranslationMat4f(getVec3f(-17.0, 0.0, -22.0));
 		bigLightCameraMatrix *= getLookAtMat4f(lightPos, lightDirection);
 
-		Mat4f bigLightPerspectiveMatrix = getScalingMat4f(1.0 / bigShadowMapScale);
+		//Mat4f bigLightPerspectiveMatrix = getScalingMat4f(1.0 / bigShadowMapScale);
+		Mat4f bigLightPerspectiveMatrix = getOrthographicMat4f(bigShadowMapScale, 1.0, farPlane, nearPlane);
 
-		if(renderStage == 0){
-			lightCameraMatrix = bigLightCameraMatrix;
-			lightPerspectiveMatrix = bigLightPerspectiveMatrix;
+		if(renderStage == RENDER_STAGE_BIG_SHADOWS){
+			cameraMatrix = bigLightCameraMatrix;
+			perspectiveMatrix = bigLightPerspectiveMatrix;
 		}
 
-		if(renderStage == 0
-		|| renderStage == 1){
+		if(renderStage == RENDER_STAGE_GRASS_SHADOWS
+		|| renderStage == RENDER_STAGE_SHADOWS){
 			cameraMatrix = lightCameraMatrix;
 			perspectiveMatrix = lightPerspectiveMatrix;
 		}
@@ -738,6 +749,7 @@ void Engine_draw(){
 		for(int i = 0; i < game.boundingBoxesCulled.size(); i++){
 			game.boundingBoxesCulled[i] = false;
 		}
+		/*
 		for(int i = 0; i < game.boundingBoxes.size(); i++){
 
 			Box *boundingBox_p = &game.boundingBoxes[i];
@@ -765,10 +777,13 @@ void Engine_draw(){
 
 				Vec4f_mulByMat4f(&positions[j], frustumMatrix);
 
-				if(positions[j].z > 0.0
-				&& (renderStage == 0 && fabs(positions[j].x) < shadowMapScale && fabs(positions[j].y) < shadowMapScale
-				|| renderStage == 1 && fabs(positions[j].x) < shadowMapScale && fabs(positions[j].y) < shadowMapScale
-				|| renderStage == 2 && fabs(positions[j].x) < positions[j].z)){
+				if(renderStage == RENDER_STAGE_BIG_SHADOWS
+				|| positions[j].z > 0.0
+				&& ((renderStage == RENDER_STAGE_SHADOWS || renderStage == RENDER_STAGE_GRASS_SHADOWS)
+				&& fabs(positions[j].x) < shadowMapScale && fabs(positions[j].y) < shadowMapScale
+				|| (renderStage == RENDER_STAGE_SCENE
+				|| renderStage == RENDER_STAGE_SCENE_DEPTH)
+				&& fabs(positions[j].x) < positions[j].z)){
 					game.boundingBoxesCulled[i] = false;
 					break;
 				}
@@ -776,9 +791,12 @@ void Engine_draw(){
 			}
 
 		}
+		*/
 
 		//draw grass
-		if(renderStage != 0){
+		if((renderStage == RENDER_STAGE_GRASS_SHADOWS
+		|| renderStage == RENDER_STAGE_SCENE_DEPTH
+		|| renderStage == RENDER_STAGE_SCENE) && true){
 			glDisable(GL_CULL_FACE);
 
 			int drawnCells = 0;
@@ -795,6 +813,7 @@ void Engine_draw(){
 
 				//float LODDistance1 = 20.0;
 				float LODDistance1 = 15.0;
+				float LODDistance2 = 30.0;
 
 				drawnCells++;
 
@@ -802,14 +821,15 @@ void Engine_draw(){
 				float scale = 1.0;
 
 				Shader *shader_p = Game_getShaderPointerByName(&game, "grass");
-				if(renderStage == 0
-				|| renderStage == 1){
+				if(renderStage == RENDER_STAGE_GRASS_SHADOWS
+				|| renderStage == RENDER_STAGE_SCENE_DEPTH){
 					shader_p = Game_getShaderPointerByName(&game, "grass-shadow");
 				}
 
 				glUseProgram(shader_p->ID);
 
 				Texture *texture_p = Game_getTexturePointerByName(&game, "grass");
+				Texture *alphaTexture_p = Game_getTexturePointerByName(&game, "grass-alpha");
 
 				Model *model_p = Game_getModelPointerByName(&game, "quad");
 
@@ -817,12 +837,11 @@ void Engine_draw(){
 				glBindVertexArray(model_p->VAO);
 
 				GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
-				GL3D_uniformTextureBuffer(shader_p->ID, "grassPositions", 1, grassPositionsTextureBufferGrid[i].TB);
-				GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 2, shadowMapDepthTexture.ID);
-				GL3D_uniformTexture(shader_p->ID, "shadowMapDataTexture", 3, shadowMapDataTexture.ID);
-				GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 4, bigShadowMapDepthTexture.ID);
-
-				//GL3D_uniformTexture(currentShaderProgram, "heightMap", 1, terrainHeightMapTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "alphaTexture", 1, alphaTexture_p->ID);
+				GL3D_uniformTextureBuffer(shader_p->ID, "grassPositions", 2, grassPositionsTextureBufferGrid[i].TB);
+				GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 3, shadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 4, grassShadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 5, bigShadowMapDepthTexture.ID);
 
 				GL3D_uniformMat4f(shader_p->ID, "perspectiveMatrix", perspectiveMatrix);
 				GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
@@ -835,6 +854,17 @@ void Engine_draw(){
 
 				GL3D_uniformFloat(shader_p->ID, "shadowStrength", 0.3);
 				GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
+
+				float extraCutOff = 0.0;
+
+				//if(distanceToCamera > LODDistance1){
+				//}
+				//if(distanceToCamera > LODDistance2){
+					//extraCutOff = 0.7;
+					//extraCutOff = 0.3;
+				//}
+
+				GL3D_uniformFloat(shader_p->ID, "extraCutOff", extraCutOff);
 
 				float rotation = 0.0;
 
@@ -875,115 +905,115 @@ void Engine_draw(){
 			glEnable(GL_CULL_FACE);
 		}
 
-		//enable depth testing for objects with shadow strengths of 1.0
-		if(renderStage == 0
-		|| renderStage == 1){
-			glEnable(GL_DEPTH_TEST);
-			glColorMask(false, false, false, false);
-		}
-
 		//draw leaves
-		glDisable(GL_CULL_FACE);
+		if(renderStage == RENDER_STAGE_BIG_SHADOWS
+		|| renderStage == RENDER_STAGE_SHADOWS
+		|| renderStage == RENDER_STAGE_SCENE_DEPTH
+		|| renderStage == RENDER_STAGE_SCENE){
 
-		for(int i = 0; i < game.trees.size(); i++){
+			glDisable(GL_CULL_FACE);
 
-			//break;
+			for(int i = 0; i < game.trees.size(); i++){
 
-			Tree *tree_p = &game.trees[i];
+				Tree *tree_p = &game.trees[i];
 
-			Shader *shader_p = Game_getShaderPointerByName(&game, "leaf");
-			if(renderStage == 0
-			|| renderStage == 1){
-				shader_p = Game_getShaderPointerByName(&game, "leaf-shadow");
+				Shader *shader_p = Game_getShaderPointerByName(&game, "leaf");
+				if(renderStage == RENDER_STAGE_SHADOWS
+				|| renderStage == RENDER_STAGE_BIG_SHADOWS
+				|| renderStage == RENDER_STAGE_SCENE_DEPTH){
+					shader_p = Game_getShaderPointerByName(&game, "leaf-shadow");
+				}
+
+				glUseProgram(shader_p->ID);
+
+				Texture *texture_p = Game_getTexturePointerByName(&game, "leaves");
+				Texture *alphaTexture_p = Game_getTexturePointerByName(&game, "leaves-alpha");
+
+				Model *model_p = Game_getModelPointerByName(&game, "quad");
+
+				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+				glBindVertexArray(model_p->VAO);
+
+				GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
+				GL3D_uniformTexture(shader_p->ID, "alphaTexture", 1, alphaTexture_p->ID);
+				GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 2, shadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 3, grassShadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 4, bigShadowMapDepthTexture.ID);
+				GL3D_uniformTextureBuffer(shader_p->ID, "modelTransformationsBuffer", 5, tree_p->leafTransformationsTextureBuffer.TB);
+
+				GL3D_uniformFloat(shader_p->ID, "windTime", windTime);
+
+				GL3D_uniformMat4f(shader_p->ID, "perspectiveMatrix", perspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightPerspectiveMatrix", lightPerspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightCameraMatrix", lightCameraMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightPerspectiveMatrix", bigLightPerspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightCameraMatrix", bigLightCameraMatrix);
+
+				glDrawArraysInstanced(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3, tree_p->leafTransformationsTextureBuffer.n_elements);
+
 			}
 
-			glUseProgram(shader_p->ID);
-
-			Texture *texture_p = Game_getTexturePointerByName(&game, "leaves");
-
-			Model *model_p = Game_getModelPointerByName(&game, "quad");
-
-			glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
-			glBindVertexArray(model_p->VAO);
-
-			//GL3D_uniformFloat(shader_p->ID, "shadowStrength", 1.0);
-
-			GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
-			GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 1, shadowMapDepthTexture.ID);
-			GL3D_uniformTexture(shader_p->ID, "shadowMapDataTexture", 2, shadowMapDataTexture.ID);
-			GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 3, bigShadowMapDepthTexture.ID);
-			GL3D_uniformTextureBuffer(shader_p->ID, "modelTransformationsBuffer", 4, tree_p->leafTransformationsTextureBuffer.TB);
-
-			GL3D_uniformFloat(shader_p->ID, "windTime", windTime);
-
-			GL3D_uniformMat4f(shader_p->ID, "perspectiveMatrix", perspectiveMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "lightPerspectiveMatrix", lightPerspectiveMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "lightCameraMatrix", lightCameraMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "bigLightPerspectiveMatrix", bigLightPerspectiveMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "bigLightCameraMatrix", bigLightCameraMatrix);
-
-			//GL3D_uniformFloat(shader_p->ID, "shadowFactor", 0.1);
-			//GL3D_uniformFloat(shader_p->ID, "shadowFactor", 0.0);
-
-			glDrawArraysInstanced(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3, tree_p->leafTransformationsTextureBuffer.n_elements);
-
+			glEnable(GL_CULL_FACE);
+		
 		}
-
-		glEnable(GL_CULL_FACE);
 
 		//draw obstacles
-		for(int i = 0; i < game.obstacles.size(); i++){
+		if(renderStage == RENDER_STAGE_BIG_SHADOWS
+		|| renderStage == RENDER_STAGE_SHADOWS
+		|| renderStage == RENDER_STAGE_SCENE_DEPTH
+		|| renderStage == RENDER_STAGE_SCENE){
+			for(int i = 0; i < game.obstacles.size(); i++){
 
-			Obstacle *obstacle_p = &game.obstacles[i];
+				Obstacle *obstacle_p = &game.obstacles[i];
 
-			float scale = obstacle_p->scale;
+				float scale = obstacle_p->scale;
 
-			Mat4f modelMatrix = getIdentityMat4f();
+				Mat4f modelMatrix = getIdentityMat4f();
 
-			modelMatrix *= getScalingMat4f(scale);
+				modelMatrix *= getScalingMat4f(scale);
 
-			modelMatrix *= getTranslationMat4f(obstacle_p->pos);
+				modelMatrix *= getTranslationMat4f(obstacle_p->pos);
 
-			//unsigned int currentShaderProgram = game.modelShader;
-			Shader *shader_p = Game_getShaderPointerByName(&game, "model");
-			if(renderStage == 0
-			|| renderStage == 1){
-				shader_p = Game_getShaderPointerByName(&game, "model-shadow");
+				Shader *shader_p = Game_getShaderPointerByName(&game, "model");
+				if(renderStage == RENDER_STAGE_SHADOWS
+				|| renderStage == RENDER_STAGE_BIG_SHADOWS
+				|| renderStage == RENDER_STAGE_SCENE_DEPTH){
+					shader_p = Game_getShaderPointerByName(&game, "model-shadow");
+				}
+
+				glUseProgram(shader_p->ID);
+				
+				Model *model_p = &game.models[obstacle_p->modelIndex];
+
+				Texture *texture_p = &game.textures[obstacle_p->textureIndex];
+				Texture *alphaTexture_p = &game.textures[obstacle_p->alphaTextureIndex];
+
+				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+				glBindVertexArray(model_p->VAO);
+
+				GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
+
+				GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
+				GL3D_uniformTexture(shader_p->ID, "alphaTexture", 1, alphaTexture_p->ID);
+				GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 2, shadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 3, grassShadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 4, bigShadowMapDepthTexture.ID);
+
+				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "perspectiveMatrix", perspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightPerspectiveMatrix", lightPerspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightCameraMatrix", lightCameraMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightPerspectiveMatrix", bigLightPerspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightCameraMatrix", bigLightCameraMatrix);
+
+				GL3D_uniformVec4f(shader_p->ID, "inputColor", obstacle_p->color);
+
+				glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+
+				
 			}
-
-			glUseProgram(shader_p->ID);
-			
-			Model *model_p = &game.models[obstacle_p->modelIndex];
-
-			Texture *texture_p = &game.textures[obstacle_p->textureIndex];
-
-			glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
-			glBindVertexArray(model_p->VAO);
-
-			GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
-			//GL3D_uniformFloat(shader_p->ID, "shadowStrength", 0.1);
-
-			GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
-			GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 1, shadowMapDepthTexture.ID);
-			GL3D_uniformTexture(shader_p->ID, "shadowMapDataTexture", 2, shadowMapDataTexture.ID);
-			GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 3, bigShadowMapDepthTexture.ID);
-
-			GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "perspectiveMatrix", perspectiveMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "lightPerspectiveMatrix", lightPerspectiveMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "lightCameraMatrix", lightCameraMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "bigLightPerspectiveMatrix", bigLightPerspectiveMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "bigLightCameraMatrix", bigLightCameraMatrix);
-
-			GL3D_uniformVec4f(shader_p->ID, "inputColor", obstacle_p->color);
-
-			//GL3D_uniformFloat(shader_p->ID, "shadowFactor", 1.0);
-
-			glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
-
-			
 		}
 
 		float t = (1.0 + sin(gameTime * 0.1)) * 0.5;
@@ -1108,7 +1138,7 @@ void Engine_draw(){
 			glBindVertexArray(model_p->VAO);
 
 			GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 0, shadowMapDepthTexture.ID);
-			GL3D_uniformTexture(shader_p->ID, "shadowMapDataTexture", 1, shadowMapDataTexture.ID);
+			GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 1, grassShadowMapDepthTexture.ID);
 
 			GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
 			GL3D_uniformMat4f(shader_p->ID, "perspectiveMatrix", perspectiveMatrix);

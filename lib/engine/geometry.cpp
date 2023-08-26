@@ -556,17 +556,32 @@ Mat4f getScalingMat4f(float scale){
 	return getScalingMat4f(scale, scale, scale);
 }
 
-Mat4f getPerspectiveMat4f(float fov, float aspectRatio){
+Mat4f getPerspectiveMat4f(float fov, float aspectRatio, float far, float near){
 
 	Mat4f perspectiveMat4f = {
 		1 / (aspectRatio * tan(fov / 2)), 	0, 				  0,   0,
 		0, 									1 / tan(fov / 2), 0,   0,
-		0, 									0,				  1.0, 0, 
+		0, 									0,				  (float)((far + near) / (far - near)), -(float)(2.0 * far * near / (far - near)),
+		//0, 									0,				  1.0, 0.0,
 		0, 									0, 				  1,   0,
 	};
 	
 	return perspectiveMat4f;
 
+
+}
+
+Mat4f getOrthographicMat4f(float scalingFactor, float aspectRatio, float far, float near){
+
+	Mat4f matrix = {
+		1 / (aspectRatio * scalingFactor),  0, 				   0,							0,
+		0, 				 					1 / scalingFactor, 0,							0,
+		0, 				 					0,				   (float)(1.0 / ((far - near))), 0,
+		0, 				 					0, 				   0,   						1.0,
+		
+	};
+
+	return matrix;
 
 }
 
@@ -754,6 +769,17 @@ float det(Mat4f m){
 	};
 
 	return m[0][0] * det(m1) - m[0][1] * det(m2) + m[0][2] * det(m3) - m[0][3] * det(m4);
+
+}
+
+Mat2f getRotationMat2f(float rotation){
+	
+	Mat2f matrix = {
+		cos(rotation), -sin(rotation),
+		sin(rotation), cos(rotation),
+	};
+
+	return matrix;
 
 }
 

@@ -134,6 +134,9 @@ extern int Engine_clientHeight;
 extern bool Engine_isFullscreen;
 
 extern int Engine_elapsedFrames;
+extern float Engine_frameUpdateTime;
+extern float Engine_frameDrawTime;
+extern float Engine_frameTime;
 
 extern bool Engine_fpsModeOn;
 

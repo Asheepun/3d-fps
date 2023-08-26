@@ -12,7 +12,7 @@ out vec4 FragColor;
 
 uniform sampler2D colorTexture;
 uniform sampler2D shadowMapDepthTexture;
-uniform sampler2D shadowMapDataTexture;
+uniform sampler2D grassShadowMapDepthTexture;
 uniform sampler2D bigShadowMapDepthTexture;
 
 uniform float grassShadowStrength;
@@ -32,9 +32,6 @@ vec3 lightDirection = vec3(0.7, -1.0, 0.5);
 
 void main(){
 
-	float shadowMapDepth = texture2D(shadowMapDepthTexture, input_shadowMapPosition).r;
-	float grassShadowDepth = texture2D(shadowMapDataTexture, input_shadowMapPosition).r;
-
 	float shadowDepthTolerance = 0.001;
 	float shadowFactor = 1.0;
 
@@ -42,7 +39,7 @@ void main(){
 	&& input_shadowMapPosition.y > 0.0 && input_shadowMapPosition.y < 1.0){
 
 		float shadowMapDepth = texture2D(shadowMapDepthTexture, input_shadowMapPosition).r;
-		float grassShadowMapDepth = texture2D(shadowMapDataTexture, input_shadowMapPosition).r;
+		float grassShadowMapDepth = texture2D(grassShadowMapDepthTexture, input_shadowMapPosition).r;
 
 		shadowFactor = min(
 			float(input_shadowDepth - shadowMapDepth < shadowDepthTolerance),
@@ -68,7 +65,5 @@ void main(){
 	totalLightFactor += diffuseLight * diffuseLightFactor * shadowFactor;
 
 	FragColor.xyz *= totalLightFactor;
-
-	gl_FragDepth = input_depth;
 
 } 
