@@ -18,6 +18,7 @@ struct Inputs{
 	char right;
 	char jump;
 	char shoot;
+	char crouch;
 	Vec3f cameraDirection;
 };
 

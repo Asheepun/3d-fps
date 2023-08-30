@@ -13,12 +13,9 @@ out vec2 input_bigShadowMapPosition;
 
 uniform mat4 modelMatrix;
 
-uniform mat4 perspectiveMatrix;
-uniform mat4 cameraMatrix;
-uniform mat4 lightCameraMatrix;
-uniform mat4 lightPerspectiveMatrix;
-uniform mat4 bigLightCameraMatrix;
-uniform mat4 bigLightPerspectiveMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 lightViewMatrix;
+uniform mat4 bigLightViewMatrix;
 
 uniform sampler2D colorTexture;
 uniform sampler2D shadowMapTexture;
@@ -34,20 +31,14 @@ void main(){
 
 	vertexPosition *= modelMatrix;
 
-	vec4 lightProjectedVertexPosition = vertexPosition * lightCameraMatrix * lightPerspectiveMatrix;;
+	vec4 lightProjectedVertexPosition = vertexPosition * lightViewMatrix;
 	input_shadowDepth = 0.5 * lightProjectedVertexPosition.z + 0.5;
 	input_shadowMapPosition = (vec2(1.0, 1.0) + lightProjectedVertexPosition.xy) / 2.0;
 
-	vec4 bigLightProjectedVertexPosition = vertexPosition * bigLightCameraMatrix * bigLightPerspectiveMatrix;
+	vec4 bigLightProjectedVertexPosition = vertexPosition * bigLightViewMatrix;
 	input_bigShadowDepth = 0.5 * bigLightProjectedVertexPosition.z + 0.5;
 	input_bigShadowMapPosition = (vec2(1.0, 1.0) + bigLightProjectedVertexPosition.xy) / 2.0;
 
-	vertexPosition *= cameraMatrix;
-
-	input_depth = vertexPosition.z / 100.0;
-
-	vertexPosition *= perspectiveMatrix;
-
-	gl_Position = vertexPosition;
+	gl_Position = vertexPosition * viewMatrix;
 
 }

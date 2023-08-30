@@ -196,7 +196,8 @@ void Renderer2D_setShader(Renderer2D_Renderer *renderer_p, unsigned int shader){
 
 void Renderer2D_setTexture(Renderer2D_Renderer *renderer_p, Texture texture){
 
-	glBindTexture(GL_TEXTURE_2D, texture.ID);
+	//glBindTexture(GL_TEXTURE_2D, texture.ID);
+	GL3D_uniformTexture(renderer_p->currentShader, "tex", 0, texture.ID);
 
 }
 

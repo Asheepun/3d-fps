@@ -109,7 +109,9 @@ void Texture_initAsColorMap(Texture *, int, int);
 
 void TextureAtlas_init(TextureAtlas *, const char **, int);
 
-void TextureBuffer_init(TextureBuffer *, void *, int, enum Type3D);
+void TextureBuffer_init(TextureBuffer *, void *, int);
+
+void TextureBuffer_update(TextureBuffer *, int, int, void *);
 
 void TextureBuffer_initAsVec4fArray(TextureBuffer *, Vec4f *, int);
 void TextureBuffer_initAsMat4fArray(TextureBuffer *, Mat4f *, int, bool);
@@ -125,6 +127,8 @@ void GL3D_uniformMat2f(unsigned int, const char *, Mat2f);
 void GL3D_uniformMat4f(unsigned int, const char *, Mat4f);
 
 void GL3D_uniformMat4fArray(unsigned int, const char *, Mat4f *, int);
+
+void GL3D_uniformVec2f(unsigned int, const char *, Vec2f);
 
 void GL3D_uniformVec3f(unsigned int, const char *, Vec3f);
 

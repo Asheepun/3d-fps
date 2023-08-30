@@ -109,10 +109,12 @@ static float PLAYER_HEIGHT_STANDING = 2.0;
 static float PLAYER_HEIGHT_CROUCHING = 1.0;
 static float PLAYER_HEIGHT_SPEED = 0.1;
 static float PLAYER_GRAVITY = 0.005;
-static float PLAYER_JUMP_SPEED = 0.2;
+//static float PLAYER_JUMP_SPEED = 0.2;
+static float PLAYER_JUMP_SPEED = 0.15;
 static float PLAYER_WALK_RESISTANCE = 0.75;
 static float PLAYER_LOOK_SPEED = 0.0015;
-static float PLAYER_SPEED = 0.075;
+static float PLAYER_SPEED = 0.065;
+static float PLAYER_CROUCH_SPEED = 0.025;
 
 //FUNCTION_DEFINITIONS
 

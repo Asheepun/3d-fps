@@ -25,6 +25,6 @@ void main(){
 	//FragColor = vec4(0.0, 0.0, 0.0, 0.0);
 
 	//gl_FragDepth = 0.0;
-	//gl_FragDepth = depth;
+	//gl_FragDepth = gl_FragCoord.z + 0.001;
 
 }

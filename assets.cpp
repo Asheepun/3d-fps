@@ -9,6 +9,7 @@ void Game_loadAssets(Game *game_p){
 		const char *names[] = {
 			"blank",
 			"grass",
+			"small-grass",
 			"leaves",
 			"bark",
 		};
@@ -140,7 +141,7 @@ void Game_loadAssets(Game *game_p){
 		const char *names[] = {
 
 			"model", "vertex-shader", "fragment-shader",
-			"model-shadow", "vertex-shader", "shadow-map-fragment-shader",
+			"model-shadow", "vertex-shader", "shadow-map-opaque-fragment-shader",
 
 			"bone", "bone-model-vertex-shader", "bone-model-fragment-shader",
 			"bone-shadow", "bone-model-vertex-shader", "shadow-map-fragment-shader",

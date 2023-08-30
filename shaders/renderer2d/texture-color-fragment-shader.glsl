@@ -13,6 +13,10 @@ void main(){
 	gl_FragColor = color;
 	gl_FragColor.w *= texture2D(tex, textureCoord).w;
 
+	//if(gl_FragColor.w < 1.0){
+		//discard;
+	//}
+
 	gl_FragDepth = 0.0;
 
 }

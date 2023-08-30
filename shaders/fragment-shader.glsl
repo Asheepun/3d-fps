@@ -17,13 +17,7 @@ uniform sampler2D bigShadowMapDepthTexture;
 
 uniform float grassShadowStrength;
 
-//uniform mat4 perspectiveMatrix;
-//uniform mat4 cameraMatrix;
-//uniform mat4 lightCameraMatrix;
-//uniform mat4 lightPerspectiveMatrix;
-
 uniform vec4 inputColor;
-
 
 float ambientLightFactor = 0.3;
 float diffuseLightFactor = 0.7;

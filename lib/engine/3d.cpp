@@ -384,6 +384,8 @@ void Texture_initAsDepthMap(Texture *texture_p, int width, int height){
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
@@ -526,19 +528,7 @@ void TextureAtlas_init(TextureAtlas *textureAtlas_p, const char **pathsAndNames,
 
 }
 
-void TextureBuffer_init(TextureBuffer *textureBuffer_p, void *data, int size, enum Type3D type){
-
-	GLenum glType;
-
-	if(type == TYPE_I8){
-		glType = GL_R8;
-	}
-	if(type == TYPE_I16){
-		glType = GL_R16;
-	}
-	if(type == TYPE_F32){
-		glType = GL_R32F;
-	}
+void TextureBuffer_init(TextureBuffer *textureBuffer_p, void *data, int size){
 
 	glGenBuffers(1, &textureBuffer_p->VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, textureBuffer_p->VBO);
@@ -548,6 +538,14 @@ void TextureBuffer_init(TextureBuffer *textureBuffer_p, void *data, int size, en
 	glBindTexture(GL_TEXTURE_BUFFER, textureBuffer_p->TB);
 	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, textureBuffer_p->VBO);
 
+}
+
+void TextureBuffer_update(TextureBuffer *textureBuffer_p, int offset, int size, void *data){
+
+	glBindBuffer(GL_ARRAY_BUFFER, textureBuffer_p->VBO);
+
+	glBufferSubData(GL_ARRAY_BUFFER, offset, size, data);
+	
 }
 
 void TextureBuffer_initAsVec4fArray(TextureBuffer *textureBuffer_p, Vec4f *vectors, int n_vectors){
@@ -629,6 +627,14 @@ void GL3D_uniformMat4fArray(unsigned int shaderProgram, const char *locationName
 	unsigned int location = glGetUniformLocation(shaderProgram, locationName);
 
 	glUniformMatrix4fv(location, n_matrices, GL_FALSE, (float *)matrices);
+
+}
+
+void GL3D_uniformVec2f(unsigned int shaderProgram, const char *locationName, Vec2f v){
+
+	unsigned int location = glGetUniformLocation(shaderProgram, locationName);
+
+	glUniform2f(location, v.x, v.y);
 
 }
 
