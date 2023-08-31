@@ -152,6 +152,8 @@ void Game_loadAssets(Game *game_p){
 			"leaf", "leaf-vertex-shader", "leaf-fragment-shader",
 			"leaf-shadow", "leaf-vertex-shader", "shadow-map-fragment-shader",
 
+			"water", "water-vertex-shader", "water-fragment-shader",
+
 		};
 
 		int n_names = (sizeof(names) / sizeof(char *)) / 3;

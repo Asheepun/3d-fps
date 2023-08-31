@@ -50,7 +50,14 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 		
 		Vec4f point = getVec4f(length, 0.0, 0.0, 1.0);
 
-		Vec4f_mulByMat4f(&point, getQuaternionMat4f(getQuaternion(getVec3f(0.0, 1.0, 0.0), angle)));
+		//printf("point\n");
+
+		//Vec4f_log(point);
+
+		point = getQuaternionMat4f(getQuaternion(getVec3f(0.0, 1.0, 0.0), angle)) * point;
+
+		//Vec4f_log(point);
+		//Vec4f_mulByMat4f(&point, getQuaternionMat4f(getQuaternion(getVec3f(0.0, 1.0, 0.0), angle)));
 
 		point.y += rootNode_p->pos.y + 2.0 + getRandom() * 3.0;
 

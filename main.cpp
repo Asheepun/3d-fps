@@ -146,8 +146,10 @@ void Engine_start(){
 			}
 			*/
 
-		for(float x = 0; x < TERRAIN_SCALE; x += GRASS_DISTANCE){
-			for(float y = 0; y < TERRAIN_SCALE; y += GRASS_DISTANCE){
+		float margin = 3.0;
+
+		for(float x = margin; x < TERRAIN_SCALE - margin; x += GRASS_DISTANCE){
+			for(float y = margin; y < TERRAIN_SCALE - margin; y += GRASS_DISTANCE){
 
 				Vec4f pos = getVec4f(x, 20.0, y, 0.0);
 
@@ -309,7 +311,7 @@ void Engine_start(){
 
 	Game_addTree(&game, getVec3f(40.0, 0.0, 40.0));
 
-	Engine_toggleFullscreen();
+	//Engine_toggleFullscreen();
 
 }
 
@@ -546,8 +548,8 @@ void Engine_update(float deltaTime){
 	}
 
 	//PERFORMANCE TEST CAMERA
-	game.player.pos = getVec3f(90.0, 5.0, 20.0);
-	cameraDirection = getVec3f(-0.9, -0.33, 0.26);
+	//game.player.pos = getVec3f(90.0, 5.0, 20.0);
+	//cameraDirection = getVec3f(-0.9, -0.33, 0.26);
 
 #ifdef RUN_OFFLINE
 		game.inputsBuffer.clear();
@@ -714,16 +716,20 @@ void Engine_update(float deltaTime){
 	memset(bucketOffsets, 0, sizeof(int) * n_buckets);
 	memset(bucketCounts, 0, sizeof(int) * n_buckets);
 
-	Vec4f relativePos = getVec4f(cameraPos.x, cameraPos.y, cameraPos.z, 0.0);
-	unsigned char magnitudes[grassPositions.size()];
-	memset(magnitudes, 0, sizeof(unsigned char) * grassPositions.size());
+	unsigned char depths[grassPositions.size()];
+	memset(depths, 0, sizeof(unsigned char) * grassPositions.size());
+
+	Mat4f cameraMatrix = getLookAtMat4f(cameraPos, cameraDirection);
 
 	for(int i = 0; i < grassPositions.size(); i++){
 
-		unsigned char mag = (unsigned char)getMagVec4f(grassPositions[i] - relativePos);
-		magnitudes[i] = mag * (mag < n_buckets);
+		Vec4f projectedPos = cameraMatrix * grassPositions[i];
 
-		bucketSizes[magnitudes[i]]++;
+		unsigned char depth = (unsigned char)fabs(projectedPos.z);
+
+		depths[i] = depth * (depth < n_buckets);
+
+		bucketSizes[depths[i]]++;
 
 	}
 
@@ -733,8 +739,8 @@ void Engine_update(float deltaTime){
 
 	for(int i = 0; i < grassPositions.size(); i++){
 
-		sortedGrassPositions[bucketOffsets[magnitudes[i]] + bucketCounts[magnitudes[i]]] = grassPositions[i];
-		bucketCounts[magnitudes[i]]++;
+		sortedGrassPositions[bucketOffsets[depths[i]] + bucketCounts[depths[i]]] = grassPositions[i];
+		bucketCounts[depths[i]]++;
 
 	}
 
@@ -1224,6 +1230,37 @@ void Engine_draw(){
 
 		}
 		*/
+
+		//draw water
+		if(renderStage == RENDER_STAGE_SCENE && false){
+
+			float scale = 50.0;
+
+			Mat4f rotationMatrix = getQuaternionMat4f(getQuaternion(getVec3f(1.0, 0.0, 0.0), -M_PI / 2.0));
+
+			Mat4f scalingMatrix = getScalingMat4f(scale);
+
+			Mat4f translationMatrix = getTranslationMat4f(getVec3f(-scale, 0.0, scale));
+
+			Shader *shader_p = Game_getShaderPointerByName(&game, "water");
+
+			glUseProgram(shader_p->ID);
+
+			Model *model_p = &game.models[Game_getModelIndexByName(&game, "quad")];
+
+			glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+			glBindVertexArray(model_p->VAO);
+
+			GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
+			GL3D_uniformMat4f(shader_p->ID, "rotationMatrix", rotationMatrix);
+			GL3D_uniformMat4f(shader_p->ID, "scalingMatrix", scalingMatrix);
+			GL3D_uniformMat4f(shader_p->ID, "translationMatrix", translationMatrix);
+
+			GL3D_uniformFloat(shader_p->ID, "inputT", windTime);
+
+			glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+			
+		}
 	
 	}
 

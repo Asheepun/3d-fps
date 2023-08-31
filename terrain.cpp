@@ -16,6 +16,10 @@ TriangleMesh generateTerrainTriangleMesh(int width, float heightScale){
 			//terrainPoints[index].y = getRandom() / TERRAIN_SCALE * 2.0;
 			points[index].y = getRandom() * heightScale;
 
+			if(y == 0 || x == 0 || y == width - 1 || x == width - 1){
+				points[index].y = -0.0;
+			}
+
 			points[index].x /= (float)width;
 			points[index].z /= (float)width;
 		

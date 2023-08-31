@@ -184,7 +184,39 @@ struct Mat4f{
 		return values[i];
 	}
 
+	Mat4f operator* (Mat4f mIn){
+		Mat4f newMatrix;
+		memset(newMatrix.values, 0, 16 * sizeof(float));
+
+		for(int newRow = 0; newRow < 4; newRow++){
+			for(int newCol = 0; newCol < 4; newCol++){
+				for(int i = 0; i < 4; i++){
+					newMatrix.values[newRow][newCol] += values[newRow][i] * mIn.values[i][newCol];
+				}
+			}
+		}
+
+		return newMatrix;
+	}
+
+	Vec4f operator* (Vec4f vIn){
+		Vec4f newVec;
+
+		for(int i = 0; i < 4; i++){
+			newVec[i] = vIn.x * values[i][0] + vIn.y * values[i][1] + vIn.z * values[i][2] + vIn.w * values[i][3];
+		}
+
+		return newVec;
+	}
+
 	void operator*= (Mat4f vIn){
+		Mat4f valueMatrix;
+		memcpy(valueMatrix.values, values, 16 * sizeof(float));
+
+		valueMatrix = vIn * valueMatrix;
+
+		memcpy(values, valueMatrix.values, 16 * sizeof(float));
+		/*
 		Mat4f newMatrix;
 		memset(newMatrix.values, 0, 16 * sizeof(float));
 		
@@ -198,6 +230,7 @@ struct Mat4f{
 		}
 	
 		memcpy(values, newMatrix.values, 16 * sizeof(float));
+		*/
 	}
 };
 
@@ -304,7 +337,7 @@ float getAreaFromTriangleVec3f(Vec3f, Vec3f, Vec3f);
 
 Vec3f getNormalFromTriangleVec3f(Vec3f, Vec3f, Vec3f);
 
-void Vec3f_mulByMat4f(Vec3f *, Mat4f, float);
+//void Vec3f_mulByMat4f(Vec3f *, Mat4f, float);
 
 //VEC4F FUNCTIONS
 
@@ -312,7 +345,7 @@ float getMagVec4f(Vec4f);
 
 void Vec4f_log(Vec4f);
 
-void Vec4f_mulByMat4f(Vec4f *, Mat4f);
+//void Vec4f_mulByMat4f(Vec4f *, Mat4f);
 
 //MAT4F FUNCTIONS
 

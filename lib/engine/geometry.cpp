@@ -399,7 +399,8 @@ void Vec3f_mulByMat4f(Vec3f *v_p, Mat4f m, float w){
 
 	Vec4f v4 = getVec4f(v_p->x, v_p->y, v_p->z, w);
 
-	Vec4f_mulByMat4f(&v4, m);
+	v4 = m * v4;
+	//Vec4f_mulByMat4f(&v4, m);
 
 	v_p->x = v4.x;
 	v_p->y = v4.y;
@@ -601,6 +602,15 @@ Mat4f getLookAtMat4f(Vec3f pos, Vec3f direction){
 		direction.x, direction.y, direction.z, 0.0,
 		0.0, 		 0.0,  		  0.0, 		   1.0,
 	};
+
+	/*
+	Mat4f matrix = { 
+		right.x,	 right.y, 	  right.z, 	   -pos.x,
+		up.x, 	   	 up.y, 		  up.z, 	   -pos.y,
+		direction.x, direction.y, direction.z, -pos.z,
+		0.0, 		 0.0,  		  0.0, 		   1.0,
+	};
+	*/
 
 	matrix *= lookAtMatrix;
 
