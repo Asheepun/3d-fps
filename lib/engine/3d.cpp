@@ -322,6 +322,7 @@ std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone> bones){
 
 }
 
+/*
 void VertexMesh_initFromFile_mesh(VertexMesh *vertexMesh_p, const char *path){
 
 	long int fileSize;
@@ -341,6 +342,7 @@ void VertexMesh_initFromFile_mesh(VertexMesh *vertexMesh_p, const char *path){
 	free(data);
 
 }
+*/
 
 void TriangleMesh_initFromFile_mesh(TriangleMesh *triangleMesh_p, const char *path){
 
@@ -694,5 +696,43 @@ void GL3D_uniformTextureBuffer(unsigned int shaderProgram, const char *locationN
 	glUniform1i(location, locationIndex);
 	glActiveTexture(GL_TEXTURE0 + locationIndex);
 	glBindTexture(GL_TEXTURE_BUFFER, textureID);
+
+}
+
+bool checkClosestLineTriangleMeshIntersection(Vec3f lineOrigin, Vec3f lineDirection, TriangleMesh triangleMesh, Vec3f triangleMeshPosition, float triangleMeshScale, Vec3f *outputIntersectionPoint_p, int *outputTriangleIndex_p){
+
+	Vec3f intersectionPoint;
+	int intersectionTriangleIndex;
+	bool intersected = false;
+	float closestDistance;
+
+	for(int i = 0; i < triangleMesh.n_triangles; i++){
+
+		Vec3f checkPoint;
+
+		if(checkLineToTriangleIntersectionVec3f(
+			lineOrigin,
+			lineOrigin + lineDirection,
+			triangleMeshPosition + triangleMesh.triangles[i * 3 + 0] * triangleMeshScale,
+			triangleMeshPosition + triangleMesh.triangles[i * 3 + 1] * triangleMeshScale,
+			triangleMeshPosition + triangleMesh.triangles[i * 3 + 2] * triangleMeshScale,
+			&checkPoint
+		) && (!intersected
+		|| dot(checkPoint - lineOrigin, checkPoint - lineOrigin) < closestDistance)){
+			intersectionPoint = checkPoint;
+			intersected = true;
+			intersectionTriangleIndex = i;
+			closestDistance = dot(intersectionPoint - lineOrigin, intersectionPoint - lineOrigin);
+		}
+	}
+
+	if(outputIntersectionPoint_p != NULL){
+		*outputIntersectionPoint_p = intersectionPoint;
+	}
+	if(outputTriangleIndex_p != NULL){
+		*outputTriangleIndex_p = intersectionTriangleIndex;
+	}
+
+	return intersected;
 
 }

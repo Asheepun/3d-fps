@@ -12,6 +12,11 @@ void Game_loadAssets(Game *game_p){
 			"small-grass",
 			"leaves",
 			"bark",
+			"voronoi",
+			"voronoi-smooth",
+			"voronoi-smooth-normals",
+			"water-normals",
+			"ripple-noise",
 		};
 
 		int n_names = sizeof(names) / sizeof(char *);

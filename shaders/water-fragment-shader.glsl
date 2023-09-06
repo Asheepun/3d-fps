@@ -1,36 +1,53 @@
 #version 330 core
 
 in vec4 input_fragmentPosition;
+in vec3 input_normal;
+in vec2 input_textureCoord;
 
 out vec4 FragColor;
 
+uniform sampler2D voronoiTexture;
+uniform sampler2D normalMap;
+uniform sampler2D noiseMap;
+
 uniform float inputT;
+uniform vec3 cameraDirection;
 
 float ambientLightFactor = 0.5;
-float diffuseLightFactor = 0.3;
+float diffuseLightFactor = 0.5;
 
 vec3 lightDirection = vec3(0.7, -1.0, 0.5);
 
+int specularExponent = 20;
+
 void main(){
 
-	FragColor = vec4(0.5, 0.7, 0.9, 1.0);
-	FragColor.xy *= 0.5;
+	FragColor = vec4(0.0, 0.0, 1.0, 0.5);
 
-	float t = input_fragmentPosition.x * 100.0 - inputT * 10.0;
+	vec3 reflectionDirection = normalize(lightDirection - input_normal * 2.0 * dot(lightDirection, input_normal));
 
-	vec3 normal = normalize(vec3(1.0, cos(t) + cos(sin(t) / 10.0), 0.0));
+	float specularLight = dot(reflectionDirection, -cameraDirection);
 
-	//normal = vec3(0.0, 1.0, 0.0);
+	//FragColor.xyz = input_normal;
 
-	float diffuseLight = abs(dot(-lightDirection, normal));
+	//vec2 textureCoord = 0.1 + input_textureCoord * 0.8;
 
-	float totalLightFactor = ambientLightFactor + diffuseLight * diffuseLightFactor;
+	/*
+	float noiseFactor = texture2D(noiseMap, input_textureCoord).r;
+	//noiseFactor = 0.0;
 
-	FragColor.xyz *= totalLightFactor;
+	float voronoiFactor = texture2D(voronoiTexture, input_textureCoord + vec2(0.0, noiseFactor * 0.02 - inputT * 0.02)).r;
 
-	//normal.y = 0.5 + normal.y * 0.5;
-	//FragColor.xyz = normal;
-	//FragColor = vec4(0.0, 0.0, 0.5 * sin(input_fragmentPosition.x * 10.0) + 0.5, 1.0);
+	FragColor = vec4(0.0, 0.0, 1.0, 0.5);
+	FragColor.x += voronoiFactor;
+	FragColor.y += voronoiFactor;
+	*/
+
+	float diffuseLight = max(dot(-lightDirection, input_normal), 0.0);
+
+	FragColor.xyz *= ambientLightFactor + diffuseLightFactor * diffuseLight;
+
+	FragColor.xyz += vec3(1.0) * pow(specularLight, specularExponent);
 
 } 
 

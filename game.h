@@ -38,6 +38,7 @@ struct Particle{
 	Vec3f pos;
 	Vec3f velocity;
 	Vec3f rotation;
+	float scale;
 	int frames;
 };
 
@@ -97,6 +98,8 @@ struct Game{
 
 //GLOBAL VARIABLES
 
+//static int TERRAIN_WIDTH = 20;
+//static float TERRAIN_SCALE = 100.0;
 static int TERRAIN_WIDTH = 20;
 static float TERRAIN_SCALE = 100.0;
 static Vec4f TERRAIN_COLOR = { 0.14, 0.55, 0.17, 1.0 };
@@ -104,6 +107,8 @@ static Vec4f TERRAIN_COLOR = { 0.14, 0.55, 0.17, 1.0 };
 static float BULLET_SCALE = 0.2;
 static float BULLET_SPEED = 1.0;
 static Vec4f BULLET_COLOR = { 0.5, 0.5, 0.4, 1.0 };
+
+static float BLOOD_PARTICLE_GRAVITY = 0.01;
 
 static float PLAYER_HEIGHT_STANDING = 2.0;
 static float PLAYER_HEIGHT_CROUCHING = 1.0;
@@ -143,9 +148,5 @@ void Game_loadAssets(Game *);
 //FILE: trees.cpp
 
 void Game_addTree(Game *, Vec3f);
-
-//FILE: terrain.cpp
-
-TriangleMesh generateTerrainTriangleMesh(int, float);
 
 #endif

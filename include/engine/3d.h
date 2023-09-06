@@ -65,10 +65,12 @@ struct TextureBuffer{
 	unsigned int elementSize;
 };
 
+/*
 typedef struct VertexMesh{
 	Vec3f *vertices;
 	int length;
 }VertexMesh;
+*/
 
 struct TriangleMesh{
 	Vec3f *triangles;
@@ -93,7 +95,7 @@ std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone>);
 
 unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh, Vec2f *);
 
-void VertexMesh_initFromFile_mesh(VertexMesh *, const char *);
+//void VertexMesh_initFromFile_mesh(VertexMesh *, const char *);
 
 void TriangleMesh_initFromFile_mesh(TriangleMesh *, const char *);
 
@@ -143,5 +145,7 @@ void GL3D_uniformTexture(unsigned int, const char *, unsigned int, unsigned int)
 void GL3D_uniformTexture3D(unsigned int, const char *, unsigned int, unsigned int);
 
 void GL3D_uniformTextureBuffer(unsigned int, const char *, unsigned int, unsigned int);
+
+bool checkClosestLineTriangleMeshIntersection(Vec3f, Vec3f, TriangleMesh, Vec3f, float, Vec3f *, int *);
 
 #endif

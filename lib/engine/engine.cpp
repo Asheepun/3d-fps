@@ -293,7 +293,7 @@ int main(){
 
 	swa.colormap = cmap;
 	//swa.event_mask = KeyPressMask | KeyReleaseMask | ButtonPressMask | StructureNotifyMask | ButtonReleaseMask | PointerMotionMask;
-	swa.event_mask = StructureNotifyMask;
+	swa.event_mask = StructureNotifyMask | ButtonPressMask | ButtonReleaseMask;
 
 	win = XCreateWindow(dpy, root, 0, 0, Engine_clientWidth, Engine_clientHeight, 0, vi->depth, InputOutput, vi->visual, CWColormap | CWEventMask, &swa);
 
@@ -378,7 +378,7 @@ int main(){
 		//startTicks = clock();
 		auto frameStartTime = std::chrono::high_resolution_clock::now();
 
-		//handle window events
+		//handle window and button press events
 		while(XPending(dpy) > 0){
 
 			XNextEvent(dpy, &xev);
@@ -396,6 +396,35 @@ int main(){
 				|| xce.height != Engine_clientHeight){
 					Engine_clientWidth = xce.width;
 					Engine_clientHeight = xce.height;
+				}
+
+			}
+
+			if(xev.type == ButtonPress){
+				XButtonEvent *buttonEvent_p = (XButtonEvent *)&xev;
+
+				if(buttonEvent_p->button == 1){
+					Engine_pointer.down = true;
+					Engine_pointer.downed = true;
+					Engine_pointer.lastDownedPos = Engine_pointer.pos;
+				}
+
+			}
+			if(xev.type == ButtonRelease){
+
+				XButtonEvent *buttonEvent_p = (XButtonEvent *)&xev;
+
+				if(buttonEvent_p->button == 1){
+					Engine_pointer.down = false;
+					Engine_pointer.upped = true;
+					Engine_pointer.lastUppedPos = Engine_pointer.pos;
+				}
+
+				if(buttonEvent_p->button == 4){
+					Engine_pointer.scroll++;
+				}
+				if(buttonEvent_p->button == 5){
+					Engine_pointer.scroll--;
 				}
 
 			}
@@ -432,9 +461,9 @@ int main(){
 		{
 			Window returnWindow;
 			int returnInt;
-			unsigned int returnUInt;
 			int XPointerX, XPointerY;
-			if(XQueryPointer(dpy, win, &returnWindow, &returnWindow, &returnInt, &returnInt, &XPointerX, &XPointerY, &returnUInt)){
+			unsigned int buttonMask;
+			if(XQueryPointer(dpy, win, &returnWindow, &returnWindow, &returnInt, &returnInt, &XPointerX, &XPointerY, &buttonMask)){
 
 				Engine_pointer.pos.x = XPointerX;
 				Engine_pointer.pos.y = XPointerY;

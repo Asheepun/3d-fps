@@ -1,5 +1,6 @@
 #version 330 core
 
+in vec3 input_staticWorldPosition;
 in vec2 input_texturePosition;
 in float input_shadowDepth;
 in float input_bigShadowDepth;
@@ -14,11 +15,16 @@ uniform samplerBuffer grassPositions;
 uniform sampler2D shadowMapDepthTexture;
 uniform sampler2D grassShadowMapDepthTexture;
 uniform sampler2D bigShadowMapDepthTexture;
+uniform sampler2D paintMapTexture;
 
 uniform float grassShadowStrength;
 
 float ambientLightFactor = 0.3;
 float diffuseLightFactor = 0.7;
+
+//float paintHeight = 2.0;
+float paintHeightFactor = 5.0;
+float paintWidth = 0.4;
 
 void main(){
 
@@ -28,12 +34,16 @@ void main(){
 		discard;
 	}
 
+	float paintHeight = texture2D(paintMapTexture, input_staticWorldPosition.xz / 100.0).r * paintHeightFactor;
+
+	if(paintHeight > 0.0
+	&& abs(int(input_staticWorldPosition.y) - paintHeight) < paintWidth){
+		FragColor = vec4(1.0, 0.0, 0.1, 1.0);
+	}
+
 	float shadowFactor = 1.0;
 	float shadowDepthTolerance = 0.0015;
 
-	//float shadowMapDepth = 0.0;
-	//float grassShadowMapDepth = 0.0;
-	//float bigShadowMapDepth = 0.0;
 	float shadowMapDepth = texture2D(shadowMapDepthTexture, input_shadowMapPosition).r;
 	float grassShadowMapDepth = texture2D(grassShadowMapDepthTexture, input_shadowMapPosition).r;
 	float bigShadowMapDepth = texture2D(bigShadowMapDepthTexture, input_bigShadowMapPosition).r;

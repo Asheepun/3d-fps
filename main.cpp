@@ -23,9 +23,6 @@ Game game;
 
 float windTime = 0.0;
 
-//THIS VALUE (N_GRASS) WILL BE MODIFIED DANGER DANGER!!!
-//int N_GRASS = 10000;
-//TextureBuffer grassPositionsTextureBuffer;
 const int GRASS_GRID_WIDTH = 10;
 //const float GRASS_DISTANCE = 1.0;
 const float GRASS_DISTANCE = 1.0;
@@ -33,7 +30,6 @@ const float GRASS_DISTANCE = 1.0;
 TextureBuffer grassPositionsTextureBuffer;
 std::vector<Vec4f> grassPositions;
 Vec4f *sortedGrassPositions;
-//std::vector<Vec4f> grassPositions2;
 
 int WIDTH = 1920;
 int HEIGHT = 1080;
@@ -57,6 +53,12 @@ Texture bigShadowMapDepthTexture;
 int BIG_SHADOW_MAP_WIDTH = 500;
 int BIG_SHADOW_MAP_HEIGHT = 500;
 float bigShadowMapScale = 70.0;
+
+Texture paintMapTexture;
+int PAINT_MAP_WIDTH = 300;
+int PAINT_MAP_HEIGHT = 300;
+float PAINT_MAP_SCALE = 100.0;
+unsigned char *paintMap;
 
 Vec3f lightPos = { 0.0, 20.0, 0.0 };
 Vec3f lightDirection = { 0.7, -1.0, 0.5 };
@@ -83,10 +85,147 @@ void Engine_start(){
 
 	font = getFont("assets/times.ttf", 60);
 
+	//generate water mesh
+	{
+		float scale = 20.0;
+		int n_triangles = (scale) * (scale) * 2;
+		float *meshData = (float *)malloc(n_triangles * 6 * 8 * sizeof(float));
+
+		int index = 0;
+
+		for(float x = 0.0; x < 1.0; x += 1.0 / scale){
+			for(float z = 0.0; z < 1.0; z += 1.0 / scale){
+
+				Vec2f t1 = getVec2f(x, z);
+				Vec2f t2 = getVec2f(x + 1.0 / scale, z);
+				Vec2f t3 = getVec2f(x, z + 1.0 / scale);
+				Vec2f t4 = getVec2f(x + 1.0 / scale, z + 1.0 / scale);
+
+				Vec3f p1 = getVec3f(t1.x, t1.y, t4.x);
+				Vec3f n1 = getVec3f(t4.y, t2.x, t2.y);
+				Vec3f p2 = getVec3f(t4.x, t4.y, t2.x);
+				Vec3f n2 = getVec3f(t2.y, t1.x, t1.y);
+				Vec3f p3 = getVec3f(t2.x, t2.y, t1.x);
+				Vec3f n3 = getVec3f(t1.y, t4.x, t4.y);
+
+				Vec3f p4 = getVec3f(t1.x, t1.y, t3.x);
+				Vec3f n4 = getVec3f(t3.y, t4.x, t4.y);
+				Vec3f p5 = getVec3f(t3.x, t3.y, t4.x);
+				Vec3f n5 = getVec3f(t4.y, t1.x, t1.y);
+				Vec3f p6 = getVec3f(t4.x, t4.y, t1.x);
+				Vec3f n6 = getVec3f(t1.y, t3.x, t3.y);
+
+				memcpy(meshData + index * 8, &p1, sizeof(Vec3f));
+				memcpy(meshData + index * 8 + 3, &t1, sizeof(Vec2f));
+				memcpy(meshData + index * 8 + 5, &n1, sizeof(Vec3f));
+				index++;
+
+				memcpy(meshData + index * 8, &p2, sizeof(Vec3f));
+				memcpy(meshData + index * 8 + 3, &t4, sizeof(Vec2f));
+				memcpy(meshData + index * 8 + 5, &n2, sizeof(Vec3f));
+				index++;
+
+				memcpy(meshData + index * 8, &p3, sizeof(Vec3f));
+				memcpy(meshData + index * 8 + 3, &t2, sizeof(Vec2f));
+				memcpy(meshData + index * 8 + 5, &n3, sizeof(Vec3f));
+				index++;
+
+				memcpy(meshData + index * 8, &p4, sizeof(Vec3f));
+				memcpy(meshData + index * 8 + 3, &t1, sizeof(Vec2f));
+				memcpy(meshData + index * 8 + 5, &n4, sizeof(Vec3f));
+				index++;
+
+				memcpy(meshData + index * 8, &p5, sizeof(Vec3f));
+				memcpy(meshData + index * 8 + 3, &t3, sizeof(Vec2f));
+				memcpy(meshData + index * 8 + 5, &n5, sizeof(Vec3f));
+				index++;
+
+				memcpy(meshData + index * 8, &p6, sizeof(Vec3f));
+				memcpy(meshData + index * 8 + 3, &t4, sizeof(Vec2f));
+				memcpy(meshData + index * 8 + 5, &n6, sizeof(Vec3f));
+				index++;
+
+			}
+		}
+
+		Model model;
+		Model_initFromMeshData(&model, (unsigned char *)meshData, n_triangles);
+		String_set(model.name, "water", STRING_SIZE);
+
+		game.models.push_back(model);
+
+	}
+
+	//generate underwater terrain
+	{
+	
+	}
+
 	//generate terrain
 	{
 		setRandomSeed(1);
-		TriangleMesh triangleMesh = generateTerrainTriangleMesh(TERRAIN_WIDTH, 1.0 / (TERRAIN_SCALE / 2.0));
+
+		int width = 20;
+
+		Vec3f *points = (Vec3f *)malloc(sizeof(Vec3f) * width * width);
+
+		for(int x = 0; x < width; x++){
+			for(int y = 0; y < width; y++){
+
+				int index = y * width + x;
+
+				points[index].x = x;
+				points[index].z = y;
+				points[index].y = getRandom() / TERRAIN_SCALE * 2.0;
+
+				if(y == 0 || x == 0 || y == width - 1 || x == width - 1){
+					points[index].y = -0.0;
+				}
+
+				points[index].x /= (float)width;
+				points[index].z /= (float)width;
+			
+			}
+		}
+
+		int n_triangles = 2 * (width - 1) * (width - 1);
+
+		Vec3f *triangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * n_triangles);
+
+		int triangleIndex = 0;
+
+		for(int x = 0; x < width - 1; x++){
+			for(int y = 0; y < width - 1; y++){
+
+				int pointsIndex1 = y * width + x;
+				int pointsIndex2 = (y + 1) * width + x;
+				int pointsIndex3 = y * width + (x + 1);
+				int pointsIndex4 = (y + 1) * width + (x + 1);
+
+				Vec3f point1 = points[pointsIndex1];
+				Vec3f point2 = points[pointsIndex2];
+				Vec3f point3 = points[pointsIndex3];
+				Vec3f point4 = points[pointsIndex4];
+
+				triangles[triangleIndex * 3 * 2 + 0] = point1;
+				triangles[triangleIndex * 3 * 2 + 1] = point2;
+				triangles[triangleIndex * 3 * 2 + 2] = point4;
+				triangles[triangleIndex * 3 * 2 + 3] = point1;
+				triangles[triangleIndex * 3 * 2 + 4] = point4;
+				triangles[triangleIndex * 3 * 2 + 5] = point3;
+
+				triangleIndex++;
+
+			}
+		}
+
+		free(points);
+		
+		TriangleMesh triangleMesh;
+		triangleMesh.triangles = triangles;
+		triangleMesh.n_triangles = n_triangles;
+		String_set(triangleMesh.name, "terrain", STRING_SIZE);
+
 		game.triangleMeshes.push_back(triangleMesh);
 
 		unsigned char *meshData = generateMeshDataFromTriangleMesh(triangleMesh, NULL);
@@ -253,6 +392,20 @@ void Engine_start(){
 	glBindFramebuffer(GL_FRAMEBUFFER, bigShadowMapFBO);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, bigShadowMapDepthTexture.ID, 0);
 
+	//generate paint map
+	//Texture_initAsDepthMap(&paintMapTexture, PAINT_MAP_WIDTH, PAINT_MAP_HEIGHT);
+	paintMap = (unsigned char *)malloc(sizeof(unsigned char) * PAINT_MAP_WIDTH * PAINT_MAP_HEIGHT);
+	memset(paintMap, 0, sizeof(unsigned char) * PAINT_MAP_WIDTH * PAINT_MAP_HEIGHT);
+		
+	
+
+	glGenTextures(1, &paintMapTexture.ID);
+	glBindTexture(GL_TEXTURE_2D, paintMapTexture.ID);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, PAINT_MAP_WIDTH, PAINT_MAP_HEIGHT, 0, GL_RED, GL_UNSIGNED_BYTE, paintMap);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
 	//glDrawBuffer(GL_NONE);
 	//glReadBuffer(GL_NONE);
 
@@ -295,6 +448,11 @@ void Engine_start(){
 		//Vec3f game.player.velocity = { 0.0, 0.0, 0.0 };
 		//bool playerOnGround = false;
 		//float game.player.height = PLAYER_HEIGHT_STANDING;
+	}
+	{
+		Player player;
+		player.pos = getVec3f(10.0, 5.0, 30.0);
+		game.otherPlayers.push_back(player);
 	}
 
 	Game_addTree(&game, getVec3f(15.0, 0.0, 15.0));
@@ -465,6 +623,55 @@ void Engine_update(float deltaTime){
 			if(game.player.height < PLAYER_HEIGHT_STANDING){
 				game.player.height += PLAYER_HEIGHT_SPEED * 1.2;
 			}
+		}
+		if(inputs.shoot == 1){
+
+			for(int i = 0; i < game.otherPlayers.size(); i++){
+				
+				Player *player_p = &game.otherPlayers[i];
+
+				TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "cube");
+
+				Vec3f intersectionPoint;
+				Vec3f intersectionNormal;
+				float intersectionDistance = -1.0;
+
+				for(int j = 0; j < triangleMesh_p->n_triangles; j++){
+
+					Vec3f checkPoint;
+
+					if(checkLineToTriangleIntersectionVec3f(cameraPos, cameraPos + cameraDirection, player_p->pos + triangleMesh_p->triangles[j * 3 + 0], player_p->pos + triangleMesh_p->triangles[j * 3 + 1], player_p->pos + triangleMesh_p->triangles[j * 3 + 2], &checkPoint)
+					&& (intersectionDistance < 0.0
+					|| length(checkPoint - cameraPos) < intersectionDistance)){
+						intersectionPoint = checkPoint;
+						intersectionNormal = cross(triangleMesh_p->triangles[j * 3 + 0] - triangleMesh_p->triangles[j * 3 + 1], triangleMesh_p->triangles[j * 3 + 0] - triangleMesh_p->triangles[j * 3 + 2]);
+						intersectionDistance = length(checkPoint - cameraPos);
+					}
+				}
+
+				intersectionNormal = normalize(intersectionNormal);
+
+				if(intersectionDistance >= 0.0){
+
+					int n_particles = 17 + getRandom() * 5;
+
+					for(int i = 0; i < n_particles; i++){
+
+						Particle particle;
+						particle.pos = intersectionPoint;
+						particle.velocity = intersectionNormal * 0.1;
+						particle.velocity.y += 0.1;
+						particle.velocity += normalize(getVec3f(getRandom() - 0.5, getRandom() - 0.5, getRandom() - 0.5)) * 0.05;
+						particle.scale = 0.1 * (0.8 + 0.4 * getRandom());
+
+						game.particles.push_back(particle);
+
+					}
+
+				}
+
+			}
+
 		}
 
 		//handle player physics
@@ -695,15 +902,32 @@ void Engine_update(float deltaTime){
 		
 		Particle *particle_p = &game.particles[i];
 
-		if(particle_p->frames >= 10 + getRandom() * 20.0){
+		particle_p->velocity.y -= BLOOD_PARTICLE_GRAVITY;
+
+		particle_p->pos += particle_p->velocity;
+
+		//check distance to ground
+		TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
+
+		Vec3f intersectionPoint;
+		checkClosestLineTriangleMeshIntersection(particle_p->pos, getVec3f(0.0, -1.0, 0.0), *triangleMesh_p, getVec3f(0.0, 0.0, 0.0), TERRAIN_SCALE, &intersectionPoint, NULL);
+
+		float distanceToGround = length(particle_p->pos - intersectionPoint);
+
+		float hitHeight = 1.0;
+
+		if(distanceToGround < hitHeight){
+
+			Vec2f paintMapPos = getVec2f(particle_p->pos.x * PAINT_MAP_WIDTH, particle_p->pos.z * PAINT_MAP_HEIGHT) / PAINT_MAP_SCALE;
+
+			int index = (int)paintMapPos.y * PAINT_MAP_WIDTH + (int)paintMapPos.x;
+
+			paintMap[index] = (unsigned char)((255.0 * particle_p->pos.y) / 5.0);
+
 			game.particles.erase(game.particles.begin() + i);
 			i--;
 			continue;
 		}
-
-		Vec3f_add(&particle_p->pos, particle_p->velocity);
-
-		particle_p->frames++;
 
 	}
 
@@ -748,6 +972,9 @@ void Engine_update(float deltaTime){
 }
 
 void Engine_draw(){
+
+	glBindTexture(GL_TEXTURE_2D, paintMapTexture.ID);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, PAINT_MAP_WIDTH, PAINT_MAP_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, paintMap);
 
 	TextureBuffer_update(&grassPositionsTextureBuffer, 0, grassPositions.size() * sizeof(Vec4f), sortedGrassPositions);
 
@@ -1000,6 +1227,7 @@ void Engine_draw(){
 			GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 3, shadowMapDepthTexture.ID);
 			GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 4, grassShadowMapDepthTexture.ID);
 			GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 5, bigShadowMapDepthTexture.ID);
+			GL3D_uniformTexture(shader_p->ID, "paintMapTexture", 6, paintMapTexture.ID);
 
 			GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
 			GL3D_uniformMat4f(shader_p->ID, "lightViewMatrix", lightViewMatrix);
@@ -1231,25 +1459,157 @@ void Engine_draw(){
 		}
 		*/
 
+		//draw other players
+		if(renderStage == RENDER_STAGE_SCENE){
+
+			for(int i = 0; i < game.otherPlayers.size(); i++){
+
+				Player *player_p = &game.otherPlayers[i];
+
+				float scale = 1.0;
+
+				Mat4f modelMatrix = getIdentityMat4f();
+
+				modelMatrix *= getScalingMat4f(scale);
+
+				modelMatrix *= getTranslationMat4f(player_p->pos);
+
+				Shader *shader_p = Game_getShaderPointerByName(&game, "model");
+				if(renderStage == RENDER_STAGE_SHADOWS
+				|| renderStage == RENDER_STAGE_BIG_SHADOWS
+				|| renderStage == RENDER_STAGE_SCENE_DEPTH){
+					shader_p = Game_getShaderPointerByName(&game, "model-shadow");
+				}
+
+				glUseProgram(shader_p->ID);
+				
+				Model *model_p = Game_getModelPointerByName(&game, "cube");
+
+				Texture *texture_p = Game_getTexturePointerByName(&game, "blank");
+				Texture *alphaTexture_p = Game_getTexturePointerByName(&game, "blank-alpha");
+
+				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+				glBindVertexArray(model_p->VAO);
+
+				GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
+
+				GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
+				GL3D_uniformTexture(shader_p->ID, "alphaTexture", 1, alphaTexture_p->ID);
+				GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 2, shadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 3, grassShadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 4, bigShadowMapDepthTexture.ID);
+
+				GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightViewMatrix", lightViewMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightViewMatrix", bigLightViewMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
+				/*
+				GL3D_uniformMat4f(shader_p->ID, "perspectiveMatrix", perspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightPerspectiveMatrix", lightPerspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightCameraMatrix", lightCameraMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightPerspectiveMatrix", bigLightPerspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightCameraMatrix", bigLightCameraMatrix);
+				*/
+
+				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.5, 0.5, 0.5, 1.0));
+
+				glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+
+			}
+		
+		}
+
+		//draw particles
+		if(renderStage == RENDER_STAGE_SCENE){
+
+			for(int i = 0; i < game.particles.size(); i++){
+
+				Particle *particle_p = &game.particles[i];
+
+				float scale = particle_p->scale;
+
+				Mat4f modelMatrix = getIdentityMat4f();
+
+				modelMatrix *= getScalingMat4f(scale);
+
+				modelMatrix *= getTranslationMat4f(particle_p->pos);
+
+				Shader *shader_p = Game_getShaderPointerByName(&game, "model");
+				if(renderStage == RENDER_STAGE_SHADOWS
+				|| renderStage == RENDER_STAGE_BIG_SHADOWS
+				|| renderStage == RENDER_STAGE_SCENE_DEPTH){
+					shader_p = Game_getShaderPointerByName(&game, "model-shadow");
+				}
+
+				glUseProgram(shader_p->ID);
+				
+				Model *model_p = Game_getModelPointerByName(&game, "cube");
+
+				Texture *texture_p = Game_getTexturePointerByName(&game, "blank");
+				Texture *alphaTexture_p = Game_getTexturePointerByName(&game, "blank-alpha");
+
+				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+				glBindVertexArray(model_p->VAO);
+
+				GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
+
+				GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
+				GL3D_uniformTexture(shader_p->ID, "alphaTexture", 1, alphaTexture_p->ID);
+				GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 2, shadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 3, grassShadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 4, bigShadowMapDepthTexture.ID);
+
+				GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightViewMatrix", lightViewMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightViewMatrix", bigLightViewMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
+				/*
+				GL3D_uniformMat4f(shader_p->ID, "perspectiveMatrix", perspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightPerspectiveMatrix", lightPerspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightCameraMatrix", lightCameraMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightPerspectiveMatrix", bigLightPerspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightCameraMatrix", bigLightCameraMatrix);
+				*/
+
+				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(1.0, 0.0, 0.1, 1.0));
+
+				glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+
+			}
+		
+		}
+
 		//draw water
-		if(renderStage == RENDER_STAGE_SCENE && false){
+		if(renderStage == RENDER_STAGE_SCENE && true){
 
-			float scale = 50.0;
+			float scale = 100.0;
 
-			Mat4f rotationMatrix = getQuaternionMat4f(getQuaternion(getVec3f(1.0, 0.0, 0.0), -M_PI / 2.0));
+			Mat4f rotationMatrix = getQuaternionMat4f(getQuaternion(getVec3f(1.0, 0.0, 0.0), 0.0));
 
 			Mat4f scalingMatrix = getScalingMat4f(scale);
 
-			Mat4f translationMatrix = getTranslationMat4f(getVec3f(-scale, 0.0, scale));
+			Mat4f translationMatrix = getTranslationMat4f(getVec3f(-scale, 0.0, 0.0));
+			//Mat4f translationMatrix = getTranslationMat4f(getVec3f(5.0, 5.0, 5.0));
 
 			Shader *shader_p = Game_getShaderPointerByName(&game, "water");
 
 			glUseProgram(shader_p->ID);
 
-			Model *model_p = &game.models[Game_getModelIndexByName(&game, "quad")];
+			Model *model_p = &game.models[Game_getModelIndexByName(&game, "water")];
+
+			//Texture *voronoiTexture_p = Game_getTexturePointerByName(&game, "voronoi-smooth-normals");
+			Texture *voronoiTexture_p = Game_getTexturePointerByName(&game, "voronoi");
+			Texture *normalMap_p = Game_getTexturePointerByName(&game, "water-normals");
+			Texture *noiseMap_p = Game_getTexturePointerByName(&game, "ripple-noise");
 
 			glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
 			glBindVertexArray(model_p->VAO);
+
+			GL3D_uniformTexture(shader_p->ID, "voronoiTexture", 0, voronoiTexture_p->ID);
+			GL3D_uniformTexture(shader_p->ID, "normalMap", 1, normalMap_p->ID);
+			GL3D_uniformTexture(shader_p->ID, "noiseMap", 2, noiseMap_p->ID);
 
 			GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
 			GL3D_uniformMat4f(shader_p->ID, "rotationMatrix", rotationMatrix);
@@ -1257,6 +1617,9 @@ void Engine_draw(){
 			GL3D_uniformMat4f(shader_p->ID, "translationMatrix", translationMatrix);
 
 			GL3D_uniformFloat(shader_p->ID, "inputT", windTime);
+			GL3D_uniformFloat(shader_p->ID, "scale", scale);
+
+			GL3D_uniformVec3f(shader_p->ID, "cameraDirection", cameraDirection);
 
 			glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
 			
@@ -1270,6 +1633,14 @@ void Engine_draw(){
 
 		Renderer2D_updateDrawSize(&renderer2D, Engine_clientWidth, Engine_clientHeight);
 
+		//draw hud
+		Renderer2D_setShader(&renderer2D, renderer2D.colorShader);
+
+		Renderer2D_setColor(&renderer2D, getVec4f(1.0, 0.0, 1.0, 1.0));
+
+		Renderer2D_drawRectangle(&renderer2D, WIDTH / 2 - 4, HEIGHT / 2 - 4, 8, 8);
+
+		//draw timing information
 		if(drawTimings){
 
 			Renderer2D_setShader(&renderer2D, renderer2D.colorShader);

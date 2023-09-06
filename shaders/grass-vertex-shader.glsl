@@ -3,6 +3,7 @@ layout (location = 0) in vec3 attribute_vertex;
 layout (location = 1) in vec2 attribute_textureVertex;
 layout (location = 2) in vec3 attribute_normalVertex;
 
+out vec3 input_staticWorldPosition;
 out vec2 input_texturePosition;
 out float input_shadowDepth;
 out float input_bigShadowDepth;
@@ -46,6 +47,8 @@ void main(){
 	vertexPosition.xz *= rotationMatrix;
 
 	vertexPosition.xyz += position.xyz;
+
+	input_staticWorldPosition = vertexPosition.xyz;
 
 	float timeOffset = sin(vertexPosition.x / 100.0) + position.w;
 	float heightFactor = (1.0 + attribute_vertex.y) / 2.0;
