@@ -362,6 +362,37 @@ void TriangleMesh_initFromFile_mesh(TriangleMesh *triangleMesh_p, const char *pa
 
 }
 
+void PointMesh_initFromTriangleMesh(PointMesh *pointMesh_p, TriangleMesh triangleMesh){
+	
+	std::vector<Vec3f> points;
+
+	float tolerance = 0.01;
+
+	for(int i = 0; i < triangleMesh.n_triangles * 3; i++){
+
+		bool exists = false;
+
+		for(int j = 0; j < points.size(); j++){
+			if(getMagVec3f(triangleMesh.triangles[i] - points[j]) < tolerance){
+				exists = true;
+				break;
+			}
+		}
+
+		if(!exists){
+			points.push_back(triangleMesh.triangles[i]);
+		}
+	
+	}
+
+	pointMesh_p->n_points = points.size();
+	pointMesh_p->points = (Vec3f *)malloc(sizeof(Vec3f) * pointMesh_p->n_points);
+	memcpy(pointMesh_p->points, &points[0], sizeof(Vec3f) * pointMesh_p->n_points);
+
+	String_set(pointMesh_p->name, triangleMesh.name, STRING_SIZE);
+
+}
+
 void Texture_init(Texture *texture_p, const char *name, unsigned char *data, int width, int height){
 
 	String_set(texture_p->name, name, SMALL_STRING_SIZE);

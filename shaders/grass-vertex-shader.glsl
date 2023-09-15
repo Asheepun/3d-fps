@@ -13,6 +13,7 @@ out vec2 input_bigShadowMapPosition;
 uniform sampler2D colorTexture;
 uniform samplerBuffer grassPositions;
 uniform sampler2D shadowMapTexture;
+uniform sampler2D paintMapTexture;
 
 uniform mat4 viewMatrix;
 uniform mat4 lightViewMatrix;
@@ -32,17 +33,13 @@ void main(){
 
 	vec4 vertexPosition = vec4(attribute_vertex.xyz, 1.0);
 
-	//vec4 position = texelFetch(grassPositions, n_grassPositions - 1 - gl_InstanceID);
 	vec4 position = texelFetch(grassPositions, gl_InstanceID);
 
-	//float dist = distance(cameraPos, position.xz) / 20.0;
-	//float d1 = 10.0;
+	float cutHeight = floor(position.w) / 100.0;
+	float seed = position.w - cutHeight * 100.0;
 
-	//float cutOffFactor = float(vertexPosition.y < 0.0) *  0.2;
-	//float cutOffFactor = min(float(vertexPosition.y < 0.0) *  0.5 * dist * dist, 1.0);
-
-	//vertexPosition.y += cutOffFactor * 1.0;
-	//input_texturePosition.y -= cutOffFactor * 0.5;
+	position.y = (position.y + 1.0) * (cutHeight) - 1.0;
+	input_texturePosition.y = (input_texturePosition.y - 1.0) * cutHeight + 1.0;
 
 	vertexPosition.xz *= rotationMatrix;
 
@@ -50,7 +47,7 @@ void main(){
 
 	input_staticWorldPosition = vertexPosition.xyz;
 
-	float timeOffset = sin(vertexPosition.x / 100.0) + position.w;
+	float timeOffset = sin(vertexPosition.x / 100.0) + seed * 3.14;
 	float heightFactor = (1.0 + attribute_vertex.y) / 2.0;
 	vertexPosition.x += 0.2 * (sin(windTime + timeOffset)) * heightFactor * heightFactor * heightFactor;
 

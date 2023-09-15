@@ -114,7 +114,7 @@ void Game_loadAssets(Game *game_p){
 		}
 	}
 
-	//load triangle meshes
+	//load triangle and point meshes
 	{
 		const char *names[] = {
 			"cube",
@@ -136,6 +136,10 @@ void Game_loadAssets(Game *game_p){
 			String_set(triangleMesh.name, names[i], STRING_SIZE);
 
 			game_p->triangleMeshes.push_back(triangleMesh);
+
+			PointMesh pointMesh;
+			PointMesh_initFromTriangleMesh(&pointMesh, triangleMesh);
+			game_p->pointMeshes.push_back(pointMesh);
 
 		}
 	

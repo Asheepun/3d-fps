@@ -60,6 +60,12 @@ int PAINT_MAP_HEIGHT = 300;
 float PAINT_MAP_SCALE = 100.0;
 unsigned char *paintMap;
 
+float *terrainHeightMap;
+int TERRAIN_HEIGHT_MAP_WIDTH = 100;
+int TERRAIN_HEIGHT_MAP_HEIGHT = 100;
+
+float terrainMaxHeight = 0.0;
+
 Vec3f lightPos = { 0.0, 20.0, 0.0 };
 Vec3f lightDirection = { 0.7, -1.0, 0.5 };
 
@@ -72,6 +78,14 @@ Vec2f cameraRotation = getVec2f(M_PI / 2.0, 0.0);
 
 Renderer2D_Renderer renderer2D;
 Font font;
+
+Vec3f lastTorque = getVec3f(0.0, 0.0, 0.0);
+Vec3f lastCollisionPoint = getVec3f(0.0, 0.0, 0.0);
+int framesSinceLastSwitch = 0;
+int unstableHits = 0;
+bool stabelized = false;
+bool stable = false;
+int framesSinceHit = 0;
 
 void Engine_start(){
 
@@ -167,40 +181,44 @@ void Engine_start(){
 
 		int width = 20;
 
-		Vec3f *points = (Vec3f *)malloc(sizeof(Vec3f) * width * width);
+		Vec3f *points = (Vec3f *)malloc(sizeof(Vec3f) * (width + 1) * (width + 1));
 
-		for(int x = 0; x < width; x++){
-			for(int y = 0; y < width; y++){
+		for(int x = 0; x < width + 1; x++){
+			for(int y = 0; y < width + 1; y++){
 
-				int index = y * width + x;
+				int index = y * (width + 1) + x;
 
 				points[index].x = x;
 				points[index].z = y;
 				points[index].y = getRandom() / TERRAIN_SCALE * 2.0;
 
-				if(y == 0 || x == 0 || y == width - 1 || x == width - 1){
-					points[index].y = -0.0;
+				if(y == 0 || x == 0 || y == width || x == width){
+					points[index].y = 0.0;
 				}
 
 				points[index].x /= (float)width;
 				points[index].z /= (float)width;
+
+				terrainMaxHeight = fmax(terrainMaxHeight, points[index].y * TERRAIN_SCALE);
 			
 			}
 		}
 
-		int n_triangles = 2 * (width - 1) * (width - 1);
+		printf("%f\n", terrainMaxHeight);
+
+		int n_triangles = 2 * (width) * (width);
 
 		Vec3f *triangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * n_triangles);
 
 		int triangleIndex = 0;
 
-		for(int x = 0; x < width - 1; x++){
-			for(int y = 0; y < width - 1; y++){
+		for(int x = 0; x < width; x++){
+			for(int y = 0; y < width; y++){
 
-				int pointsIndex1 = y * width + x;
-				int pointsIndex2 = (y + 1) * width + x;
-				int pointsIndex3 = y * width + (x + 1);
-				int pointsIndex4 = (y + 1) * width + (x + 1);
+				int pointsIndex1 = y * (width + 1) + x;
+				int pointsIndex2 = (y + 1) * (width + 1) + x;
+				int pointsIndex3 = y * (width + 1) + (x + 1);
+				int pointsIndex4 = (y + 1) * (width + 1) + (x + 1);
 
 				Vec3f point1 = points[pointsIndex1];
 				Vec3f point2 = points[pointsIndex2];
@@ -243,6 +261,104 @@ void Engine_start(){
 
 	}
 
+	/*
+	//generate terrain height map
+	{
+		TriangleMesh *terrainTriangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
+
+		terrainHeightMap = (float *)malloc(sizeof(float) * TERRAIN_HEIGHT_MAP_WIDTH * TERRAIN_HEIGHT_MAP_HEIGHT);
+		memset(terrainHeightMap, 0, sizeof(float) * TERRAIN_HEIGHT_MAP_WIDTH * TERRAIN_HEIGHT_MAP_HEIGHT);
+
+		int hits = 0;
+		int n = 0;
+		int found = 0;
+
+		for(int x = 0; x < TERRAIN_HEIGHT_MAP_WIDTH; x++){
+			for(int y = 0; y < TERRAIN_HEIGHT_MAP_HEIGHT; y++){
+
+				Vec3f rayOrigin = getVec3f(x, 20.0, y);
+				Vec3f rayDirection = getVec3f(0.0, -1.0, 0.0);
+
+				int index = x * TERRAIN_HEIGHT_MAP_WIDTH + y;
+
+				//Vec3f_log(rayOrigin);
+
+				Vec3f intersectionPoint;
+				bool hit = false;
+
+				for(int j = 0; j < terrainTriangleMesh_p->n_triangles; j++){
+
+					Vec3f p1 = terrainTriangleMesh_p->triangles[j * 3 + 0] * TERRAIN_SCALE;
+					Vec3f p2 = terrainTriangleMesh_p->triangles[j * 3 + 1] * TERRAIN_SCALE;
+					Vec3f p3 = terrainTriangleMesh_p->triangles[j * 3 + 2] * TERRAIN_SCALE;
+
+					float east = fmin(fmin(p1.x, p2.x), p3.x);
+					float west = fmax(fmax(p1.x, p2.x), p3.x);
+					float north = fmin(fmin(p1.z, p2.z), p3.z);
+					float south = fmax(fmax(p1.z, p2.z), p3.z);
+
+					float tolerance = 0.0;
+
+					if(rayOrigin.x >= east - tolerance && rayOrigin.x <= west + tolerance
+					&& rayOrigin.z >= north - tolerance && rayOrigin.z <= south + tolerance){
+
+						Vec3f checkIntersectionPoint;
+						bool checkHit = checkLineToTriangleIntersectionVec3f(rayOrigin, rayOrigin + rayDirection, p1, p2, p3, &checkIntersectionPoint);
+
+						if(checkHit){
+							intersectionPoint = checkIntersectionPoint;
+							if(!hit){
+								found++;
+							}
+							hit = true;
+						}
+
+					}
+
+				}
+
+				if(hit){
+					terrainHeightMap[index] = intersectionPoint.y;
+					hits++;
+				}else{
+					terrainHeightMap[index] = 0.0;
+					//Vec3f_log(rayOrigin);
+				}
+				n++;
+
+			}
+
+		}
+
+		int missed = 0;
+
+		//interpolate points that missed triangles
+		for(int x = 1; x < TERRAIN_HEIGHT_MAP_WIDTH - 1; x++){
+			for(int y = 1; y < TERRAIN_HEIGHT_MAP_HEIGHT - 1; y++){
+
+				int index = y * TERRAIN_HEIGHT_MAP_WIDTH + x;
+
+				if(terrainHeightMap[index] == 0.0){
+
+					int index1 = y * TERRAIN_HEIGHT_MAP_WIDTH + (x + 1);
+					int index2 = y * TERRAIN_HEIGHT_MAP_WIDTH + (x - 1);
+					int index3 = (y + 1) * TERRAIN_HEIGHT_MAP_WIDTH + x;
+					int index4 = (y - 1) * TERRAIN_HEIGHT_MAP_WIDTH + x;
+
+					terrainHeightMap[index] = (terrainHeightMap[index1] + terrainHeightMap[index2] + terrainHeightMap[index3] + terrainHeightMap[index4]) / 4.0;
+					//printf("%f\n", terrainHeightMap[index]);
+					//missed++;
+					//printf("missed!\n");
+				}
+
+			}
+		}
+
+		//printf("%i, %i, %i, %i\n", hits, found, n, missed);
+
+	}
+*/
+
 	//generate grass positions
 	{
 		TriangleMesh *terrainTriangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
@@ -258,38 +374,14 @@ void Engine_start(){
 		float marginEast = GRASS_DISTANCE;
 
 		int n = 0;
-
-		/*
-		for(int i = 0; i < TERRAIN_SCALE * TERRAIN_SCALE / (GRASS_DISTANCE * GRASS_DISTANCE); i++){
-
-			if(stepPos.y - GRASS_DISTANCE + tolerance > TERRAIN_SCALE - marginSouth){
-				stepPos.y -= GRASS_DISTANCE;
-				dir = getVec2f(GRASS_DISTANCE, 0.0);
-				stepPos += dir;
-				marginWest += GRASS_DISTANCE;
-			}else if(stepPos.x - GRASS_DISTANCE + tolerance > TERRAIN_SCALE - marginEast){
-				stepPos.x -= GRASS_DISTANCE;
-				dir = getVec2f(0.0, -GRASS_DISTANCE);
-				stepPos += dir;
-				marginSouth += GRASS_DISTANCE;
-			}else if(stepPos.y + GRASS_DISTANCE - tolerance < marginNorth){
-				stepPos.y += GRASS_DISTANCE;
-				dir = getVec2f(-GRASS_DISTANCE, 0.0);
-				stepPos += dir;
-				marginEast += GRASS_DISTANCE;
-			}else if(stepPos.x + GRASS_DISTANCE - tolerance < marginWest){
-				stepPos.x += GRASS_DISTANCE;
-				dir = getVec2f(0.0, GRASS_DISTANCE);
-				stepPos += dir;
-				marginNorth += GRASS_DISTANCE;
-			}
-			*/
+		int hits = 0;
 
 		float margin = 3.0;
 
-		for(float x = margin; x < TERRAIN_SCALE - margin; x += GRASS_DISTANCE){
-			for(float y = margin; y < TERRAIN_SCALE - margin; y += GRASS_DISTANCE){
+		for(float y = margin; y < TERRAIN_SCALE - margin; y += GRASS_DISTANCE){
+			for(float x = margin; x < TERRAIN_SCALE - margin; x += GRASS_DISTANCE){
 
+				//set grass variables
 				Vec4f pos = getVec4f(x, 20.0, y, 0.0);
 
 				pos.x += getRandom() * 0.5 * GRASS_DISTANCE;
@@ -316,8 +408,8 @@ void Engine_start(){
 						float north = fmin(fmin(p1.z, p2.z), p3.z);
 						float south = fmax(fmax(p1.z, p2.z), p3.z);
 
-						if(rayOrigin.x > east && rayOrigin.x < west
-						&& rayOrigin.z > north && rayOrigin.z < south){
+						if(rayOrigin.x >= east && rayOrigin.x <= west
+						&& rayOrigin.z >= north && rayOrigin.z <= south){
 
 							Vec3f checkIntersectionPoint;
 							bool checkHit = checkLineToTriangleIntersectionVec3f(rayOrigin, rayOrigin + rayDirection, p1, p2, p3, &checkIntersectionPoint);
@@ -334,17 +426,25 @@ void Engine_start(){
 
 				if(hit){
 					pos.y = intersectionPoint.y + 0.5;
-					pos.w = getRandom() * M_PI;
+					pos.w = getRandom() + 100.0;
 					grassPositions.push_back(pos);
 					pos.y += 3.0;
-					//grassPositions2.push_back(pos);
-				}
 
-				n++;
+					hits++;
+					//printf("hit!\n");
+
+					//grassPositions2.push_back(pos);
+				}else{
+					//printf("no hit!\n");
+					Vec4f_log(pos);
+				}
+					n++;
 
 				//stepPos += dir;
 			}
 		}
+
+		printf("%i, %i\n", hits, n);
 
 		TextureBuffer_initAsVec4fArray(&grassPositionsTextureBuffer, &grassPositions[0], grassPositions.size());
 
@@ -396,8 +496,6 @@ void Engine_start(){
 	//Texture_initAsDepthMap(&paintMapTexture, PAINT_MAP_WIDTH, PAINT_MAP_HEIGHT);
 	paintMap = (unsigned char *)malloc(sizeof(unsigned char) * PAINT_MAP_WIDTH * PAINT_MAP_HEIGHT);
 	memset(paintMap, 0, sizeof(unsigned char) * PAINT_MAP_WIDTH * PAINT_MAP_HEIGHT);
-		
-	
 
 	glGenTextures(1, &paintMapTexture.ID);
 	glBindTexture(GL_TEXTURE_2D, paintMapTexture.ID);
@@ -405,6 +503,30 @@ void Engine_start(){
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	/*
+	//generate terrain height map
+	{
+
+		TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
+
+		for(int x = 0; x < TERRAIN_HEIGHT_MAP_WIDTH; x++){
+			for(int y = 0; y < TERRAIN_HEIGHT_MAP_HEIGHT; y++){
+
+				int index = y * TERRAIN_HEIGHT_MAP_WIDTH + x;
+
+				Vec3f pos = getVec3f((float)x / (float)TERRAIN_HEIGHT_MAP_WIDTH, 20.0, (float)y / (float)TERRAIN_HEIGHT_MAP_HEIGHT) * TERRAIN_SCALE;
+
+				Vec3f intersectionPoint;
+
+				if(checkClosestLineTriangleMeshIntersection(pos, getVec3f(0.0, -1.0, 0.0), *triangleMesh_p, getVec3f(0.0, 0.0, 0.0), TERRAIN_SCALE, &intersectionPoint, NULL)){
+				
+				}
+
+			}
+		}
+	}
+	*/
 
 	//glDrawBuffer(GL_NONE);
 	//glReadBuffer(GL_NONE);
@@ -428,8 +550,8 @@ void Engine_start(){
 	}
 	{
 		Obstacle obstacle;	
-		obstacle.pos = getVec3f(30.0, 2.0, 20.0);
-		obstacle.scale = 2.0;
+		obstacle.pos = getVec3f(30.0, 0.0, 20.0);
+		obstacle.scale = 3.0;
 		obstacle.modelIndex = Game_getModelIndexByName(&game, "cube");
 		obstacle.textureIndex = Game_getTextureIndexByName(&game, "blank");
 		obstacle.alphaTextureIndex = Game_getTextureIndexByName(&game, "blank-alpha");
@@ -444,6 +566,7 @@ void Engine_start(){
 		game.player.velocity = getVec3f(0.0, 0.0, 0.0);
 		game.player.onGround = false;
 		game.player.height = PLAYER_HEIGHT_STANDING;
+		game.player.weapon = WEAPON_GUN;
 		//Vec3f lastPlayerPos = game.player.pos;
 		//Vec3f game.player.velocity = { 0.0, 0.0, 0.0 };
 		//bool playerOnGround = false;
@@ -453,6 +576,37 @@ void Engine_start(){
 		Player player;
 		player.pos = getVec3f(10.0, 5.0, 30.0);
 		game.otherPlayers.push_back(player);
+	}
+	{
+		RigidBody rigidBody;
+		rigidBody.pos = getVec3f(20.0, 10.0, 35.0);
+		rigidBody.velocity = getVec3f(0.0, 0.0, 0.0);
+		rigidBody.orientation = getQuaternion(getVec3f(0.0, 0.0, 1.0), 0.3);
+		rigidBody.angularVelocity = getVec3f(0.0, 1.0, 1.0) * 0.0;
+		rigidBody.angle = 0.5;
+		rigidBody.angularSpeed = 0.0;
+		//rigidBody.angularVelocity = getVec3f(0.0, 0.0, 0.0);
+		//rigidBody.orientationVelocity = getQuaternion(getVec3f(0.0, 0.0, 1.0), 0.0);
+		//rigidBody.rotationAxis = getVec3f(0.0, 0.0, 1.0);
+		//rigidBody.rotation = 0.5;
+		//rigidBody.rotationVelocity = 0.0;
+		//rigidBody.rotationVelocity = 0.03;
+		rigidBody.modelIndex = Game_getModelIndexByName(&game, "cube");
+		rigidBody.textureIndex = Game_getTextureIndexByName(&game, "blank");
+		rigidBody.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "cube");
+		game.rigidBodies.push_back(rigidBody);
+	}
+	{
+		Obstacle obstacle;	
+		obstacle.pos = getVec3f(20.0, 0.0, 35.0);
+		obstacle.scale = 3.0;
+		obstacle.modelIndex = Game_getModelIndexByName(&game, "cube");
+		obstacle.textureIndex = Game_getTextureIndexByName(&game, "blank");
+		obstacle.alphaTextureIndex = Game_getTextureIndexByName(&game, "blank-alpha");
+		obstacle.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "cube");
+		obstacle.color = getVec4f(0.7, 0.7, 0.7, 1.0);
+
+		game.obstacles.push_back(obstacle);
 	}
 
 	Game_addTree(&game, getVec3f(15.0, 0.0, 15.0));
@@ -474,6 +628,8 @@ void Engine_start(){
 }
 
 void Engine_update(float deltaTime){
+
+	printf("---\n");
 
 	//handle window controls
 	if(Engine_keys[ENGINE_KEY_Q].down){
@@ -626,50 +782,77 @@ void Engine_update(float deltaTime){
 		}
 		if(inputs.shoot == 1){
 
-			for(int i = 0; i < game.otherPlayers.size(); i++){
-				
-				Player *player_p = &game.otherPlayers[i];
+			if(game.player.weapon == WEAPON_GUN){
+				for(int i = 0; i < game.otherPlayers.size(); i++){
+					
+					Player *player_p = &game.otherPlayers[i];
 
-				TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "cube");
+					TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "cube");
 
-				Vec3f intersectionPoint;
-				Vec3f intersectionNormal;
-				float intersectionDistance = -1.0;
+					Vec3f intersectionPoint;
+					Vec3f intersectionNormal;
+					float intersectionDistance = -1.0;
 
-				for(int j = 0; j < triangleMesh_p->n_triangles; j++){
+					for(int j = 0; j < triangleMesh_p->n_triangles; j++){
 
-					Vec3f checkPoint;
+						Vec3f checkPoint;
 
-					if(checkLineToTriangleIntersectionVec3f(cameraPos, cameraPos + cameraDirection, player_p->pos + triangleMesh_p->triangles[j * 3 + 0], player_p->pos + triangleMesh_p->triangles[j * 3 + 1], player_p->pos + triangleMesh_p->triangles[j * 3 + 2], &checkPoint)
-					&& (intersectionDistance < 0.0
-					|| length(checkPoint - cameraPos) < intersectionDistance)){
-						intersectionPoint = checkPoint;
-						intersectionNormal = cross(triangleMesh_p->triangles[j * 3 + 0] - triangleMesh_p->triangles[j * 3 + 1], triangleMesh_p->triangles[j * 3 + 0] - triangleMesh_p->triangles[j * 3 + 2]);
-						intersectionDistance = length(checkPoint - cameraPos);
-					}
-				}
-
-				intersectionNormal = normalize(intersectionNormal);
-
-				if(intersectionDistance >= 0.0){
-
-					int n_particles = 17 + getRandom() * 5;
-
-					for(int i = 0; i < n_particles; i++){
-
-						Particle particle;
-						particle.pos = intersectionPoint;
-						particle.velocity = intersectionNormal * 0.1;
-						particle.velocity.y += 0.1;
-						particle.velocity += normalize(getVec3f(getRandom() - 0.5, getRandom() - 0.5, getRandom() - 0.5)) * 0.05;
-						particle.scale = 0.1 * (0.8 + 0.4 * getRandom());
-
-						game.particles.push_back(particle);
-
+						if(checkLineToTriangleIntersectionVec3f(cameraPos, cameraPos + cameraDirection, player_p->pos + triangleMesh_p->triangles[j * 3 + 0], player_p->pos + triangleMesh_p->triangles[j * 3 + 1], player_p->pos + triangleMesh_p->triangles[j * 3 + 2], &checkPoint)
+						&& (intersectionDistance < 0.0
+						|| length(checkPoint - cameraPos) < intersectionDistance)){
+							intersectionPoint = checkPoint;
+							intersectionNormal = cross(triangleMesh_p->triangles[j * 3 + 0] - triangleMesh_p->triangles[j * 3 + 1], triangleMesh_p->triangles[j * 3 + 0] - triangleMesh_p->triangles[j * 3 + 2]);
+							intersectionDistance = length(checkPoint - cameraPos);
+						}
 					}
 
-				}
+					intersectionNormal = normalize(intersectionNormal);
 
+					if(intersectionDistance >= 0.0){
+
+						int n_particles = 17 + getRandom() * 5;
+
+						for(int i = 0; i < n_particles; i++){
+
+							Particle particle;
+							particle.pos = intersectionPoint;
+							particle.velocity = intersectionNormal * 0.1;
+							particle.velocity.y += 0.1;
+							particle.velocity += normalize(getVec3f(getRandom() - 0.5, getRandom() - 0.5, getRandom() - 0.5)) * 0.05;
+							particle.scale = 0.1 * (0.8 + 0.4 * getRandom());
+
+							game.particles.push_back(particle);
+
+						}
+
+					}
+
+				}
+			}
+			if(game.player.weapon == WEAPON_SWORD){
+
+				float radius = 3.0;
+
+				Vec3f handPos = game.player.pos;
+				handPos.y += 1.5;
+				Vec3f up = getVec3f(0.0, 1.0, 0.0);
+				Vec3f right = cross(cameraDirection, up);
+				Vec3f normal = normalize(cross(right, cameraDirection));
+				float D = dot(normal, handPos);
+
+				for(int i = 0; i < grassPositions.size(); i++){
+					if(square(grassPositions[i].x - handPos.x) + square(grassPositions[i].z - handPos.z) < square(radius)
+					&& dot(cameraDirection, normalize(getVec3f(grassPositions[i].x, grassPositions[i].y, grassPositions[i].z) - handPos)) > 0.8){
+
+						float cutY = (D - normal.x * grassPositions[i].x - normal.z * grassPositions[i].z) / normal.y;
+						printf("%f, %f\n", cutY, grassPositions[i].y, cutY - grassPositions[i].y);
+
+						float grassHeight = floor(grassPositions[i].w);
+						float cutHeight = max(min((cutY - (grassPositions[i].y - 1.0)) * 100.0 / 2.0, 100.0), 0.0);
+						grassPositions[i].w = grassPositions[i].w - grassHeight + min(cutHeight, grassHeight);
+					}
+				}
+				printf("sword!\n");
 			}
 
 		}
@@ -728,6 +911,7 @@ void Engine_update(float deltaTime){
 					if(hit
 					&& intersectionPoint.y > game.player.pos.y
 					&& intersectionPoint.y < game.player.lastPos.y + r){
+						//printf("did all that\n");
 						game.player.pos.y = intersectionPoint.y;
 						game.player.velocity.y = 0.0;
 						game.player.onGround = true;
@@ -751,6 +935,168 @@ void Engine_update(float deltaTime){
 			}
 
 		}
+
+	}
+
+	//update rigid body physics
+	for(int i = 0; i < game.rigidBodies.size(); i++){
+		
+		RigidBody *rigidBody_p = &game.rigidBodies[i];
+
+		if(Engine_keys[ENGINE_KEY_U].downed){
+			rigidBody_p->velocity.y += 0.5;
+			rigidBody_p->angularVelocity = getVec3f(getRandom(), getRandom(), getRandom());
+		}
+
+		float resistance = 0.97;
+
+		rigidBody_p->velocity.y += -0.01;
+
+		rigidBody_p->velocity *= resistance;
+		rigidBody_p->angularSpeed *= resistance;
+		rigidBody_p->angularVelocity *= resistance;
+
+		rigidBody_p->pos += rigidBody_p->velocity;
+		if(getMagVec3f(rigidBody_p->angularVelocity) > 0.0){
+			rigidBody_p->orientation = mulQuaternions(getQuaternion(rigidBody_p->angularVelocity, getMagVec3f(rigidBody_p->angularVelocity)), rigidBody_p->orientation);
+		}
+
+		PointMesh *pointMesh_p = &game.pointMeshes[rigidBody_p->triangleMeshIndex];
+		rigidBody_p->orientation = normalize(rigidBody_p->orientation);
+
+		float GROUND_HEIGHT = 5.0;
+
+		float scale = 1.0;
+		Mat4f modelMatrix = getIdentityMat4f();
+		modelMatrix *= getScalingMat4f(scale);
+		modelMatrix *= getQuaternionMat4f(rigidBody_p->orientation);
+		modelMatrix *= getTranslationMat4f(rigidBody_p->pos);
+
+		Vec3f normal = normalize(getVec3f(0.0, 1.0, -0.2));
+		Vec3f planePosition = getVec3f(20.0, 5.0, 30.0);
+		float elasticity = 0.1;
+		printf("---\n");
+
+		Vec3f collisionPoint = getVec3f(0.0, 0.0, 0.0);
+		Vec3f deepestPoint = rigidBody_p->pos;
+		//float lowestY = 100.0;
+		int n_hits = 0;
+
+		for(int j = 0; j < pointMesh_p->n_points; j++){
+			Vec3f point = mulVec3fMat4f(pointMesh_p->points[j], modelMatrix, 1.0);
+			if(dot(point - planePosition, normal) < 0.0){
+				collisionPoint += point;
+				n_hits++;
+				if(dot(point - planePosition, normal) < dot(deepestPoint - planePosition, normal)){
+					deepestPoint = point;
+				}
+			}
+		}
+
+		if(n_hits > 0){
+
+			collisionPoint /= (float)n_hits;
+			Vec3f collisionDiff = rigidBody_p->pos - collisionPoint;
+			Vec3f force = normal * getMagVec3f(rigidBody_p->velocity) * (1.0 + elasticity);
+			Vec3f torque = cross(force, collisionDiff);
+			
+			float torqueFactor = 0.5;
+
+			if(dot(lastTorque, torque) < 0.0
+			&& dot(rigidBody_p->velocity, normal) < 0.0
+			&& framesSinceHit < 2){
+				torque *= 0.1;
+				rigidBody_p->angularVelocity *= 0.1;
+				rigidBody_p->velocity *= 0.1;
+				force *= 0.0;
+			}
+
+			rigidBody_p->angularVelocity += torque * torqueFactor;
+
+			rigidBody_p->velocity += cross(torque, collisionDiff) * torqueFactor;
+			rigidBody_p->velocity += force;
+
+			//float friction = 0.0;
+			//rigidBody_p->velocity *= friction;
+
+			rigidBody_p->pos += normal * -dot(normal, deepestPoint - planePosition);
+
+
+			lastTorque = torque;
+			lastCollisionPoint = collisionPoint;
+			framesSinceHit = 0;
+
+		}
+
+		framesSinceHit++;
+
+		//if(stable){
+			//rigidBody_p->velocity *= 0.0;
+			//rigidBody_p->angularVelocity *= 0.0;
+		//}
+
+		//printf("%i, %i\n", n_hits, pointMesh_p->n_points);
+
+		/*
+		Obstacle *obstacle_p = &game.obstacles[2];
+		obstacle_p->color = getVec4f(1.0, 0.0, 0.0, 1.0);
+
+		Mat4f obstacleMatrix = getIdentityMat4f();
+		obstacleMatrix *= getScalingMat4f(obstacle_p->scale);
+		obstacleMatrix *= getTranslationMat4f(obstacle_p->pos);
+
+		TriangleMesh *obstacleTriangleMesh_p = &game.triangleMeshes[obstacle_p->triangleMeshIndex];
+
+		//std::vector<Vec3f> simplex;
+		//simplex.push_back(mulVec3fMat4f(triangleMesh_p->triangles[0], modelMatrix, 1.0) - mulVec3fMat4f(obstacleTriangleMesh_p->triangles[0], obstacleMatrix, 1.0));
+		//Vec3f direction = getVec3f(1.0, 0.0, 0.0);
+		
+		//Vec3f nextPoint;
+		//float nextPointDot = 0.0;
+		//for(int j = 0; j < triangleMesh_p->triangles.size(); j++){
+			//Vec3f point = mulVec3fMat4f(triangleMesh_p->triangles[j]);
+		//}
+
+		//Vec3f_log(simplex[0]);
+		*/
+
+		/*
+		for(int j = 0; j < triangleMesh_p->n_triangles * 3; j++){
+			for(int k = 0; k < obstacleTriangleMesh_p->n_triangles * 3; k++){
+				minkowskiPoints.push_back(mulVec3fMat4f(triangleMesh_p->triangles[j], modelMatrix, 1.0) - mulVec3fMat4f(obstacleTriangleMesh_p->triangles[k], obstacleMatrix, 1.0));
+			}
+		}
+		*/
+
+		//Vec3f collisionPoint = getVec3f(0.0, 0.0, 0.0);
+		//int collisionHits = 0;
+
+		/*
+		for(int j = 0; j < triangleMesh_p->n_triangles * 3; j++){
+
+			Vec4f worldPos = modelMatrix * getVec4f(triangleMesh_p->triangles[j].x, triangleMesh_p->triangles[j].y, triangleMesh_p->triangles[j].z, 1.0);
+
+			if(worldPos.y < GROUND_HEIGHT){
+				collisionPoint += getVec3f(worldPos.x, worldPos.y, worldPos.z);
+				collisionHits++;
+				//rigidBody_p->pos.y += GROUND_HEIGHT - worldPos.y;
+				//rigidBody_p->velocity += normal * getMagVec3f(rigidBody_p->velocity) * (1.0 + elasticity);
+				//Vec4f_log(worldPos);
+				//Vec3f_log(rigidBody_p->pos);
+				//break;
+			}
+
+		}
+
+		if(collisionHits > 0){
+			collisionPoint /= (float)collisionHits;
+			Vec3f_log(collisionPoint);
+			Vec3f_log(rigidBody_p->pos);
+			rigidBody_p->pos.y += GROUND_HEIGHT - collisionPoint.y;
+			rigidBody_p->velocity += normal * getMagVec3f(rigidBody_p->velocity) * (1.0 + elasticity);
+
+		}
+		*/
 
 	}
 
@@ -907,31 +1253,35 @@ void Engine_update(float deltaTime){
 		particle_p->pos += particle_p->velocity;
 
 		//check distance to ground
-		TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
+		if(particle_p->pos.y <= terrainMaxHeight){
+			
+			TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
 
-		Vec3f intersectionPoint;
-		checkClosestLineTriangleMeshIntersection(particle_p->pos, getVec3f(0.0, -1.0, 0.0), *triangleMesh_p, getVec3f(0.0, 0.0, 0.0), TERRAIN_SCALE, &intersectionPoint, NULL);
+			Vec3f intersectionPoint;
+			checkClosestLineTriangleMeshIntersection(particle_p->pos, getVec3f(0.0, -1.0, 0.0), *triangleMesh_p, getVec3f(0.0, 0.0, 0.0), TERRAIN_SCALE, &intersectionPoint, NULL);
 
-		float distanceToGround = length(particle_p->pos - intersectionPoint);
+			float distanceToGround = length(particle_p->pos - intersectionPoint);
 
-		float hitHeight = 1.0;
+			float hitHeight = 1.0;
 
-		if(distanceToGround < hitHeight){
+			if(distanceToGround < hitHeight){
 
-			Vec2f paintMapPos = getVec2f(particle_p->pos.x * PAINT_MAP_WIDTH, particle_p->pos.z * PAINT_MAP_HEIGHT) / PAINT_MAP_SCALE;
+				Vec2f paintMapPos = getVec2f(particle_p->pos.x * PAINT_MAP_WIDTH, particle_p->pos.z * PAINT_MAP_HEIGHT) / PAINT_MAP_SCALE;
 
-			int index = (int)paintMapPos.y * PAINT_MAP_WIDTH + (int)paintMapPos.x;
+				int index = (int)paintMapPos.y * PAINT_MAP_WIDTH + (int)paintMapPos.x;
 
-			paintMap[index] = (unsigned char)((255.0 * particle_p->pos.y) / 5.0);
+				paintMap[index] = (unsigned char)(255.0 * (0.8 + getRandom() * 0.2));
 
-			game.particles.erase(game.particles.begin() + i);
-			i--;
-			continue;
+				game.particles.erase(game.particles.begin() + i);
+				i--;
+				continue;
+			}
+
 		}
 
 	}
 
-	//sort grass positions
+	//sort grass positions by depth
 	int n_buckets = 200;
 	int bucketSizes[n_buckets];
 	int bucketOffsets[n_buckets];
@@ -962,12 +1312,40 @@ void Engine_update(float deltaTime){
 	}
 
 	for(int i = 0; i < grassPositions.size(); i++){
-
 		sortedGrassPositions[bucketOffsets[depths[i]] + bucketCounts[depths[i]]] = grassPositions[i];
 		bucketCounts[depths[i]]++;
-
 	}
 
+	//sort leaf transformations by depth
+	for(int i = 0; i < game.trees.size(); i++){
+
+		Tree *tree_p = &game.trees[i];
+
+		int n_buckets = 200;
+		int bucketSizes[n_buckets];
+		int bucketOffsets[n_buckets];
+		int bucketCounts[n_buckets];
+		memset(bucketSizes, 0, sizeof(int) * n_buckets);
+		memset(bucketOffsets, 0, sizeof(int) * n_buckets);
+		memset(bucketCounts, 0, sizeof(int) * n_buckets);
+
+		unsigned char depths[tree_p->leafTransformations.size()];
+		memset(depths, 0, sizeof(unsigned char) * tree_p->leafTransformations.size());
+		
+		for(int j = 0; j < tree_p->leafTransformations.size(); j++){
+			
+			Vec4f projectedPos = getVec4f(tree_p->leafTransformations[i][0][3], tree_p->leafTransformations[i][1][3], tree_p->leafTransformations[i][2][3], tree_p->leafTransformations[i][3][3]);
+			projectedPos = cameraMatrix * projectedPos;
+
+			unsigned char depth = (unsigned char)fabs(projectedPos.z);
+			//Vec4f_log(pos);
+			//plog(tree_p->leafTransformations[j]);
+
+		}
+
+		//printf("tree :)\n");
+
+	}
 
 }
 
@@ -1520,6 +1898,70 @@ void Engine_draw(){
 		
 		}
 
+		//draw rigid bodies
+		if(renderStage == RENDER_STAGE_SCENE){
+			for(int i = 0; i < game.rigidBodies.size(); i++){
+
+				RigidBody *rigidBody_p = &game.rigidBodies[i];
+
+				float scale = 1.0;
+
+				Mat4f modelMatrix = getIdentityMat4f();
+
+				modelMatrix *= getScalingMat4f(scale);
+
+				//modelMatrix *= getQuaternionMat4f(getQuaternion(getVec3f(0.0, 0.0, 1.0), rigidBody_p->angle));
+				modelMatrix *= getQuaternionMat4f(rigidBody_p->orientation);
+
+				modelMatrix *= getTranslationMat4f(rigidBody_p->pos);
+
+				Shader *shader_p = Game_getShaderPointerByName(&game, "model");
+				if(renderStage == RENDER_STAGE_SHADOWS
+				|| renderStage == RENDER_STAGE_BIG_SHADOWS
+				|| renderStage == RENDER_STAGE_SCENE_DEPTH){
+					shader_p = Game_getShaderPointerByName(&game, "model-shadow");
+				}
+
+				glUseProgram(shader_p->ID);
+				
+				Model *model_p = &game.models[rigidBody_p->modelIndex];
+
+				Texture *texture_p = &game.textures[rigidBody_p->textureIndex];
+				//Texture *alphaTexture_p = &game.textures[rigidBody_p->alphaTextureIndex];
+
+				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+				glBindVertexArray(model_p->VAO);
+
+				GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
+
+				GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
+				//GL3D_uniformTexture(shader_p->ID, "alphaTexture", 1, alphaTexture_p->ID);
+				GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 1, shadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 2, grassShadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 3, bigShadowMapDepthTexture.ID);
+
+				GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightViewMatrix", lightViewMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightViewMatrix", bigLightViewMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
+				/*
+				GL3D_uniformMat4f(shader_p->ID, "perspectiveMatrix", perspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightPerspectiveMatrix", lightPerspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightCameraMatrix", lightCameraMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightPerspectiveMatrix", bigLightPerspectiveMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightCameraMatrix", bigLightCameraMatrix);
+				*/
+
+				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.7, 0.7, 0.7, 1.0));
+
+				glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+
+				
+			}
+		
+		}
+
 		//draw particles
 		if(renderStage == RENDER_STAGE_SCENE){
 
@@ -1573,7 +2015,7 @@ void Engine_draw(){
 				GL3D_uniformMat4f(shader_p->ID, "bigLightCameraMatrix", bigLightCameraMatrix);
 				*/
 
-				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(1.0, 0.0, 0.1, 1.0));
+				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.9, 0.0, 0.0, 1.0));
 
 				glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
 

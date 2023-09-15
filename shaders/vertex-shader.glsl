@@ -28,6 +28,8 @@ void main(){
 	vec4 vertexNormal = vec4(attribute_normalVertex.xyz, 1.0);
 
 	input_normal = vertexNormal.xyz;
+	input_normal *= mat3(modelMatrix[0].xyz, modelMatrix[1].xyz, modelMatrix[2].xyz);
+	input_normal = normalize(input_normal);
 
 	vertexPosition *= modelMatrix;
 

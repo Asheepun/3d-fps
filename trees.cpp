@@ -366,8 +366,6 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 	free(meshData);
 
 	//create leaves
-	std::vector<Mat4f> leafTransformations;
-
 	for(int i = 0; i < nodes.size(); i++){
 
 		TreeNode *node1_p = &nodes[i];
@@ -399,7 +397,7 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 
 					transformations *= getTranslationMat4f(treePos + (node2_p->pos + (node1_p->pos - node2_p->pos) * h) * TREE_SCALE);
 
-					leafTransformations.push_back(transformations);
+					tree.leafTransformations.push_back(transformations);
 				
 				}
 			}
@@ -426,7 +424,7 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 
 					transformations *= getTranslationMat4f(treePos + (node1_p->pos + getVec3f(0.0, -0.2, 0.0)) * TREE_SCALE);
 
-					leafTransformations.push_back(transformations);
+					tree.leafTransformations.push_back(transformations);
 				
 				}
 			}
@@ -435,7 +433,9 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 
 	}
 
-	TextureBuffer_initAsMat4fArray(&tree.leafTransformationsTextureBuffer, &leafTransformations[0], leafTransformations.size(), false);
+	TextureBuffer_initAsMat4fArray(&tree.leafTransformationsTextureBuffer, &tree.leafTransformations[0], tree.leafTransformations.size(), false);
+
+	tree.sortedLeafTransformations = (Mat4f *)malloc(sizeof(Mat4f) * tree.leafTransformations.size());
 
 	game_p->trees.push_back(tree);
 

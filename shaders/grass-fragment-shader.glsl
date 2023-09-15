@@ -23,8 +23,8 @@ float ambientLightFactor = 0.3;
 float diffuseLightFactor = 0.7;
 
 //float paintHeight = 2.0;
-float paintHeightFactor = 5.0;
-float paintWidth = 0.4;
+float paintHeightFactor = 10.0;
+float paintWidth = 0.2;
 
 void main(){
 
@@ -34,12 +34,33 @@ void main(){
 		discard;
 	}
 
+	//float cutHeight = texture2D(paintMapTexture, input_staticWorldPosition.xz / 100.0).r;
+
+	//if(cutHeight > 0.0
+	//&& input_texturePosition.y < 0.5){
+		//discard;
+	//}
+
+	float paintHeight = texture2D(paintMapTexture, input_staticWorldPosition.xz / 100.0).r;
+
+	//if(paintHeight > 0.0
+	//&& input_texturePosition.y < 0.5){
+		//discard;
+	//}
+
+	if(paintHeight > 0.0
+	&& abs(paintHeight - (1.0 - input_texturePosition.y)) < paintWidth){
+		FragColor = vec4(0.9, 0.0, 0.0, 1.0);
+	}
+
+	/*
 	float paintHeight = texture2D(paintMapTexture, input_staticWorldPosition.xz / 100.0).r * paintHeightFactor;
 
 	if(paintHeight > 0.0
 	&& abs(int(input_staticWorldPosition.y) - paintHeight) < paintWidth){
 		FragColor = vec4(1.0, 0.0, 0.1, 1.0);
 	}
+	*/
 
 	float shadowFactor = 1.0;
 	float shadowDepthTolerance = 0.0015;

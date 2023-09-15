@@ -24,9 +24,31 @@ enum RenderStage{
 	N_RENDER_STAGES,
 };
 
+enum Weapon{
+	WEAPON_GUN,
+	WEAPON_SWORD,
+	N_WEAPONS,
+};
+
 struct Box{
 	Vec3f pos;
 	Vec3f size;
+};
+
+struct RigidBody{
+	Vec3f pos;
+	Vec3f velocity;
+	Vec4f orientation;
+	Vec3f angularVelocity;
+	float angle = 0.0;
+	float angularSpeed;
+	//Vec4f orientationVelocity;
+	//Vec3f rotationAxis;
+	//float rotation;
+	//float rotationVelocity;
+	int modelIndex;
+	int textureIndex;
+	int triangleMeshIndex;
 };
 
 struct Bullet{
@@ -57,6 +79,7 @@ struct Player{
 	Vec3f lastPos;
 	Vec3f velocity;
 	Vec3f direction;
+	enum Weapon weapon;
 	float height;
 	bool onGround;
 	int connectionID;
@@ -65,6 +88,8 @@ struct Player{
 struct Tree{
 	float scale;
 	TextureBuffer leafTransformationsTextureBuffer;
+	std::vector<Mat4f> leafTransformations;
+	Mat4f *sortedLeafTransformations;
 };
 
 struct Game{
@@ -76,12 +101,14 @@ struct Game{
 	std::vector<Bullet> bullets;
 	std::vector<Obstacle> obstacles;
 	std::vector<Particle> particles;
+	std::vector<RigidBody> rigidBodies;
 	std::vector<Tree> trees;
 
 	std::vector<Model> models;
 	std::vector<BoneModel> boneModels;
 	std::vector<Texture> textures;
 	std::vector<TriangleMesh> triangleMeshes;
+	std::vector<PointMesh> pointMeshes;
 	std::vector<Shader> shaders;
 
 	std::vector<Box> boundingBoxes;

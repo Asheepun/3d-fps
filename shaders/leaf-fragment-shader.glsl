@@ -22,6 +22,8 @@ vec3 lightDirection = vec3(0.7, -1.0, 0.5);
 
 void main(){
 
+	FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+
 	if(texture2D(alphaTexture, input_texturePosition).r < 0.001){
 		discard;
 	}

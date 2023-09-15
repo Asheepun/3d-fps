@@ -78,6 +78,12 @@ struct TriangleMesh{
 	char name[STRING_SIZE];
 };
 
+struct PointMesh{
+	Vec3f *points;
+	int n_points;
+	char name[STRING_SIZE];
+};
+
 static const int MODEL_COMPONENT_SIZE = sizeof(float) * 8;
 
 static const int BONE_MODEL_COMPONENT_SIZE = sizeof(float) * 12 + sizeof(unsigned char) * 4;
@@ -98,6 +104,8 @@ unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh, Vec2f *);
 //void VertexMesh_initFromFile_mesh(VertexMesh *, const char *);
 
 void TriangleMesh_initFromFile_mesh(TriangleMesh *, const char *);
+
+void PointMesh_initFromTriangleMesh(PointMesh *, TriangleMesh);
 
 void Texture_init(Texture *, const char *, unsigned char *, int, int);
 

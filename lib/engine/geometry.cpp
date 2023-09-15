@@ -11,7 +11,7 @@ float normalize(float x){
 	return x / fabs(x);
 }
 
-float getSquared(float x){
+float square(float x){
 	return x * x;
 }
 
@@ -395,6 +395,13 @@ bool checkSphereToTriangleCollision(Vec3f s, float r, Vec3f t1, Vec3f t2, Vec3f 
 
 }
 
+Vec3f mulVec3fMat4f(Vec3f v, Mat4f m, float w){
+	Vec4f v4 = m * getVec4f(v.x, v.y, v.z, w);
+	return getVec3f(v4.x, v4.y, v4.z);
+
+}
+
+/*
 void Vec3f_mulByMat4f(Vec3f *v_p, Mat4f m, float w){
 
 	Vec4f v4 = getVec4f(v_p->x, v_p->y, v_p->z, w);
@@ -407,6 +414,7 @@ void Vec3f_mulByMat4f(Vec3f *v_p, Mat4f m, float w){
 	v_p->z = v4.z;
 
 }
+*/
 
 //VEC4F FUNCTIONS
 
@@ -657,6 +665,11 @@ Vec4f normalize(Vec4f v){
 	return v / length(v);
 }
 
+Vec4f normalizeQuaternion(Vec4f q){
+	Vec3f axis = normalize(getVec3f(q.x, q.y, q.z));
+	return getVec4f(axis.x, axis.y, axis.z, q.w);
+}
+
 float dot(Vec2f v1, Vec2f v2){
 	return v1.x * v2.x + v1.y * v2.y;
 }
@@ -704,15 +717,28 @@ Vec4f getQuaternion(Vec3f axis, float angle){
 		cos(angle / 2.0)
 	);
 
+}
+
+Vec4f mulQuaternions(Vec4f q1, Vec4f q2){
+	Mat4f matrix = {
+		q2.w, q2.z, -q2.y, q2.x,
+		-q2.z, q2.w, q2.x, q2.y,
+		q2.y, -q2.x, q2.w, q2.z,
+		-q2.x, -q2.y, -q2.z, q2.w
+	};
+	return matrix * q1;
 	/*
 	return getVec4f(
-		cos(angle / 2.0),
-		sin(angle / 2.0) * normalizedAxis.x,
-		sin(angle / 2.0) * normalizedAxis.y,
-		sin(angle / 2.0) * normalizedAxis.z
+		q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y,
+		q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x,
+		q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w,
+		q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z
+		//q1.x * q2.x - q1.y * q2.y - q1.z * q2.z - q1.w * q2.w,
+		//q1.x * q2.y + q1.y * q2.x + q1.z * q2.w - q1.w * q2.z,
+		//q1.x * q2.z - q1.y * q2.w + q1.z * q2.x + q1.w * q2.y,
+		//q1.x * q2.y + q1.y * q2.z - q1.z * q2.y + q1.w * q2.x
 	);
 	*/
-
 }
 
 Vec3f getRotatedVec3f(Vec3f v, Vec3f axis, float angle){
@@ -750,6 +776,10 @@ float det(Mat3f m){
 
 	return m[0][0] * det(m1) - m[0][1] * det(m2) + m[0][2] * det(m3);
 
+}
+
+float det(Vec3f v1, Vec3f v2, Vec3f v3){
+	return dot(cross(v1, v2), v3);
 }
 
 float det(Mat4f m){

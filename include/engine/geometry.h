@@ -237,7 +237,7 @@ struct Mat4f{
 //GENERAL MATH FUNCTIONS
 float normalize(float);
 
-float getSquared(float);
+float square(float);
 
 float getRandom();
 
@@ -338,6 +338,7 @@ float getAreaFromTriangleVec3f(Vec3f, Vec3f, Vec3f);
 Vec3f getNormalFromTriangleVec3f(Vec3f, Vec3f, Vec3f);
 
 //void Vec3f_mulByMat4f(Vec3f *, Mat4f, float);
+Vec3f mulVec3fMat4f(Vec3f, Mat4f, float);
 
 //VEC4F FUNCTIONS
 
@@ -368,6 +369,7 @@ float length(Vec4f);
 Vec2f normalize(Vec2f);
 Vec3f normalize(Vec3f);
 Vec4f normalize(Vec4f);
+Vec4f normalizeQuaternion(Vec4f);
 
 float dot(Vec2f, Vec2f);
 float dot(Vec3f, Vec3f);
@@ -382,6 +384,8 @@ Vec3f cross(Vec3f, Vec3f);
 
 Vec4f getQuaternion(Vec3f, float);
 
+Vec4f mulQuaternions(Vec4f, Vec4f);
+
 Vec3f getRotatedVec3f(Vec3f, Vec3f, float);
 
 //MATRIX FUNCTIONS
@@ -390,6 +394,7 @@ void plog(Mat4f);
 
 float det(Mat2f);
 float det(Mat3f);
+float det(Vec3f, Vec3f, Vec3f);
 float det(Mat4f);
 
 Mat2f getRotationMat2f(float);
