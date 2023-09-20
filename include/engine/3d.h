@@ -132,6 +132,8 @@ void Texture_free(Texture *);
 
 void Shader_init(Shader *, const char *, const char *, const char *);
 
+bool checkTriangleMeshTriangleMeshCollision(TriangleMesh, TriangleMesh, Mat4f, Mat4f, Vec3f *, Vec3f *);
+
 void GL3D_uniformMat2f(unsigned int, const char *, Mat2f);
 
 void GL3D_uniformMat4f(unsigned int, const char *, Mat4f);

@@ -639,6 +639,115 @@ void Shader_init(Shader *shader_p, const char *name, const char *vertexShaderPat
 
 }
 
+/*
+bool checkTriangleMeshTriangleMeshCollision(TriangleMesh mesh1, TriangleMesh mesh2, Mat4f matrix1, Mat4f matrix2, Vec3f *output_collisionPoint, Vec3f *output_collisionNormal){
+
+	Vec3f collisionPoint = getVec3f(0.0, 0.0, 0.0);
+	Vec3f collisionNormal = getVec3f(0.0, 0.0, 0.0);
+	int n_hits = 0;
+
+	for(int i = 0; i < mesh1.n_triangles; i++){
+
+		Vec3f a1 = mulVec3fMat4f(mesh1.triangles[i * 3 + 0], matrix1, 1.0);
+		Vec3f a2 = mulVec3fMat4f(mesh1.triangles[i * 3 + 1], matrix1, 1.0);
+		Vec3f a3 = mulVec3fMat4f(mesh1.triangles[i * 3 + 2], matrix1, 1.0);
+		Vec3f aNormal = normalize(cross(a2 - a1, a3 - a1));
+
+		float aRadius = max(dot(a1 - a2, a1 - a2), dot(a1 - a3, a1 - a3));
+
+		for(int j = 0; j < mesh2.n_triangles; j++){
+
+			Vec3f b1 = mulVec3fMat4f(mesh2.triangles[j * 3 + 0], matrix2, 1.0);
+			Vec3f b2 = mulVec3fMat4f(mesh2.triangles[j * 3 + 1], matrix2, 1.0);
+			Vec3f b3 = mulVec3fMat4f(mesh2.triangles[j * 3 + 2], matrix2, 1.0);
+			Vec3f bNormal = normalize(cross(b2 - b1, b3 - b1));
+
+			if(dot(a1 - b1, a1 - b1) > aRadius
+			&& dot(a1 - b2, a1 - b2) > aRadius
+			&& dot(a1 - b3, a1 - b3) > aRadius){
+				continue;
+			}
+
+			Vec3f aPoints[3];
+			int n_aPoints = 0;
+
+			float t = (dot(b1, bNormal) - dot(a1, bNormal)) / dot(a2 - a1, bNormal);
+			if(t >= 0.0 && t <= 1.0){
+				aPoints[n_aPoints] = a1 + (a2 - a1) * t;
+				n_aPoints++;
+			}
+
+			t = (dot(b1, bNormal) - dot(a2, bNormal)) / dot(a3 - a2, bNormal);
+			if(t >= 0.0 && t <= 1.0){
+				aPoints[n_aPoints] = a2 + (a3 - a2) * t;
+				n_aPoints++;
+			}
+
+			t = (dot(b1, bNormal) - dot(a3, bNormal)) / dot(a1 - a3, bNormal);
+			if(t >= 0.0 && t <= 1.0){
+				aPoints[n_aPoints] = a3 + (a1 - a3) * t;
+				n_aPoints++;
+			}
+
+			Vec3f bPoints[3];
+			int n_bPoints = 0;
+
+			t = (dot(a1, aNormal) - dot(b1, aNormal)) / dot(b2 - b1, aNormal);
+			if(t >= 0.0 && t <= 1.0){
+				bPoints[n_bPoints] = b1 + (b2 - b1) * t;
+				n_bPoints++;
+			}
+
+			t = (dot(a1, aNormal) - dot(b2, aNormal)) / dot(b3 - b2, aNormal);
+			if(t >= 0.0 && t <= 1.0){
+				bPoints[n_bPoints] = b2 + (b3 - b2) * t;
+				n_bPoints++;
+			}
+
+			t = (dot(a1, aNormal) - dot(b3, aNormal)) / dot(b1 - b3, aNormal);
+			if(t >= 0.0 && t <= 1.0){
+				bPoints[n_bPoints] = b3 + (b1 - b3) * t;
+				n_bPoints++;
+			}
+
+			if(n_aPoints == 2
+			&& n_bPoints == 2){
+				if(dot(aPoints[0] - bPoints[0], aPoints[0] - bPoints[1]) < 0.0
+				|| dot(aPoints[1] - bPoints[0], aPoints[1] - bPoints[1]) < 0.0
+				|| dot(bPoints[0] - aPoints[0], bPoints[0] - aPoints[1]) < 0.0
+				|| dot(bPoints[1] - aPoints[0], bPoints[1] - aPoints[1]) < 0.0){
+
+					collisionPoint += (bPoints[0] + bPoints[1]) / 2.0;
+
+					if(dot(rigidBody_p->velocity * -1.0, aNormal) > dot(rigidBody_p->velocity * -1.0, collisionNormal)
+					|| getMagVec3f(collisionNormal) < 0.01){
+						collisionNormal = aNormal;
+					}
+
+					n_hits++;
+
+				}
+			}
+			
+		}
+	
+	}
+
+	collisionPoint = collisionPoint / (float)n_hits;
+	collisionNormal = normalize(collisionNormal);
+
+	if(output_collisionPoint != NULL){
+		*output_collisionPoint = collisionPoint;
+	}
+	if(output_collisionNormal != NULL){
+		*output_collisionNormal = collisionNormal;
+	}
+
+	return n_hits > 0;
+
+}
+*/
+
 void GL3D_uniformMat2f(unsigned int shaderProgram, const char *locationName, Mat2f m){
 
 	unsigned int location = glGetUniformLocation(shaderProgram, locationName);

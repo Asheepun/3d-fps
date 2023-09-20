@@ -79,13 +79,15 @@ Vec2f cameraRotation = getVec2f(M_PI / 2.0, 0.0);
 Renderer2D_Renderer renderer2D;
 Font font;
 
-Vec3f lastTorque = getVec3f(0.0, 0.0, 0.0);
-Vec3f lastCollisionPoint = getVec3f(0.0, 0.0, 0.0);
-int framesSinceLastSwitch = 0;
-int unstableHits = 0;
+//Vec3f lastTorque = getVec3f(0.0, 0.0, 0.0);
+//int framesSinceLastSwitch = 0;
+//int unstableHits = 0;
 bool stabelized = false;
 bool stable = false;
 int framesSinceHit = 0;
+
+int currentlyHeldRigidBodyIndex = -1;
+float holdingDistance = 0.0;
 
 void Engine_start(){
 
@@ -204,7 +206,7 @@ void Engine_start(){
 			}
 		}
 
-		printf("%f\n", terrainMaxHeight);
+		//printf("%f\n", terrainMaxHeight);
 
 		int n_triangles = 2 * (width) * (width);
 
@@ -434,11 +436,8 @@ void Engine_start(){
 					//printf("hit!\n");
 
 					//grassPositions2.push_back(pos);
-				}else{
-					//printf("no hit!\n");
-					Vec4f_log(pos);
 				}
-					n++;
+				n++;
 
 				//stepPos += dir;
 			}
@@ -566,7 +565,8 @@ void Engine_start(){
 		game.player.velocity = getVec3f(0.0, 0.0, 0.0);
 		game.player.onGround = false;
 		game.player.height = PLAYER_HEIGHT_STANDING;
-		game.player.weapon = WEAPON_GUN;
+		//game.player.weapon = WEAPON_GUN;
+		game.player.weapon = WEAPON_SWORD;
 		//Vec3f lastPlayerPos = game.player.pos;
 		//Vec3f game.player.velocity = { 0.0, 0.0, 0.0 };
 		//bool playerOnGround = false;
@@ -582,18 +582,25 @@ void Engine_start(){
 		rigidBody.pos = getVec3f(20.0, 10.0, 35.0);
 		rigidBody.velocity = getVec3f(0.0, 0.0, 0.0);
 		rigidBody.orientation = getQuaternion(getVec3f(0.0, 0.0, 1.0), 0.3);
-		rigidBody.angularVelocity = getVec3f(0.0, 1.0, 1.0) * 0.0;
-		rigidBody.angle = 0.5;
-		rigidBody.angularSpeed = 0.0;
-		//rigidBody.angularVelocity = getVec3f(0.0, 0.0, 0.0);
-		//rigidBody.orientationVelocity = getQuaternion(getVec3f(0.0, 0.0, 1.0), 0.0);
-		//rigidBody.rotationAxis = getVec3f(0.0, 0.0, 1.0);
-		//rigidBody.rotation = 0.5;
-		//rigidBody.rotationVelocity = 0.0;
-		//rigidBody.rotationVelocity = 0.03;
+		rigidBody.angularVelocity = getVec3f(0.0, 0.0, 0.0);
 		rigidBody.modelIndex = Game_getModelIndexByName(&game, "cube");
 		rigidBody.textureIndex = Game_getTextureIndexByName(&game, "blank");
 		rigidBody.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "cube");
+		rigidBody.lastTorque = getVec3f(0.0, 0.0, 0.0);
+		rigidBody.framesSinceHit = 0;
+		game.rigidBodies.push_back(rigidBody);
+	}
+	{
+		RigidBody rigidBody;
+		rigidBody.pos = getVec3f(30.0, 10.0, 35.0);
+		rigidBody.velocity = getVec3f(0.0, 0.0, 0.0);
+		rigidBody.orientation = getQuaternion(getVec3f(0.0, 0.0, 1.0), 0.3);
+		rigidBody.angularVelocity = getVec3f(0.0, 0.0, 0.0);
+		rigidBody.modelIndex = Game_getModelIndexByName(&game, "cube");
+		rigidBody.textureIndex = Game_getTextureIndexByName(&game, "blank");
+		rigidBody.triangleMeshIndex = Game_getTriangleMeshIndexByName(&game, "cube");
+		rigidBody.lastTorque = getVec3f(0.0, 0.0, 0.0);
+		rigidBody.framesSinceHit = 0;
 		game.rigidBodies.push_back(rigidBody);
 	}
 	{
@@ -622,6 +629,15 @@ void Engine_start(){
 	Game_addTree(&game, getVec3f(90.0, 0.0, 90.0));
 
 	Game_addTree(&game, getVec3f(40.0, 0.0, 40.0));
+
+	//generate point meshes
+	{
+		for(int i = 0; i < game.triangleMeshes.size(); i++){
+			PointMesh pointMesh;
+			PointMesh_initFromTriangleMesh(&pointMesh, game.triangleMeshes[i]);
+			game.pointMeshes.push_back(pointMesh);
+		}
+	}
 
 	//Engine_toggleFullscreen();
 
@@ -845,14 +861,14 @@ void Engine_update(float deltaTime){
 					&& dot(cameraDirection, normalize(getVec3f(grassPositions[i].x, grassPositions[i].y, grassPositions[i].z) - handPos)) > 0.8){
 
 						float cutY = (D - normal.x * grassPositions[i].x - normal.z * grassPositions[i].z) / normal.y;
-						printf("%f, %f\n", cutY, grassPositions[i].y, cutY - grassPositions[i].y);
+						//printf("%f, %f\n", cutY, grassPositions[i].y, cutY - grassPositions[i].y);
 
 						float grassHeight = floor(grassPositions[i].w);
 						float cutHeight = max(min((cutY - (grassPositions[i].y - 1.0)) * 100.0 / 2.0, 100.0), 0.0);
 						grassPositions[i].w = grassPositions[i].w - grassHeight + min(cutHeight, grassHeight);
 					}
 				}
-				printf("sword!\n");
+				//printf("sword!\n");
 			}
 
 		}
@@ -938,33 +954,19 @@ void Engine_update(float deltaTime){
 
 	}
 
-	//update rigid body physics
+	//check if rigid bodies are dragged
 	for(int i = 0; i < game.rigidBodies.size(); i++){
 		
 		RigidBody *rigidBody_p = &game.rigidBodies[i];
+		TriangleMesh *triangleMesh_p = &game.triangleMeshes[rigidBody_p->triangleMeshIndex];
+
+		rigidBody_p->lastPos = rigidBody_p->pos;
+		rigidBody_p->lastOrientation = rigidBody_p->orientation;
 
 		if(Engine_keys[ENGINE_KEY_U].downed){
 			rigidBody_p->velocity.y += 0.5;
 			rigidBody_p->angularVelocity = getVec3f(getRandom(), getRandom(), getRandom());
 		}
-
-		float resistance = 0.97;
-
-		rigidBody_p->velocity.y += -0.01;
-
-		rigidBody_p->velocity *= resistance;
-		rigidBody_p->angularSpeed *= resistance;
-		rigidBody_p->angularVelocity *= resistance;
-
-		rigidBody_p->pos += rigidBody_p->velocity;
-		if(getMagVec3f(rigidBody_p->angularVelocity) > 0.0){
-			rigidBody_p->orientation = mulQuaternions(getQuaternion(rigidBody_p->angularVelocity, getMagVec3f(rigidBody_p->angularVelocity)), rigidBody_p->orientation);
-		}
-
-		PointMesh *pointMesh_p = &game.pointMeshes[rigidBody_p->triangleMeshIndex];
-		rigidBody_p->orientation = normalize(rigidBody_p->orientation);
-
-		float GROUND_HEIGHT = 5.0;
 
 		float scale = 1.0;
 		Mat4f modelMatrix = getIdentityMat4f();
@@ -972,43 +974,306 @@ void Engine_update(float deltaTime){
 		modelMatrix *= getQuaternionMat4f(rigidBody_p->orientation);
 		modelMatrix *= getTranslationMat4f(rigidBody_p->pos);
 
-		Vec3f normal = normalize(getVec3f(0.0, 1.0, -0.2));
-		Vec3f planePosition = getVec3f(20.0, 5.0, 30.0);
-		float elasticity = 0.1;
-		printf("---\n");
+		if(Engine_pointer.downed){
 
-		Vec3f collisionPoint = getVec3f(0.0, 0.0, 0.0);
-		Vec3f deepestPoint = rigidBody_p->pos;
-		//float lowestY = 100.0;
-		int n_hits = 0;
+			Vec3f intersectionPoint;
+			bool hit = false;
 
-		for(int j = 0; j < pointMesh_p->n_points; j++){
-			Vec3f point = mulVec3fMat4f(pointMesh_p->points[j], modelMatrix, 1.0);
-			if(dot(point - planePosition, normal) < 0.0){
-				collisionPoint += point;
-				n_hits++;
-				if(dot(point - planePosition, normal) < dot(deepestPoint - planePosition, normal)){
-					deepestPoint = point;
+			for(int j = 0; j < triangleMesh_p->n_triangles; j++){
+				Vec3f p1 = mulVec3fMat4f(triangleMesh_p->triangles[j * 3 + 0], modelMatrix, 1.0);
+				Vec3f p2 = mulVec3fMat4f(triangleMesh_p->triangles[j * 3 + 1], modelMatrix, 1.0);
+				Vec3f p3 = mulVec3fMat4f(triangleMesh_p->triangles[j * 3 + 2], modelMatrix, 1.0);
+
+
+				if(checkLineToTriangleIntersectionVec3f(cameraPos, cameraPos + cameraDirection, p1, p2, p3, &intersectionPoint)){
+					hit = true;
 				}
 			}
+
+			if(hit){
+				currentlyHeldRigidBodyIndex = i;
+				holdingDistance = getMagVec3f(cameraPos - rigidBody_p->pos);
+			}
+		}
+
+		if(Engine_pointer.down
+		&& currentlyHeldRigidBodyIndex == i){
+			/*
+			rigidBody_p->velocity = (cameraPos + cameraDirection * holdingDistance - rigidBody_p->pos) * 0.5;
+			float maxSpeed = 1.0;
+			if(getMagVec3f(rigidBody_p->velocity) > maxSpeed){
+				rigidBody_p->velocity = normalize(rigidBody_p->velocity) * maxSpeed;
+			}
+			*/
+			rigidBody_p->pos = cameraPos + cameraDirection * holdingDistance;
+			rigidBody_p->velocity = getVec3f(0.0, 0.0, 0.0);
+			rigidBody_p->angularVelocity = getVec3f(0.0, 0.0, 0.0);
+		}
+
+		if(Engine_pointer.upped
+		&& currentlyHeldRigidBodyIndex == i){
+			rigidBody_p->velocity = cameraPos + cameraDirection * holdingDistance - rigidBody_p->pos;
+			if(getMagVec3f(rigidBody_p->velocity) > 0.01){
+				rigidBody_p->velocity = normalize(rigidBody_p->velocity) * 0.3;
+			}
+		}
+
+	}
+
+	if(!Engine_pointer.down){
+		currentlyHeldRigidBodyIndex = -1;
+	}
+
+	//move rigid bodies
+	for(int i = 0; i < game.rigidBodies.size(); i++){
+		
+		RigidBody *rigidBody_p = &game.rigidBodies[i];
+
+		float resistance = 0.97;
+
+		rigidBody_p->velocity.y += -0.01;
+
+		rigidBody_p->velocity *= resistance;
+		rigidBody_p->angularVelocity *= resistance;
+
+		//Vec3f lastPos = rigidBody_p->pos;
+		Vec4f lastOrientation = rigidBody_p->orientation;
+
+		rigidBody_p->pos += rigidBody_p->velocity;
+		if(getMagVec3f(rigidBody_p->angularVelocity) > 0.0){
+			rigidBody_p->orientation = mulQuaternions(getQuaternion(rigidBody_p->angularVelocity, getMagVec3f(rigidBody_p->angularVelocity)), rigidBody_p->orientation);
+		}
+
+		rigidBody_p->orientation = normalize(rigidBody_p->orientation);
+
+	}
+
+	//check rigid body collisions
+	std::vector<Collision> rigidBodyObstacleCollisions;
+	std::vector<Collision> rigidBodyRigidBodyCollisions;
+
+	for(int i = 0; i < game.rigidBodies.size(); i++){
+		
+		RigidBody *rigidBody_p = &game.rigidBodies[i];
+		TriangleMesh *triangleMesh_p = &game.triangleMeshes[rigidBody_p->triangleMeshIndex];
+
+		//calculate model matrix
+		float scale = 1.0;
+		Mat4f modelMatrix = getIdentityMat4f();
+		modelMatrix *= getScalingMat4f(scale);
+		modelMatrix *= getQuaternionMat4f(rigidBody_p->orientation);
+		modelMatrix *= getTranslationMat4f(rigidBody_p->pos);
+
+		//check collision vs obstacles
+		for(int j = 0; j < game.obstacles.size(); j++){
+
+			Obstacle *obstacle_p = &game.obstacles[j];
+
+			Mat4f obstacleMatrix = getIdentityMat4f();
+			obstacleMatrix *= getScalingMat4f(obstacle_p->scale);
+			obstacleMatrix *= getTranslationMat4f(obstacle_p->pos);
+
+			TriangleMesh *obstacleTriangleMesh_p = &game.triangleMeshes[obstacle_p->triangleMeshIndex];
+			PointMesh *obstaclePointMesh_p = &game.pointMeshes[obstacle_p->triangleMeshIndex];
+
+			Collision collision;
+			collision.pos = getVec3f(0.0, 0.0, 0.0);
+			collision.normal = getVec3f(0.0, 0.0, 0.0);
+			int n_hits = 0;
+
+			for(int k = 0; k < obstacleTriangleMesh_p->n_triangles; k++){
+
+				Vec3f a1 = mulVec3fMat4f(obstacleTriangleMesh_p->triangles[k * 3 + 0], obstacleMatrix, 1.0);
+				Vec3f a2 = mulVec3fMat4f(obstacleTriangleMesh_p->triangles[k * 3 + 1], obstacleMatrix, 1.0);
+				Vec3f a3 = mulVec3fMat4f(obstacleTriangleMesh_p->triangles[k * 3 + 2], obstacleMatrix, 1.0);
+				Vec3f aNormal = normalize(cross(a2 - a1, a3 - a1));
+
+				float aRadius = max(dot(a1 - a2, a1 - a2), dot(a1 - a3, a1 - a3));
+
+				if(dot(a1 - rigidBody_p->pos, a1 - rigidBody_p->pos) > aRadius + 2.0 * 2.0){
+					continue;
+				}
+
+				for(int l = 0; l < triangleMesh_p->n_triangles; l++){
+
+					Vec3f b1 = mulVec3fMat4f(triangleMesh_p->triangles[l * 3 + 0], modelMatrix, 1.0);
+					Vec3f b2 = mulVec3fMat4f(triangleMesh_p->triangles[l * 3 + 1], modelMatrix, 1.0);
+					Vec3f b3 = mulVec3fMat4f(triangleMesh_p->triangles[l * 3 + 2], modelMatrix, 1.0);
+
+					if(dot(a1 - b1, a1 - b1) > aRadius
+					&& dot(a1 - b2, a1 - b2) > aRadius
+					&& dot(a1 - b3, a1 - b3) > aRadius){
+						continue;
+					}
+					
+					Vec3f collisionPoint;
+
+					if(checkTriangleTriangleCollisionVec3f(a1, a2, a3, b1, b2, b3, &collisionPoint)){
+
+						collision.pos += collisionPoint;
+
+						if(dot(rigidBody_p->velocity * -1.0, aNormal) > dot(rigidBody_p->velocity * -1.0, collision.normal)
+						|| getMagVec3f(collision.normal) < 0.01){
+							collision.normal = aNormal;
+						}
+
+						n_hits++;
+
+					}
+
+				}
+				
+			}
+
+			if(n_hits > 0){
+				collision.pos /= (float)n_hits;
+				collision.normal = normalize(collision.normal);
+				collision.index1 = i;
+				collision.index2 = j;
+				rigidBodyObstacleCollisions.push_back(collision);
+			}
+
+		}
+
+		//check collision vs other rigid bodies
+		for(int j = 0; j < game.rigidBodies.size(); j++){
+
+			RigidBody *rigidBody2_p = &game.rigidBodies[j];
+			TriangleMesh *triangleMesh2_p = &game.triangleMeshes[rigidBody2_p->triangleMeshIndex];
+
+			float scale = 1.0;
+			Mat4f modelMatrix2 = getIdentityMat4f();
+			modelMatrix2 *= getScalingMat4f(scale);
+			modelMatrix2 *= getQuaternionMat4f(rigidBody2_p->orientation);
+			modelMatrix2 *= getTranslationMat4f(rigidBody2_p->pos);
+
+			Collision collision;
+			collision.pos = getVec3f(0.0, 0.0, 0.0);
+			collision.normal = getVec3f(0.0, 0.0, 0.0);
+			int n_hits = 0;
+
+			if(i != j){
+				for(int k = 0; k < triangleMesh2_p->n_triangles; k++){
+
+					Vec3f a1 = mulVec3fMat4f(triangleMesh2_p->triangles[k * 3 + 0], modelMatrix2, 1.0);
+					Vec3f a2 = mulVec3fMat4f(triangleMesh2_p->triangles[k * 3 + 1], modelMatrix2, 1.0);
+					Vec3f a3 = mulVec3fMat4f(triangleMesh2_p->triangles[k * 3 + 2], modelMatrix2, 1.0);
+					Vec3f aNormal = normalize(cross(a2 - a1, a3 - a1));
+
+					for(int l = 0; l < triangleMesh_p->n_triangles; l++){
+
+						Vec3f b1 = mulVec3fMat4f(triangleMesh_p->triangles[l * 3 + 0], modelMatrix, 1.0);
+						Vec3f b2 = mulVec3fMat4f(triangleMesh_p->triangles[l * 3 + 1], modelMatrix, 1.0);
+						Vec3f b3 = mulVec3fMat4f(triangleMesh_p->triangles[l * 3 + 2], modelMatrix, 1.0);
+
+						Vec3f collisionPoint;
+
+						if(checkTriangleTriangleCollisionVec3f(a1, a2, a3, b1, b2, b3, &collisionPoint)){
+
+							collision.pos += collisionPoint;
+
+							if(dot(rigidBody_p->velocity * -1.0, aNormal) > dot(rigidBody_p->velocity * -1.0, collision.normal)
+							|| getMagVec3f(collision.normal) < 0.01){
+								collision.normal = aNormal;
+							}
+
+							n_hits++;
+
+						}
+					
+					}
+
+				}
+			}
+
+			if(n_hits > 0){
+				collision.pos /= (float)n_hits;
+				collision.normal = normalize(collision.normal);
+				collision.index1 = i;
+				collision.index2 = j;
+				rigidBodyRigidBodyCollisions.push_back(collision);
+			
+			}
+			
+		}
+
+	}
+
+	//resolve rigid body collisions
+	for(int i = 0; i < game.rigidBodies.size(); i++){
+		
+		RigidBody *rigidBody_p = &game.rigidBodies[i];
+			
+		float elasticity = 0.1;
+		float torqueFactor = 0.5;
+
+		Vec3f collisionNormal = getVec3f(0.0, 0.0, 0.0);
+		Vec3f collisionPoint = getVec3f(0.0, 0.0, 0.0);
+		int n_hits = 0;
+		
+		for(int j = 0; j < rigidBodyObstacleCollisions.size(); j++){
+
+			Collision *collision_p = &rigidBodyObstacleCollisions[j];
+
+			if(collision_p->index1 == i){
+				collisionNormal += collision_p->normal;
+				collisionPoint += collision_p->pos;
+				n_hits++;
+			}
+
+		}
+
+		Vec3f rigidBodyForces = getVec3f(0.0, 0.0, 0.0);
+		Vec3f rigidBodyTorque = getVec3f(0.0, 0.0, 0.0);
+		bool hitByRigidBody = false;
+
+		for(int j = 0; j < rigidBodyRigidBodyCollisions.size(); j++){
+
+			Collision *collision_p = &rigidBodyRigidBodyCollisions[j];
+
+			Vec3f collisionDiff = rigidBody_p->pos - collision_p->pos;
+
+			if(collision_p->index1 == i){
+
+				RigidBody *rigidBody2_p = &game.rigidBodies[collision_p->index2];
+				Vec3f force = collision_p->normal * getMagVec3f(rigidBody2_p->velocity) * elasticity;
+				Vec3f torque = cross(force, collisionDiff);
+
+				rigidBodyForces += force;
+				//rigidBodyTorque += getVec3f(0.0, 1.0, 0.0);
+				rigidBodyTorque += torque;
+				//hitByRigidBody = true;
+
+				collisionNormal += collision_p->normal;
+				collisionPoint += collision_p->pos;
+				n_hits++;
+
+			}
+
 		}
 
 		if(n_hits > 0){
 
-			collisionPoint /= (float)n_hits;
-			Vec3f collisionDiff = rigidBody_p->pos - collisionPoint;
-			Vec3f force = normal * getMagVec3f(rigidBody_p->velocity) * (1.0 + elasticity);
-			Vec3f torque = cross(force, collisionDiff);
-			
-			float torqueFactor = 0.5;
+			//rigidBody_p->pos += collisionNormal * fabs(dot(rigidBody_p->velocity, collisionNormal));
+			rigidBody_p->pos = rigidBody_p->lastPos;
+			rigidBody_p->orientation = rigidBody_p->lastOrientation;
+			//rigidBody_p->angularVelocity *= 0.9;
+			//rigidBody_p->velocity *= 0.9;
 
-			if(dot(lastTorque, torque) < 0.0
-			&& dot(rigidBody_p->velocity, normal) < 0.0
-			&& framesSinceHit < 2){
+			collisionPoint /= (float)n_hits;
+			collisionNormal = normalize(collisionNormal);
+
+			Vec3f collisionDiff = rigidBody_p->pos - collisionPoint;
+			Vec3f force = collisionNormal * getMagVec3f(rigidBody_p->velocity) * (1.0 + elasticity);
+			Vec3f torque = cross(force, collisionDiff);
+
+			if(dot(rigidBody_p->lastTorque, torque) < 0.0
+			&& dot(rigidBody_p->velocity, collisionNormal) < 0.0
+			&& rigidBody_p->framesSinceHit < 2){
 				torque *= 0.1;
 				rigidBody_p->angularVelocity *= 0.1;
 				rigidBody_p->velocity *= 0.1;
-				force *= 0.0;
+				force *= 0.1;
 			}
 
 			rigidBody_p->angularVelocity += torque * torqueFactor;
@@ -1016,87 +1281,19 @@ void Engine_update(float deltaTime){
 			rigidBody_p->velocity += cross(torque, collisionDiff) * torqueFactor;
 			rigidBody_p->velocity += force;
 
-			//float friction = 0.0;
-			//rigidBody_p->velocity *= friction;
-
-			rigidBody_p->pos += normal * -dot(normal, deepestPoint - planePosition);
-
-
-			lastTorque = torque;
-			lastCollisionPoint = collisionPoint;
-			framesSinceHit = 0;
-
-		}
-
-		framesSinceHit++;
-
-		//if(stable){
-			//rigidBody_p->velocity *= 0.0;
-			//rigidBody_p->angularVelocity *= 0.0;
-		//}
-
-		//printf("%i, %i\n", n_hits, pointMesh_p->n_points);
-
-		/*
-		Obstacle *obstacle_p = &game.obstacles[2];
-		obstacle_p->color = getVec4f(1.0, 0.0, 0.0, 1.0);
-
-		Mat4f obstacleMatrix = getIdentityMat4f();
-		obstacleMatrix *= getScalingMat4f(obstacle_p->scale);
-		obstacleMatrix *= getTranslationMat4f(obstacle_p->pos);
-
-		TriangleMesh *obstacleTriangleMesh_p = &game.triangleMeshes[obstacle_p->triangleMeshIndex];
-
-		//std::vector<Vec3f> simplex;
-		//simplex.push_back(mulVec3fMat4f(triangleMesh_p->triangles[0], modelMatrix, 1.0) - mulVec3fMat4f(obstacleTriangleMesh_p->triangles[0], obstacleMatrix, 1.0));
-		//Vec3f direction = getVec3f(1.0, 0.0, 0.0);
+			rigidBody_p->lastTorque = torque;
+			rigidBody_p->framesSinceHit = 0;
 		
-		//Vec3f nextPoint;
-		//float nextPointDot = 0.0;
-		//for(int j = 0; j < triangleMesh_p->triangles.size(); j++){
-			//Vec3f point = mulVec3fMat4f(triangleMesh_p->triangles[j]);
-		//}
-
-		//Vec3f_log(simplex[0]);
-		*/
-
-		/*
-		for(int j = 0; j < triangleMesh_p->n_triangles * 3; j++){
-			for(int k = 0; k < obstacleTriangleMesh_p->n_triangles * 3; k++){
-				minkowskiPoints.push_back(mulVec3fMat4f(triangleMesh_p->triangles[j], modelMatrix, 1.0) - mulVec3fMat4f(obstacleTriangleMesh_p->triangles[k], obstacleMatrix, 1.0));
-			}
-		}
-		*/
-
-		//Vec3f collisionPoint = getVec3f(0.0, 0.0, 0.0);
-		//int collisionHits = 0;
-
-		/*
-		for(int j = 0; j < triangleMesh_p->n_triangles * 3; j++){
-
-			Vec4f worldPos = modelMatrix * getVec4f(triangleMesh_p->triangles[j].x, triangleMesh_p->triangles[j].y, triangleMesh_p->triangles[j].z, 1.0);
-
-			if(worldPos.y < GROUND_HEIGHT){
-				collisionPoint += getVec3f(worldPos.x, worldPos.y, worldPos.z);
-				collisionHits++;
-				//rigidBody_p->pos.y += GROUND_HEIGHT - worldPos.y;
-				//rigidBody_p->velocity += normal * getMagVec3f(rigidBody_p->velocity) * (1.0 + elasticity);
-				//Vec4f_log(worldPos);
-				//Vec3f_log(rigidBody_p->pos);
-				//break;
-			}
-
 		}
 
-		if(collisionHits > 0){
-			collisionPoint /= (float)collisionHits;
-			Vec3f_log(collisionPoint);
-			Vec3f_log(rigidBody_p->pos);
-			rigidBody_p->pos.y += GROUND_HEIGHT - collisionPoint.y;
-			rigidBody_p->velocity += normal * getMagVec3f(rigidBody_p->velocity) * (1.0 + elasticity);
-
+		if(hitByRigidBody){
+			//rigidBody_p->pos = rigidBody_p->lastPos;
+			//rigidBody_p->orientation = rigidBody_p->lastOrientation;
+			rigidBody_p->velocity += rigidBodyForces;
+			//rigidBody_p->angularVelocity += rigidBodyTorque * torqueFactor;
 		}
-		*/
+
+		rigidBody_p->framesSinceHit++;
 
 	}
 
@@ -1576,7 +1773,7 @@ void Engine_draw(){
 
 		//draw grass
 		if((renderStage == RENDER_STAGE_GRASS_SHADOWS
-		|| renderStage == RENDER_STAGE_SCENE) && true){
+		|| renderStage == RENDER_STAGE_SCENE) && false){
 			glDisable(GL_CULL_FACE);
 
 			Vec3f pos = getVec3f(0.0, 4.0, 0.0);

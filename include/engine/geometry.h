@@ -426,4 +426,6 @@ bool checkLineToTriangleIntersectionVec3f(Vec3f, Vec3f, Vec3f, Vec3f, Vec3f, Vec
 
 bool checkSphereToTriangleCollision(Vec3f, float, Vec3f, Vec3f, Vec3f);
 
+bool checkTriangleTriangleCollisionVec3f(Vec3f, Vec3f, Vec3f, Vec3f, Vec3f, Vec3f, Vec3f *);
+
 #endif

@@ -36,19 +36,25 @@ struct Box{
 };
 
 struct RigidBody{
+	Box boundingBox;
 	Vec3f pos;
+	Vec3f lastPos;
 	Vec3f velocity;
 	Vec4f orientation;
+	Vec4f lastOrientation;
 	Vec3f angularVelocity;
-	float angle = 0.0;
-	float angularSpeed;
-	//Vec4f orientationVelocity;
-	//Vec3f rotationAxis;
-	//float rotation;
-	//float rotationVelocity;
 	int modelIndex;
 	int textureIndex;
 	int triangleMeshIndex;
+	int framesSinceHit;
+	Vec3f lastTorque;
+};
+
+struct Collision{
+	int index1;
+	int index2;
+	Vec3f normal;
+	Vec3f pos;
 };
 
 struct Bullet{
@@ -65,6 +71,7 @@ struct Particle{
 };
 
 struct Obstacle{
+	Box boundingBox;
 	Vec4f color;
 	Vec3f pos;
 	float scale;

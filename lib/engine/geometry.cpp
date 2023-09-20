@@ -946,3 +946,82 @@ void plog(Mat4f m){
 	}
 	printf("}\n");
 }
+
+bool checkTriangleTriangleCollisionVec3f(Vec3f a1, Vec3f a2, Vec3f a3, Vec3f b1, Vec3f b2, Vec3f b3, Vec3f *output_collisionPoint){
+
+	Vec3f aNormal = normalize(cross(a2 - a1, a3 - a1));
+	Vec3f bNormal = normalize(cross(b2 - b1, b3 - b1));
+
+	Vec3f aPoints[3];
+	int n_aPoints = 0;
+
+	float t = (dot(b1, bNormal) - dot(a1, bNormal)) / dot(a2 - a1, bNormal);
+	if(t >= 0.0 && t <= 1.0){
+		aPoints[n_aPoints] = a1 + (a2 - a1) * t;
+		n_aPoints++;
+	}
+
+	t = (dot(b1, bNormal) - dot(a2, bNormal)) / dot(a3 - a2, bNormal);
+	if(t >= 0.0 && t <= 1.0){
+		aPoints[n_aPoints] = a2 + (a3 - a2) * t;
+		n_aPoints++;
+	}
+
+	t = (dot(b1, bNormal) - dot(a3, bNormal)) / dot(a1 - a3, bNormal);
+	if(t >= 0.0 && t <= 1.0){
+		aPoints[n_aPoints] = a3 + (a1 - a3) * t;
+		n_aPoints++;
+	}
+
+	Vec3f bPoints[3];
+	int n_bPoints = 0;
+
+	t = (dot(a1, aNormal) - dot(b1, aNormal)) / dot(b2 - b1, aNormal);
+	if(t >= 0.0 && t <= 1.0){
+		bPoints[n_bPoints] = b1 + (b2 - b1) * t;
+		n_bPoints++;
+	}
+
+	t = (dot(a1, aNormal) - dot(b2, aNormal)) / dot(b3 - b2, aNormal);
+	if(t >= 0.0 && t <= 1.0){
+		bPoints[n_bPoints] = b2 + (b3 - b2) * t;
+		n_bPoints++;
+	}
+
+	t = (dot(a1, aNormal) - dot(b3, aNormal)) / dot(b1 - b3, aNormal);
+	if(t >= 0.0 && t <= 1.0){
+		bPoints[n_bPoints] = b3 + (b1 - b3) * t;
+		n_bPoints++;
+	}
+
+	if(n_aPoints == 2
+	&& n_bPoints == 2){
+		if(dot(aPoints[0] - bPoints[0], aPoints[0] - bPoints[1]) < 0.0
+		|| dot(aPoints[1] - bPoints[0], aPoints[1] - bPoints[1]) < 0.0
+		|| dot(bPoints[0] - aPoints[0], bPoints[0] - aPoints[1]) < 0.0
+		|| dot(bPoints[1] - aPoints[0], bPoints[1] - aPoints[1]) < 0.0){
+
+			if(output_collisionPoint != NULL){
+				*output_collisionPoint = (bPoints[0] + bPoints[1]) / 2.0;
+			}
+
+			return true;
+			/*
+			collision.pos += (bPoints[0] + bPoints[1]) / 2.0;
+
+			if(dot(rigidBody_p->velocity * -1.0, aNormal) > dot(rigidBody_p->velocity * -1.0, collision.normal)
+			|| getMagVec3f(collision.normal) < 0.01){
+				collision.normal = aNormal;
+			}
+
+			n_hits++;
+			*/
+
+		}
+	}
+
+	return false;
+
+}
+
+
