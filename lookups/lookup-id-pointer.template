@@ -1,0 +1,13 @@
+$STRUCT$ *Game_get$STRUCT$ByID(Game *game_p, int ID){
+
+	for(int i = 0; i < game_p->$ARRAY$.size(); i++){
+		if(game_p->$ARRAY$[i].ID == ID){
+			return &game_p->$ARRAY$[i];
+		}
+	}
+
+	printf("Could not find $STRUCT$ with ID: %i\n", ID);
+
+	return NULL;
+
+}

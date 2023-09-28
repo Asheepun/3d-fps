@@ -22,11 +22,12 @@ int ___m = 17364;
 
 float getRandom(){
 
-	___x = (___a * ___x + ___c) % ___m;
-	float r = (float)___x;
-	r /= ___m;
+	return (float)rand() / (float)RAND_MAX;
+	//___x = (___a * ___x + ___c) % ___m;
+	//float r = (float)___x;
+	//r /= ___m;
 
-	return r;
+	//return r;
 	
 }
 
@@ -143,6 +144,11 @@ float getDotVec2f(Vec2f v1, Vec2f v2){
 //VEC3F FUNCTIONS
 Vec3f getVec3f(float x, float y, float z){
 	Vec3f v = { x, y, z };
+	return v;
+}
+
+Vec3f getVec3f(float a){
+	Vec3f v = { a, a, a };
 	return v;
 }
 

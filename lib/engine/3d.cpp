@@ -748,6 +748,27 @@ bool checkTriangleMeshTriangleMeshCollision(TriangleMesh mesh1, TriangleMesh mes
 }
 */
 
+Vec3f PointMesh_GJKSupport(PointMesh *pointMesh_p, Mat4f transformations, Vec3f direction){
+
+	Vec3f maxPoint = mulVec3fMat4f(pointMesh_p->points[0], transformations, 1.0);
+	float maxProduct = dot(maxPoint, direction);
+
+	for(int i = 1; i < pointMesh_p->n_points; i++){
+
+		Vec3f point = mulVec3fMat4f(pointMesh_p->points[i], transformations, 1.0);
+		float product = dot(point, direction);
+
+		if(product > maxProduct){
+			maxPoint = point;
+			maxProduct = product;
+		}
+
+	}
+
+	return maxPoint;
+
+}
+
 void GL3D_uniformMat2f(unsigned int shaderProgram, const char *locationName, Mat2f m){
 
 	unsigned int location = glGetUniformLocation(shaderProgram, locationName);

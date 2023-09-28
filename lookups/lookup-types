@@ -1,0 +1,9 @@
+:by name
+Model models
+Texture textures
+TriangleMesh triangleMeshes
+Shader shaders
+
+:by ID
+Sprite sprites
+Obstacle obstacles

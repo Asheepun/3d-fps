@@ -1,0 +1,13 @@
+int Game_get$STRUCT$IndexByName(Game *game_p, const char *name){
+
+	for(int i = 0; i < game_p->$ARRAY$.size(); i++){
+		if(strcmp(game_p->$ARRAY$[i].name, name) == 0){
+			return i;
+		}
+	}
+
+	printf("Could not find $STRUCT$: %s\n", name);
+
+	return -1;
+
+}

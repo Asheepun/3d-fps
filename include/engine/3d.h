@@ -74,6 +74,7 @@ typedef struct VertexMesh{
 
 struct TriangleMesh{
 	Vec3f *triangles;
+	float *triangleRadii;
 	int n_triangles;
 	char name[STRING_SIZE];
 };
@@ -133,6 +134,8 @@ void Texture_free(Texture *);
 void Shader_init(Shader *, const char *, const char *, const char *);
 
 bool checkTriangleMeshTriangleMeshCollision(TriangleMesh, TriangleMesh, Mat4f, Mat4f, Vec3f *, Vec3f *);
+
+Vec3f PointMesh_GJKSupport(PointMesh *, Mat4f, Vec3f);
 
 void GL3D_uniformMat2f(unsigned int, const char *, Mat2f);
 

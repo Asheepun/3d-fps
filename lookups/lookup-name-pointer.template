@@ -1,0 +1,11 @@
+$STRUCT$ *Game_get$STRUCT$PointerByName(Game *game_p, const char *name){
+
+	int index = Game_get$STRUCT$IndexByName(game_p, name);
+
+	if(index == -1){
+		return NULL;
+	}
+
+	return &game_p->$ARRAY$[index];
+
+}

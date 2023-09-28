@@ -41,26 +41,17 @@ void main(){
 		//discard;
 	//}
 
+	//float paintHeight = texture2D(colorTexture, input_staticWorldPosition.xz / 100.0).r;
 	float paintHeight = texture2D(paintMapTexture, input_staticWorldPosition.xz / 100.0).r;
+	//float paintHeight = 0.0;
 
 	//if(paintHeight > 0.0
 	//&& input_texturePosition.y < 0.5){
 		//discard;
 	//}
 
-	if(paintHeight > 0.0
-	&& abs(paintHeight - (1.0 - input_texturePosition.y)) < paintWidth){
-		FragColor = vec4(0.9, 0.0, 0.0, 1.0);
-	}
-
-	/*
-	float paintHeight = texture2D(paintMapTexture, input_staticWorldPosition.xz / 100.0).r * paintHeightFactor;
-
-	if(paintHeight > 0.0
-	&& abs(int(input_staticWorldPosition.y) - paintHeight) < paintWidth){
-		FragColor = vec4(1.0, 0.0, 0.1, 1.0);
-	}
-	*/
+	float isBloody = float(paintHeight > 0.0 && abs(paintHeight - (1.0 - input_texturePosition.y)) < paintWidth);
+	FragColor = isBloody * vec4(0.9, 0.0, 0.0, 1.0) + (1.0 - isBloody) * FragColor;
 
 	float shadowFactor = 1.0;
 	float shadowDepthTolerance = 0.0015;

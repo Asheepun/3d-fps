@@ -38,8 +38,8 @@ void main(){
 	float cutHeight = floor(position.w) / 100.0;
 	float seed = position.w - cutHeight * 100.0;
 
-	position.y = (position.y + 1.0) * (cutHeight) - 1.0;
-	input_texturePosition.y = (input_texturePosition.y - 1.0) * cutHeight + 1.0;
+	vertexPosition.y = (vertexPosition.y + 1.0) * (cutHeight) - 1.0;
+	input_texturePosition.y = (input_texturePosition.y - 1.0) * (cutHeight) + 1.0;
 
 	vertexPosition.xz *= rotationMatrix;
 

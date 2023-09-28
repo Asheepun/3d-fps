@@ -234,6 +234,10 @@ struct Mat4f{
 	}
 };
 
+//CONSTANTS
+
+const Vec4f IDENTITY_QUATERNION = { 0.0, 0.0, 0.0, 1.0 };
+
 //GENERAL MATH FUNCTIONS
 float normalize(float);
 
@@ -361,6 +365,8 @@ void plog(Vec4f);
 Vec2f getVec2f(float, float);
 Vec3f getVec3f(float, float, float);
 Vec4f getVec4f(float, float, float, float);
+
+Vec3f getVec3f(float);
 
 float length(Vec2f);
 float length(Vec3f);

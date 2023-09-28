@@ -19,7 +19,6 @@ enum RenderStage{
 	RENDER_STAGE_BIG_SHADOWS,
 	RENDER_STAGE_SHADOWS,
 	RENDER_STAGE_GRASS_SHADOWS,
-	RENDER_STAGE_SCENE_DEPTH,
 	RENDER_STAGE_SCENE,
 	N_RENDER_STAGES,
 };
@@ -65,12 +64,17 @@ struct Bullet{
 struct Particle{
 	Vec3f pos;
 	Vec3f velocity;
-	Vec3f rotation;
-	float scale;
+	Vec4f orientation;
+	Vec4f color;
+	Vec3f scale;
+	float textureY;
+	float textureSizeY;
 	int frames;
+	int spriteID;
 };
 
 struct Obstacle{
+	int ID;
 	Box boundingBox;
 	Vec4f color;
 	Vec3f pos;
@@ -79,6 +83,7 @@ struct Obstacle{
 	int textureIndex;
 	int alphaTextureIndex;
 	int triangleMeshIndex;
+	int spriteID;
 };
 
 struct Player{
@@ -107,7 +112,8 @@ struct Game{
 	
 	std::vector<Bullet> bullets;
 	std::vector<Obstacle> obstacles;
-	std::vector<Particle> particles;
+	std::vector<Particle> bloodParticles;
+	std::vector<Particle> grassParticles;
 	std::vector<RigidBody> rigidBodies;
 	std::vector<Tree> trees;
 
@@ -159,6 +165,12 @@ static float PLAYER_CROUCH_SPEED = 0.025;
 
 //FILE: world.cpp
 
+int Game_addObstacle(Game *, Vec3f, float, const char *, const char *, Vec4f);
+
+Mat4f getModelMatrix(Vec3f, Vec3f, Vec4f);
+
+bool checkBoxBoxCollision(Box, Box);
+
 int Game_getModelIndexByName(Game *, const char *);
 int Game_getTextureIndexByName(Game *, const char *);
 int Game_getTriangleMeshIndexByName(Game *, const char *);
@@ -168,6 +180,8 @@ Model *Game_getModelPointerByName(Game *, const char *);
 Texture *Game_getTexturePointerByName(Game *, const char *);
 TriangleMesh *Game_getTriangleMeshPointerByName(Game *, const char *);
 Shader *Game_getShaderPointerByName(Game *, const char *);
+
+Obstacle *Game_getObstacleByID(Game *, int);
 
 //FILE: client.cpp
 

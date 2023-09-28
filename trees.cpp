@@ -439,19 +439,14 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 
 	game_p->trees.push_back(tree);
 
-	//add obstacle
-	{
-		Obstacle obstacle;	
-		obstacle.pos = treePos;
-		obstacle.scale = TREE_SCALE;
-		obstacle.modelIndex = modelIndex;
-		obstacle.textureIndex = Game_getTextureIndexByName(game_p, "bark");
-		obstacle.alphaTextureIndex = Game_getTextureIndexByName(game_p, "bark-alpha");
-		obstacle.triangleMeshIndex = triangleMeshIndex;
-		obstacle.color = getVec4f(1.0, 1.0, 1.0, 1.0);
+	int obstacleID = Game_addObstacle(game_p, treePos, TREE_SCALE, "cube", "bark", getVec4f(1.0, 1.0, 1.0, 1.0));
 
-		game_p->obstacles.push_back(obstacle);
-		
+	//fix obstacle and sprite model and meshindex
+	for(int i = 0; i < game_p->obstacles.size(); i++){
+		if(game_p->obstacles[i].ID == obstacleID){
+			game_p->obstacles[i].triangleMeshIndex = triangleMeshIndex;
+			game_p->obstacles[i].modelIndex = modelIndex;
+		}
 	}
 
 }

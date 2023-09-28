@@ -13,7 +13,8 @@ out vec2 input_bigShadowMapPosition;
 
 uniform mat4 modelMatrix;
 
-uniform mat2 textureMatrix;
+uniform float textureY;
+uniform float textureSizeY;
 
 uniform mat4 viewMatrix;
 uniform mat4 lightViewMatrix;
@@ -25,6 +26,9 @@ uniform sampler2D shadowMapTexture;
 void main(){
 
 	input_texturePosition = attribute_textureVertex;
+
+	input_texturePosition.y *= textureSizeY;
+	input_texturePosition.y += textureY;
 
 	vec4 vertexPosition = vec4(attribute_vertex.xyz, 1.0);
 	vec4 vertexNormal = vec4(attribute_normalVertex.xyz, 1.0);
@@ -46,3 +50,4 @@ void main(){
 	gl_Position = vertexPosition * viewMatrix;
 
 }
+
