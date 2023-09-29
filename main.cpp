@@ -27,6 +27,7 @@ const int GRASS_GRID_WIDTH = 10;
 //const float GRASS_DISTANCE = 1.0;
 //const float GRASS_DISTANCE = 1.0;
 const float GRASS_DISTANCE = 1.1;
+const float GRASS_MARGIN = 3.0;
 //const float GRASS_DISTANCE = 3.0;
 //const float GRASS_DISTANCE = 1.5;
 TextureBuffer grassPositionsTextureBuffer;
@@ -68,6 +69,9 @@ float *terrainHeightMap;
 int TERRAIN_HEIGHT_MAP_WIDTH = 100;
 int TERRAIN_HEIGHT_MAP_HEIGHT = 100;
 
+unsigned char *terrainTextureData;
+int TERRAIN_TEXTURE_WIDTH = 1000;
+
 float terrainMaxHeight = 0.0;
 
 Vec3f lightPos = { 0.0, 20.0, 0.0 };
@@ -92,6 +96,9 @@ int framesSinceHit = 0;
 
 int currentlyHeldRigidBodyIndex = -1;
 float holdingDistance = 0.0;
+
+float SWING_ANGLE_RANGE = M_PI / 4.0;
+float swingAngle = SWING_ANGLE_RANGE;
 
 void Engine_start(){
 
@@ -218,6 +225,7 @@ void Engine_start(){
 		int n_triangles = 2 * (width) * (width);
 
 		Vec3f *triangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * n_triangles);
+		Vec2f *textureCoords = (Vec2f *)malloc(sizeof(Vec2f) * 3 * n_triangles);
 
 		int triangleIndex = 0;
 
@@ -241,6 +249,18 @@ void Engine_start(){
 				triangles[triangleIndex * 3 * 2 + 4] = point4;
 				triangles[triangleIndex * 3 * 2 + 5] = point3;
 
+				Vec2f t1 = getVec2f(x, y) / (float)width;
+				Vec2f t2 = getVec2f(x, y + 1.0) / (float)width;
+				Vec2f t3 = getVec2f(x + 1.0, y) / (float)width;
+				Vec2f t4 = getVec2f(x + 1.0, y + 1.0) / (float)width;
+
+				textureCoords[triangleIndex * 3 * 2 + 0] = t1;
+				textureCoords[triangleIndex * 3 * 2 + 1] = t2;
+				textureCoords[triangleIndex * 3 * 2 + 2] = t4;
+				textureCoords[triangleIndex * 3 * 2 + 3] = t1;
+				textureCoords[triangleIndex * 3 * 2 + 4] = t4;
+				textureCoords[triangleIndex * 3 * 2 + 5] = t3;
+
 				triangleIndex++;
 
 			}
@@ -255,7 +275,7 @@ void Engine_start(){
 
 		game.triangleMeshes.push_back(triangleMesh);
 
-		unsigned char *meshData = generateMeshDataFromTriangleMesh(triangleMesh, NULL);
+		unsigned char *meshData = generateMeshDataFromTriangleMesh(triangleMesh, textureCoords);
 
 		Model model;
 
@@ -270,6 +290,24 @@ void Engine_start(){
 
 	}
 
+	//generate terrain texture
+	{
+		Texture texture;
+
+		terrainTextureData = (unsigned char *)malloc(sizeof(unsigned char) * 4 * TERRAIN_TEXTURE_WIDTH * TERRAIN_TEXTURE_WIDTH);
+
+		for(int i = 0; i < TERRAIN_TEXTURE_WIDTH * TERRAIN_TEXTURE_WIDTH; i++){
+			terrainTextureData[i * 4 + 0] = (unsigned char)(TERRAIN_COLOR.x * 255.0);
+			terrainTextureData[i * 4 + 1] = (unsigned char)(TERRAIN_COLOR.y * 255.0);
+			terrainTextureData[i * 4 + 2] = (unsigned char)(TERRAIN_COLOR.z * 255.0);
+			terrainTextureData[i * 4 + 3] = (unsigned char)(TERRAIN_COLOR.w * 255.0);
+		}
+
+		Texture_init(&texture, "terrain", terrainTextureData, TERRAIN_TEXTURE_WIDTH, TERRAIN_TEXTURE_WIDTH);
+
+		game.textures.push_back(texture);
+	}
+
 	//generate grass positions
 	{
 		TriangleMesh *terrainTriangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
@@ -277,10 +315,10 @@ void Engine_start(){
 		int n = 0;
 		int hits = 0;
 
-		float margin = 3.0;
+		//float margin = 3.0;
 
-		for(float y = margin; y < TERRAIN_SCALE - margin; y += GRASS_DISTANCE){
-			for(float x = margin; x < TERRAIN_SCALE - margin; x += GRASS_DISTANCE){
+		for(float y = GRASS_MARGIN; y < TERRAIN_SCALE - GRASS_MARGIN; y += GRASS_DISTANCE){
+			for(float x = GRASS_MARGIN; x < TERRAIN_SCALE - GRASS_MARGIN; x += GRASS_DISTANCE){
 
 				//set grass variables
 				Vec4f pos = getVec4f(x, 20.0, y, 0.0);
@@ -332,10 +370,8 @@ void Engine_start(){
 					pos.y += 3.0;
 
 					hits++;
-					//printf("hit!\n");
-
-					//grassPositions2.push_back(pos);
 				}
+
 				n++;
 
 				//stepPos += dir;
@@ -402,30 +438,6 @@ void Engine_start(){
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	/*
-	//generate terrain height map
-	{
-
-		TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
-
-		for(int x = 0; x < TERRAIN_HEIGHT_MAP_WIDTH; x++){
-			for(int y = 0; y < TERRAIN_HEIGHT_MAP_HEIGHT; y++){
-
-				int index = y * TERRAIN_HEIGHT_MAP_WIDTH + x;
-
-				Vec3f pos = getVec3f((float)x / (float)TERRAIN_HEIGHT_MAP_WIDTH, 20.0, (float)y / (float)TERRAIN_HEIGHT_MAP_HEIGHT) * TERRAIN_SCALE;
-
-				Vec3f intersectionPoint;
-
-				if(checkClosestLineTriangleMeshIntersection(pos, getVec3f(0.0, -1.0, 0.0), *triangleMesh_p, getVec3f(0.0, 0.0, 0.0), TERRAIN_SCALE, &intersectionPoint, NULL)){
-				
-				}
-
-			}
-		}
-	}
-	*/
-
 	//glDrawBuffer(GL_NONE);
 	//glReadBuffer(GL_NONE);
 
@@ -434,7 +446,7 @@ void Engine_start(){
 	//init game
 	pthread_mutex_init(&game.serverStateMutex, NULL);
 
-	Game_addObstacle(&game, getVec3f(0.0, 0.0, 0.0), TERRAIN_SCALE, "terrain", "blank", TERRAIN_COLOR);
+	Game_addObstacle(&game, getVec3f(0.0, 0.0, 0.0), TERRAIN_SCALE, "terrain", "terrain", getVec4f(1.0, 1.0, 1.0, 1.0));
 
 	Game_addObstacle(&game, getVec3f(30.0, 0.0, 20.0), 3.0, "cube", "blank", getVec4f(0.7, 0.7, 0.7, 1.0));
 
@@ -447,9 +459,6 @@ void Engine_start(){
 		//game.player.weapon = WEAPON_GUN;
 		game.player.weapon = WEAPON_SWORD;
 		//Vec3f lastPlayerPos = game.player.pos;
-		//Vec3f game.player.velocity = { 0.0, 0.0, 0.0 };
-		//bool playerOnGround = false;
-		//float game.player.height = PLAYER_HEIGHT_STANDING;
 	}
 	{
 		Player player;
@@ -599,9 +608,9 @@ void Engine_update(float deltaTime){
 		drawTimings = !drawTimings;
 	}
 	if(Engine_keys[ENGINE_KEY_G].downed){
-		game.player.weapon++;
+		game.player.weapon = (Weapon)((int)game.player.weapon + 1);
 		if(game.player.weapon >= N_WEAPONS){
-			game.player.weapon = 0;
+			game.player.weapon = (Weapon)0;
 		}
 	}
 
@@ -795,6 +804,9 @@ void Engine_update(float deltaTime){
 			}
 			if(game.player.weapon == WEAPON_SWORD){
 
+				swingAngle = -SWING_ANGLE_RANGE;
+
+				/*
 				float radius = 4.0;
 
 				Vec3f handPos = game.player.pos;
@@ -840,6 +852,7 @@ void Engine_update(float deltaTime){
 						}
 					}
 				}
+				*/
 				//printf("sword!\n");
 			}
 
@@ -1462,32 +1475,72 @@ void Engine_update(float deltaTime){
 
 		particle_p->pos += particle_p->velocity;
 
-		//check distance to ground
+		//check distance to ground to see if further checks are necessary
 		if(particle_p->pos.y <= terrainMaxHeight){
-			
-			TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
 
-			Vec3f intersectionPoint;
-			checkClosestLineTriangleMeshIntersection(particle_p->pos, getVec3f(0.0, -1.0, 0.0), *triangleMesh_p, getVec3f(0.0, 0.0, 0.0), TERRAIN_SCALE, &intersectionPoint, NULL);
+			//check collision with grass
+			Vec4f hitPosition;
+			bool hitGrass = false;
 
-			float distanceToGround = length(particle_p->pos - intersectionPoint);
+			for(int j = 0; j < grassPositions.size(); j++){
+				if(square(grassPositions[j].x - particle_p->pos.x) + square(grassPositions[j].z - particle_p->pos.z) < 1.0
+				&& particle_p->pos.y < grassPositions[j].y - 1.2 + 2.0 * (grassPositions[j].w / 100.0)){
+					hitGrass = true;
+					hitPosition = grassPositions[j];
+					break;
+				}
+			}
 
-			float hitHeight = 1.0;
-
-			if(distanceToGround < hitHeight){
+			if(hitGrass){
 
 				Vec2f paintMapPos = getVec2f(particle_p->pos.x * PAINT_MAP_WIDTH, particle_p->pos.z * PAINT_MAP_HEIGHT) / PAINT_MAP_SCALE;
 
 				int index = (int)paintMapPos.y * PAINT_MAP_WIDTH + (int)paintMapPos.x;
 
-				paintMap[index] = (unsigned char)(255.0 * (0.8 + getRandom() * 0.2));
+				paintMap[index] = (unsigned char)(255.0 * (fmax(floor(hitPosition.w) / 100.0 - 0.2 + getRandom() * 0.2, 0.0)));
 
 				game.bloodParticles.erase(game.bloodParticles.begin() + i);
 				i--;
 				continue;
+			
+			}
+
+			//check collision with ground
+			TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
+
+			Vec3f intersectionPoint;
+			checkClosestLineTriangleMeshIntersection(particle_p->pos, getVec3f(0.0, -1.0, 0.0), *triangleMesh_p, getVec3f(0.0, 0.0, 0.0), TERRAIN_SCALE, &intersectionPoint, NULL);
+
+			if(particle_p->pos.y < intersectionPoint.y){
+
+				for(int x = 0; x < 3; x++){
+					for(int z = 0; z < 3; z++){
+
+						if(getRandom() > 0.3){
+							continue;
+						}
+
+						int terrainTextureIndex = TERRAIN_TEXTURE_WIDTH * (int)((float)TERRAIN_TEXTURE_WIDTH * particle_p->pos.z / TERRAIN_SCALE + z) + (int)((float)TERRAIN_TEXTURE_WIDTH * particle_p->pos.x / TERRAIN_SCALE + x);
+
+						if(terrainTextureIndex > 0
+						&& terrainTextureIndex < TERRAIN_TEXTURE_WIDTH * TERRAIN_TEXTURE_WIDTH){
+							terrainTextureData[terrainTextureIndex * 4 + 0] = (unsigned char)(255.0 * 0.9);
+							terrainTextureData[terrainTextureIndex * 4 + 1] = 0;
+							terrainTextureData[terrainTextureIndex * 4 + 2] = 0;
+							terrainTextureData[terrainTextureIndex * 4 + 3] = 255;
+						}
+
+					}
+				}
 
 			}
 
+		}
+
+		if(particle_p->pos.y < 0.0){
+			game.bloodParticles.erase(game.bloodParticles.begin() + i);
+			i--;
+			continue;
 		}
 
 	}
@@ -1509,6 +1562,69 @@ void Engine_update(float deltaTime){
 			continue;
 		}
 	
+	}
+
+	//update sword
+	{
+		if(swingAngle < SWING_ANGLE_RANGE){
+
+			TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "quad");
+
+			Mat4f swordMatrix = getSwordMatrix(cameraPos, cameraDirection, swingAngle);
+
+			for(int i = 0; i < triangleMesh_p->n_triangles; i++){
+
+				Vec3f p1 = mulVec3fMat4f(triangleMesh_p->triangles[i * 3 + 0], swordMatrix, 1.0);
+				Vec3f p2 = mulVec3fMat4f(triangleMesh_p->triangles[i * 3 + 1], swordMatrix, 1.0);
+				Vec3f p3 = mulVec3fMat4f(triangleMesh_p->triangles[i * 3 + 2], swordMatrix, 1.0);
+
+				for(int j = 0; j < grassPositions.size(); j++){
+
+					if(square(grassPositions[j].x - cameraPos.x) + square(grassPositions[j].z - cameraPos.z) > 10.0){
+						continue;
+					}
+
+					Vec3f intersectionPoint;
+
+					Vec3f checkPos = getVec3f(grassPositions[j].x, 0.0, grassPositions[j].z);
+
+					if(checkLineToTriangleIntersectionVec3f(checkPos, checkPos + getVec3f(0.0, 1.0, 0.0), p1, p2, p3, &intersectionPoint)){
+
+						Vec4f *position_p = &grassPositions[j];
+
+						float grassHeight = floor(position_p->w);
+						float cutHeight = fmax(fmin((intersectionPoint.y - (position_p->y - 1.0)) * 100.0 / 2.0, 100.0), 0.0);
+						position_p->w = position_p->w - grassHeight + fmin(cutHeight, grassHeight);
+
+						//add grass particles
+						if(grassHeight > cutHeight){
+							for(int j = 0; j < 3; j++){
+
+								float height = (grassHeight - cutHeight) / (100.0);
+								float posY = -1.0 + height + (cutHeight / 100.0) * 2.0;
+
+								Particle particle;
+								particle.pos = getVec3f(position_p->x, position_p->y + posY, position_p->z);
+								particle.velocity = getVec3f((getRandom() - 0.5) * 0.01, 0.08 + getRandom() * 0.05, (getRandom() - 0.5) * 0.01);
+								particle.scale = getVec3f(1.0, height, 1.0);
+								particle.orientation = getQuaternion(getVec3f(0.0, 1.0, 0.0), -(float)j * M_PI / 3.0 + 0.0);
+								particle.color = getVec4f(1.0, 1.0, 1.0, 1.0);
+								particle.textureY = 1.0 - grassHeight / 100.0;
+								particle.textureSizeY = height;
+
+								game.grassParticles.push_back(particle);
+
+							}
+						}
+
+					}
+
+				}
+
+			}
+
+			swingAngle += 0.12;
+		}
 	}
 
 	//sort grass positions by depth
@@ -1583,6 +1699,12 @@ void Engine_draw(){
 
 	glBindTexture(GL_TEXTURE_2D, paintMapTexture.ID);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, PAINT_MAP_WIDTH, PAINT_MAP_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, paintMap);
+
+	{
+		Texture *texture_p = Game_getTexturePointerByName(&game, "terrain");
+		glBindTexture(GL_TEXTURE_2D, texture_p->ID);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TERRAIN_TEXTURE_WIDTH, TERRAIN_TEXTURE_WIDTH, GL_RGBA, GL_UNSIGNED_BYTE, terrainTextureData);
+	}
 
 	TextureBuffer_update(&grassPositionsTextureBuffer, 0, grassPositions.size() * sizeof(Vec4f), sortedGrassPositions);
 
@@ -2122,6 +2244,7 @@ void Engine_draw(){
 			GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 1, shadowMapDepthTexture.ID);
 			GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 2, grassShadowMapDepthTexture.ID);
 			GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 3, bigShadowMapDepthTexture.ID);
+			GL3D_uniformTexture(shader_p->ID, "paintMapTexture", 4, paintMapTexture.ID);
 
 			GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
 			GL3D_uniformMat4f(shader_p->ID, "lightViewMatrix", lightViewMatrix);
@@ -2160,8 +2283,48 @@ void Engine_draw(){
 
 		}
 
-		//draw grass particles
-		if(renderStage == RENDER_STAGE_SCENE){
+		//draw sword
+		if(renderStage == RENDER_STAGE_SCENE
+		&& swingAngle < SWING_ANGLE_RANGE){
+
+			glDisable(GL_CULL_FACE);
+
+			Shader *shader_p = Game_getShaderPointerByName(&game, "model");
+			if(renderStage == RENDER_STAGE_SHADOWS
+			|| renderStage == RENDER_STAGE_BIG_SHADOWS){
+				shader_p = Game_getShaderPointerByName(&game, "model-shadow");
+			}
+
+			glUseProgram(shader_p->ID);
+
+			GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
+
+			GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 1, shadowMapDepthTexture.ID);
+			GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 2, grassShadowMapDepthTexture.ID);
+			GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 3, bigShadowMapDepthTexture.ID);
+
+			GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
+			GL3D_uniformMat4f(shader_p->ID, "lightViewMatrix", lightViewMatrix);
+			GL3D_uniformMat4f(shader_p->ID, "bigLightViewMatrix", bigLightViewMatrix);
+
+			Mat4f modelMatrix = getSwordMatrix(cameraPos, cameraDirection, swingAngle);
+
+			Model *model_p = Game_getModelPointerByName(&game, "quad");
+			Texture *texture_p = Game_getTexturePointerByName(&game, "blank");
+
+			glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+			glBindVertexArray(model_p->VAO);
+
+			GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
+
+			GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
+
+			GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.5, 0.5, 0.5, 1.0));
+
+			glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+
+			glEnable(GL_CULL_FACE);
+			
 		}
 
 		//draw water
@@ -2254,6 +2417,9 @@ void Engine_draw(){
 
 			Renderer2D_drawText(&renderer2D, totalText, 80, 200, 60, font);
 
+			if(game.player.weapon == WEAPON_GUN){
+				Renderer2D_drawText(&renderer2D, "Gun", WIDTH - 220, 40, 60, font);
+			}
 			if(game.player.weapon == WEAPON_SWORD){
 				Renderer2D_drawText(&renderer2D, "Sword", WIDTH - 220, 40, 60, font);
 			}

@@ -167,6 +167,8 @@ static float PLAYER_CROUCH_SPEED = 0.025;
 
 int Game_addObstacle(Game *, Vec3f, float, const char *, const char *, Vec4f);
 
+Mat4f getSwordMatrix(Vec3f, Vec3f, float);
+
 Mat4f getModelMatrix(Vec3f, Vec3f, Vec4f);
 
 bool checkBoxBoxCollision(Box, Box);

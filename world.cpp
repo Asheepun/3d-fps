@@ -1,4 +1,5 @@
 #include "game.h"
+#include "math.h"
 
 #include "stdio.h"
 
@@ -28,9 +29,34 @@ int Game_addObstacle(Game *game_p, Vec3f pos, float scale, const char *modelName
 }
 
 //MISC FUNCTIONS
+Mat4f getSwordMatrix(Vec3f cameraPos, Vec3f cameraDirection, float swingAngle){
+
+	Vec3f targetPos = cameraPos + cameraDirection * 3;
+	Vec3f handPos = cameraPos + getVec3f(0.0, -1.0, 0.0);
+
+	Vec3f direction = normalize(targetPos - handPos);
+
+	Vec4f swingOrientation = getQuaternion(getVec3f(0.0, 1.0, 0.0), swingAngle);
+
+	direction = mulVec3fMat4f(direction, getQuaternionMat4f(swingOrientation), 1.0);
+
+	Vec3f pos = handPos + direction * 2.5;
+	Vec3f scale = getVec3f(0.3, 1.2, 1.0);
+
+	float horizontalAngle = atan2(direction.x, direction.z);
+	float verticalAngle = acos(direction.y);
+
+	Vec4f orientation = IDENTITY_QUATERNION;
+
+	orientation = mulQuaternions(getQuaternion(getVec3f(1.0, 0.0, 0.0), verticalAngle), orientation);
+	orientation = mulQuaternions(getQuaternion(getVec3f(0.0, 1.0, 0.0), horizontalAngle), orientation);
+
+	return getModelMatrix(pos, scale, orientation);
+
+}
 
 Mat4f getModelMatrix(Vec3f pos, Vec3f scale, Vec4f orientation){
-	return getTranslationMat4f(pos) * getScalingMat4f(scale) * getQuaternionMat4f(orientation);
+	return getTranslationMat4f(pos) * getQuaternionMat4f(orientation) * getScalingMat4f(scale);
 }
 
 bool checkBoxBoxCollision(Box b1, Box b2){

@@ -117,6 +117,7 @@ void Game_loadAssets(Game *game_p){
 	//load triangle meshes
 	{
 		const char *names[] = {
+			"quad",
 			"cube",
 		};
 

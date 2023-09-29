@@ -3,6 +3,7 @@ layout (location = 0) in vec3 attribute_vertex;
 layout (location = 1) in vec2 attribute_textureVertex;
 layout (location = 2) in vec3 attribute_normalVertex;
 
+out vec3 input_staticWorldPosition;
 out vec2 input_texturePosition;
 out vec3 input_normal;
 out float input_depth;
@@ -38,6 +39,8 @@ void main(){
 	input_normal = normalize(input_normal);
 
 	vertexPosition *= modelMatrix;
+
+	input_staticWorldPosition = vertexPosition.xyz;
 
 	vec4 lightProjectedVertexPosition = vertexPosition * lightViewMatrix;
 	input_shadowDepth = 0.5 * lightProjectedVertexPosition.z + 0.5;

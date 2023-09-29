@@ -34,21 +34,7 @@ void main(){
 		discard;
 	}
 
-	//float cutHeight = texture2D(paintMapTexture, input_staticWorldPosition.xz / 100.0).r;
-
-	//if(cutHeight > 0.0
-	//&& input_texturePosition.y < 0.5){
-		//discard;
-	//}
-
-	//float paintHeight = texture2D(colorTexture, input_staticWorldPosition.xz / 100.0).r;
 	float paintHeight = texture2D(paintMapTexture, input_staticWorldPosition.xz / 100.0).r;
-	//float paintHeight = 0.0;
-
-	//if(paintHeight > 0.0
-	//&& input_texturePosition.y < 0.5){
-		//discard;
-	//}
 
 	float isBloody = float(paintHeight > 0.0 && abs(paintHeight - (1.0 - input_texturePosition.y)) < paintWidth);
 	FragColor = isBloody * vec4(0.9, 0.0, 0.0, 1.0) + (1.0 - isBloody) * FragColor;
