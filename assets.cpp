@@ -60,6 +60,7 @@ void Game_loadAssets(Game *game_p){
 		const char *names[] = {
 			"quad",
 			"cube",
+			"sword",
 		};
 
 		int n_names = sizeof(names) / sizeof(char *);
@@ -86,6 +87,33 @@ void Game_loadAssets(Game *game_p){
 	{
 		const char *names[] = {
 			"dude-bones",
+			//"dude-bones2",
+		};
+
+		int n_names = sizeof(names) / sizeof(char *);
+
+		for(int i = 0; i < n_names; i++){
+
+			char path[STRING_SIZE];
+			String_set(path, "assets/models/", STRING_SIZE);
+			String_append(path, names[i]);
+			String_append(path, ".bonemesh");
+
+			BoneModel model;
+
+			BoneModel_initFromFile(&model, path);
+
+			String_set(model.name, names[i], STRING_SIZE);
+
+			game_p->boneModels.push_back(model);
+
+		}
+	}
+
+	//load bone rigs
+	{
+		const char *names[] = {
+			"dude-bones",
 			"dude-bones2",
 		};
 
@@ -93,25 +121,21 @@ void Game_loadAssets(Game *game_p){
 
 		for(int i = 0; i < n_names; i++){
 
-			char meshPath[STRING_SIZE];
-			String_set(meshPath, "assets/models/", STRING_SIZE);
-			String_append(meshPath, names[i]);
-			String_append(meshPath, ".bonemesh");
+			char path[STRING_SIZE];
+			String_set(path, "assets/models/", STRING_SIZE);
+			String_append(path, names[i]);
+			String_append(path, ".bones");
 
-			char bonesPath[STRING_SIZE];
-			String_set(bonesPath, "assets/models/", STRING_SIZE);
-			String_append(bonesPath, names[i]);
-			String_append(bonesPath, ".bones");
+			BoneRig rig;
 
-			BoneModel model;
+			BoneRig_initFromFile(&rig, path);
 
-			BoneModel_initFromFile(&model, meshPath, bonesPath);
+			String_set(rig.name, names[i], STRING_SIZE);
 
-			String_set(model.name, names[i], STRING_SIZE);
-
-			game_p->boneModels.push_back(model);
+			game_p->boneRigs.push_back(rig);
 
 		}
+	
 	}
 
 	//load triangle meshes
@@ -137,6 +161,33 @@ void Game_loadAssets(Game *game_p){
 			String_set(triangleMesh.name, names[i], STRING_SIZE);
 
 			game_p->triangleMeshes.push_back(triangleMesh);
+
+		}
+	
+	}
+	
+	//load bone triangle meshes
+	{
+		const char *names[] = {
+			"dude-bones",
+		};
+
+		int n_names = sizeof(names) / sizeof(char *);
+
+		for(int i = 0; i < n_names; i++){
+
+			char path[STRING_SIZE];
+			String_set(path, "assets/models/", STRING_SIZE);
+			String_append(path, names[i]);
+			String_append(path, ".bonemesh");
+
+			BoneTriangleMesh boneTriangleMesh;
+
+			BoneTriangleMesh_initFromFile(&boneTriangleMesh, path);
+
+			String_set(boneTriangleMesh.name, names[i], STRING_SIZE);
+
+			game_p->boneTriangleMeshes.push_back(boneTriangleMesh);
 
 		}
 	

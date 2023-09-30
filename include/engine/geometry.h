@@ -184,6 +184,18 @@ struct Mat4f{
 		return values[i];
 	}
 
+	Mat4f operator+ (Mat4f mIn){
+		Mat4f newMatrix;
+		memcpy(newMatrix.values, values, 16 * sizeof(float));
+
+		for(int i = 0; i < 4; i++){
+			for(int j = 0; j < 4; j++){
+				newMatrix.values[i][j] += mIn.values[i][j];
+			}
+		}
+
+		return newMatrix;
+	}
 	Mat4f operator* (Mat4f mIn){
 		Mat4f newMatrix;
 		memset(newMatrix.values, 0, 16 * sizeof(float));
@@ -193,6 +205,19 @@ struct Mat4f{
 				for(int i = 0; i < 4; i++){
 					newMatrix.values[newRow][newCol] += values[newRow][i] * mIn.values[i][newCol];
 				}
+			}
+		}
+
+		return newMatrix;
+	}
+
+	Mat4f operator* (float a){
+		Mat4f newMatrix;
+		memcpy(newMatrix.values, values, 16 * sizeof(float));
+
+		for(int i = 0; i < 4; i++){
+			for(int j = 0; j < 4; j++){
+				newMatrix[i][j] *= a;
 			}
 		}
 
@@ -216,21 +241,6 @@ struct Mat4f{
 		valueMatrix = vIn * valueMatrix;
 
 		memcpy(values, valueMatrix.values, 16 * sizeof(float));
-		/*
-		Mat4f newMatrix;
-		memset(newMatrix.values, 0, 16 * sizeof(float));
-		
-		for(int i = 0; i < 4; i++){
-			for(int j = 0; j < 4; j++){
-				for(int k = 0; k < 4; k++){
-					//newMatrix.values[i][j] += values[i][k] * m2.values[k][j];
-					newMatrix.values[i][j] += values[k][j] * vIn.values[i][k];
-				}
-			}
-		}
-	
-		memcpy(values, newMatrix.values, 16 * sizeof(float));
-		*/
 	}
 };
 

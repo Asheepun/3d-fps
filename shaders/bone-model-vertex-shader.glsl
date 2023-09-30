@@ -6,8 +6,9 @@ layout (location = 3) in uvec4 attribute_boneIndices;
 layout (location = 4) in vec4 attribute_boneWeights;
 
 uniform mat4 modelMatrix;
-uniform mat4 perspectiveMatrix;
-uniform mat4 cameraMatrix;
+uniform mat4 viewMatrix;
+//uniform mat4 perspectiveMatrix;
+//uniform mat4 cameraMatrix;
 
 uniform mat4 boneTransformations[32];
 
@@ -32,10 +33,10 @@ void main(){
 	input_fragmentPosition = vertexPosition;
 	input_fragmentNormal = vertexNormal;
 
-	vertexPosition *= cameraMatrix * perspectiveMatrix;
+	//vertexPosition *= cameraMatrix * perspectiveMatrix;
 
-	gl_Position = vertexPosition;
+	gl_Position = vertexPosition * viewMatrix;
 
-	gl_Position.z = 0.0;
+	//gl_Position.z = 0.0;
 
 }

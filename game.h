@@ -119,9 +119,11 @@ struct Game{
 
 	std::vector<Model> models;
 	std::vector<BoneModel> boneModels;
+	std::vector<BoneRig> boneRigs;
 	std::vector<Texture> textures;
 	std::vector<TriangleMesh> triangleMeshes;
 	std::vector<PointMesh> pointMeshes;
+	std::vector<BoneTriangleMesh> boneTriangleMeshes;
 	std::vector<Shader> shaders;
 
 	std::vector<Box> boundingBoxes;

@@ -5,8 +5,8 @@ in vec4 input_fragmentNormal;
 
 out vec4 FragColor;
 
-uniform mat4 perspectiveMatrix;
-uniform mat4 cameraMatrix;
+//uniform mat4 perspectiveMatrix;
+//uniform mat4 cameraMatrix;
 
 uniform vec4 inputColor;
 
@@ -19,7 +19,7 @@ void main(){
 
 	vec3 fragmentPosition = (input_fragmentPosition).xyz;
 	vec3 fragmentNormal = (input_fragmentNormal).xyz;
-	vec3 cameraRelativeFragmentPosition = (input_fragmentPosition * cameraMatrix).xyz;
+	//vec3 cameraRelativeFragmentPosition = (input_fragmentPosition * cameraMatrix).xyz;
 
 	FragColor = inputColor;
 
@@ -31,6 +31,6 @@ void main(){
 
 	FragColor.w = 1.0;
 
-	gl_FragDepth = cameraRelativeFragmentPosition.z / 100.0;
+	//gl_FragDepth = cameraRelativeFragmentPosition.z / 100.0;
 
 } 

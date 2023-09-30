@@ -31,8 +31,8 @@ int Game_addObstacle(Game *game_p, Vec3f pos, float scale, const char *modelName
 //MISC FUNCTIONS
 Mat4f getSwordMatrix(Vec3f cameraPos, Vec3f cameraDirection, float swingAngle){
 
-	Vec3f targetPos = cameraPos + cameraDirection * 3;
-	Vec3f handPos = cameraPos + getVec3f(0.0, -1.0, 0.0);
+	Vec3f targetPos = cameraPos + cameraDirection * 5;
+	Vec3f handPos = cameraPos + getVec3f(0.0, -0.7, 0.0);
 
 	Vec3f direction = normalize(targetPos - handPos);
 
@@ -40,8 +40,8 @@ Mat4f getSwordMatrix(Vec3f cameraPos, Vec3f cameraDirection, float swingAngle){
 
 	direction = mulVec3fMat4f(direction, getQuaternionMat4f(swingOrientation), 1.0);
 
-	Vec3f pos = handPos + direction * 2.5;
-	Vec3f scale = getVec3f(0.3, 1.2, 1.0);
+	Vec3f pos = handPos + direction * 2.3;
+	Vec3f scale = getVec3f(0.15, 1.3, 1.0);
 
 	float horizontalAngle = atan2(direction.x, direction.z);
 	float verticalAngle = acos(direction.y);

@@ -456,8 +456,8 @@ void Engine_start(){
 		game.player.velocity = getVec3f(0.0, 0.0, 0.0);
 		game.player.onGround = false;
 		game.player.height = PLAYER_HEIGHT_STANDING;
-		//game.player.weapon = WEAPON_GUN;
-		game.player.weapon = WEAPON_SWORD;
+		game.player.weapon = WEAPON_GUN;
+		//game.player.weapon = WEAPON_SWORD;
 		//Vec3f lastPlayerPos = game.player.pos;
 	}
 	{
@@ -759,21 +759,44 @@ void Engine_update(float deltaTime){
 					
 					Player *player_p = &game.otherPlayers[i];
 
-					TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "cube");
+					BoneTriangleMesh *boneTriangleMesh_p = &game.boneTriangleMeshes[0];
+					BoneRig *boneRig_p = &game.boneRigs[0];
+					BoneRig *boneRig2_p = &game.boneRigs[1];
+
+					std::vector<Mat4f> boneTransformations = getBoneRigTransformations(boneRig_p, boneRig2_p->originBones);
+
+					float scale = 0.5;
+
+					Mat4f modelMatrix = getModelMatrix(player_p->pos, getVec3f(scale), IDENTITY_QUATERNION);
 
 					Vec3f intersectionPoint;
 					Vec3f intersectionNormal;
 					float intersectionDistance = -1.0;
 
-					for(int j = 0; j < triangleMesh_p->n_triangles; j++){
+					for(int j = 0; j < boneTriangleMesh_p->n_triangles; j++){
 
 						Vec3f checkPoint;
 
-						if(checkLineToTriangleIntersectionVec3f(cameraPos, cameraPos + cameraDirection, player_p->pos + triangleMesh_p->triangles[j * 3 + 0], player_p->pos + triangleMesh_p->triangles[j * 3 + 1], player_p->pos + triangleMesh_p->triangles[j * 3 + 2], &checkPoint)
+						Vec3f points[3];
+
+						for(int k = 0; k < 3; k++){
+
+							int triangleIndex = j * 3 + k;
+
+							Mat4f jointMatrix = boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 0] - 1] * boneTriangleMesh_p->weights[triangleIndex].x
+								+ boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 1] - 1] * boneTriangleMesh_p->weights[triangleIndex].y
+								+ boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 2] - 1] * boneTriangleMesh_p->weights[triangleIndex].z
+								+ boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 3] - 1] * boneTriangleMesh_p->weights[triangleIndex].w;
+
+							points[k] = mulVec3fMat4f(boneTriangleMesh_p->triangles[triangleIndex], modelMatrix * jointMatrix, 1.0);
+
+						}
+
+						if(checkLineToTriangleIntersectionVec3f(cameraPos, cameraPos + cameraDirection, points[0], points[1], points[2], &checkPoint)
 						&& (intersectionDistance < 0.0
 						|| length(checkPoint - cameraPos) < intersectionDistance)){
 							intersectionPoint = checkPoint;
-							intersectionNormal = cross(triangleMesh_p->triangles[j * 3 + 0] - triangleMesh_p->triangles[j * 3 + 1], triangleMesh_p->triangles[j * 3 + 0] - triangleMesh_p->triangles[j * 3 + 2]);
+							intersectionNormal = cross(points[0] - points[1], points[0] - points[2]);
 							intersectionDistance = length(checkPoint - cameraPos);
 						}
 					}
@@ -792,7 +815,6 @@ void Engine_update(float deltaTime){
 							particle.velocity.y += 0.1;
 							particle.velocity += normalize(getVec3f(getRandom() - 0.5, getRandom() - 0.5, getRandom() - 0.5)) * 0.05;
 							particle.scale = getVec3f(0.1 * (0.8 + 0.4 * getRandom()));
-							//particle.spriteID = Game_addSprite(&game, getModelMatrix(particle.pos, particle.scale, IDENTITY_QUATERNION), "cube", "blank", getVec4f(0.9, 0.0, 0.0, 1.0));
 							
 							game.bloodParticles.push_back(particle);
 
@@ -805,55 +827,8 @@ void Engine_update(float deltaTime){
 			if(game.player.weapon == WEAPON_SWORD){
 
 				swingAngle = -SWING_ANGLE_RANGE;
+				//swingAngle = 0.0;
 
-				/*
-				float radius = 4.0;
-
-				Vec3f handPos = game.player.pos;
-				handPos.y += 1.5;
-				Vec3f up = getVec3f(0.0, 1.0, 0.0);
-				Vec3f right = cross(cameraDirection, up);
-				Vec3f normal = normalize(cross(right, cameraDirection));
-				float D = dot(normal, handPos);
-
-				//handle grass cutting
-				for(int i = 0; i < grassPositions.size(); i++){
-
-					Vec4f *position_p = &grassPositions[i];
-
-					if(square(position_p->x - handPos.x) + square(position_p->z - handPos.z) < square(radius)
-					&& dot(cameraDirection, normalize(getVec3f(position_p->x, position_p->y, position_p->z) - handPos)) > 0.8){
-
-						float cutY = (D - normal.x * position_p->x - normal.z * position_p->z) / normal.y;
-
-						float grassHeight = floor(position_p->w);
-						float cutHeight = fmax(fmin((cutY - (position_p->y - 1.0)) * 100.0 / 2.0, 100.0), 0.0);
-						position_p->w = position_p->w - grassHeight + fmin(cutHeight, grassHeight);
-
-						//add grass particles
-						if(grassHeight > cutHeight){
-							for(int j = 0; j < 3; j++){
-
-								float height = (grassHeight - cutHeight) / (100.0);
-								float posY = -1.0 + height + (cutHeight / 100.0) * 2.0;
-
-								Particle particle;
-								particle.pos = getVec3f(position_p->x, position_p->y + posY, position_p->z);
-								particle.velocity = getVec3f((getRandom() - 0.5) * 0.01, 0.08 + getRandom() * 0.05, (getRandom() - 0.5) * 0.01);
-								particle.scale = getVec3f(1.0, height, 1.0);
-								particle.orientation = getQuaternion(getVec3f(0.0, 1.0, 0.0), -(float)j * M_PI / 3.0 + 0.0);
-								particle.color = getVec4f(1.0, 1.0, 1.0, 1.0);
-								particle.textureY = 1.0 - grassHeight / 100.0;
-								particle.textureSizeY = height;
-
-								game.grassParticles.push_back(particle);
-
-							}
-						}
-					}
-				}
-				*/
-				//printf("sword!\n");
 			}
 
 		}
@@ -1623,7 +1598,8 @@ void Engine_update(float deltaTime){
 
 			}
 
-			swingAngle += 0.12;
+			swingAngle += 0.09;
+			//swingAngle += 0.012;
 		}
 	}
 
@@ -1993,9 +1969,10 @@ void Engine_draw(){
 		
 		}
 
+		/*
 		float t = (1.0 + sin(gameTime * 0.1)) * 0.5;
 
-		std::vector<Bone> interpolatedBones = getInterpolatedBones(game.boneModels[0].bones, game.boneModels[1].bones, t);
+		//std::vector<Bone> interpolatedBones = getInterpolatedBones(game.boneModels[0].bones, game.boneModels[1].bones, t);
 
 		std::vector<Mat4f> bindMatrices = getBindMatricesFromBones(interpolatedBones);
 
@@ -2006,45 +1983,46 @@ void Engine_draw(){
 			transformation *= bindMatrices[i];
 			boneTransformations.push_back(transformation);
 		}
+		*/
 
-		/*
-		//draw bone model
+		//draw other players
 		if(renderStage == RENDER_STAGE_SCENE){
 
-			Vec3f pos = getVec3f(30.0, 3.0, 30.0);
-			float scale = 0.5;
-
-			Mat4f modelMatrix = getIdentityMat4f();
-
-			modelMatrix *= getScalingMat4f(scale);
-
-			modelMatrix *= getTranslationMat4f(pos);
-
-			//unsigned int currentShaderProgram = game.boneModelShader;
 			Shader *shader_p = Game_getShaderPointerByName(&game, "bone");
-			//Shader *shader_p = Game_getShaderPointerByName(&game, "bone-shadow");
 
 			glUseProgram(shader_p->ID);
 
-			BoneModel *model_p = &game.boneModels[0];
+			GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
 
-			glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
-			glBindVertexArray(model_p->VAO);
+			for(int i = 0; i < game.otherPlayers.size(); i++){
 
-			GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "perspectiveMatrix", perspectiveMatrix);
-			GL3D_uniformMat4f(shader_p->ID, "cameraMatrix", cameraMatrix);
+				Player *player_p = &game.otherPlayers[i];
 
-			GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.7, 0.7, 0.7, 1.0));
+				float scale = 0.5;
 
-			GL3D_uniformMat4fArray(shader_p->ID, "boneTransformations", &boneTransformations[0], boneTransformations.size());
+				Mat4f modelMatrix = getModelMatrix(player_p->pos, getVec3f(scale), IDENTITY_QUATERNION);
 
-			GL3D_uniformFloat(shader_p->ID, "shadowFactor", 0.0);
+				BoneModel *model_p = &game.boneModels[0];
 
-			glDrawArrays(GL_TRIANGLES, 0, model_p->n_triangles * 3);
+				BoneRig *boneRig_p = &game.boneRigs[0];
+				BoneRig *boneRig2_p = &game.boneRigs[1];
+
+				std::vector<Mat4f> boneTransformations = getBoneRigTransformations(boneRig_p, boneRig2_p->originBones);
+
+				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+				glBindVertexArray(model_p->VAO);
+
+				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
+
+				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.7, 0.7, 0.7, 1.0));
+
+				GL3D_uniformMat4fArray(shader_p->ID, "boneTransformations", &boneTransformations[0], boneTransformations.size());
+
+				glDrawArrays(GL_TRIANGLES, 0, model_p->n_triangles * 3);
+			
+			}
 
 		}
-		*/
 
 		/*
 		//draw bounding boxes
@@ -2139,6 +2117,7 @@ void Engine_draw(){
 
 				float scale = 1.0;
 
+				/*
 				Mat4f modelMatrix = getIdentityMat4f();
 
 				modelMatrix *= getScalingMat4f(scale);
@@ -2177,6 +2156,7 @@ void Engine_draw(){
 				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.5, 0.5, 0.5, 1.0));
 
 				glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+				*/
 
 			}
 		
@@ -2287,8 +2267,6 @@ void Engine_draw(){
 		if(renderStage == RENDER_STAGE_SCENE
 		&& swingAngle < SWING_ANGLE_RANGE){
 
-			glDisable(GL_CULL_FACE);
-
 			Shader *shader_p = Game_getShaderPointerByName(&game, "model");
 			if(renderStage == RENDER_STAGE_SHADOWS
 			|| renderStage == RENDER_STAGE_BIG_SHADOWS){
@@ -2309,7 +2287,7 @@ void Engine_draw(){
 
 			Mat4f modelMatrix = getSwordMatrix(cameraPos, cameraDirection, swingAngle);
 
-			Model *model_p = Game_getModelPointerByName(&game, "quad");
+			Model *model_p = Game_getModelPointerByName(&game, "sword");
 			Texture *texture_p = Game_getTexturePointerByName(&game, "blank");
 
 			glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
@@ -2319,11 +2297,9 @@ void Engine_draw(){
 
 			GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
 
-			GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.5, 0.5, 0.5, 1.0));
+			GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.7, 0.7, 0.7, 1.0));
 
 			glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
-
-			glEnable(GL_CULL_FACE);
 			
 		}
 

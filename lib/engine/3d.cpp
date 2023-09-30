@@ -100,128 +100,56 @@ unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh triangleMesh, Vec2f
 
 }
 
-void BoneModel_initFromFile(BoneModel *model_p, const char *meshPath, const char *bonesPath){
+void BoneModel_initFromFile(BoneModel *model_p, const char *path){
 
-	//load bone mesh
-	{
-		long int fileSize;
-		char *data = getFileData_mustFree(meshPath, &fileSize);
+	long int fileSize;
+	char *data = getFileData_mustFree(path, &fileSize);
 
-		//Vec3f testNormal;
-		//memcpy(&testNormal, data + 3 * sizeof(float) + BONE_MODEL_COMPONENT_SIZE * 90, 3 * sizeof(float));
+	int n_triangles = fileSize / (BONE_MODEL_COMPONENT_SIZE * 3);
 
-		//Vec3f_log(testNormal);
-		//printf("%f\n", getMagVec3f(testNormal));
+	glGenBuffers(1, &model_p->VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+	glBufferData(GL_ARRAY_BUFFER, BONE_MODEL_COMPONENT_SIZE * 3 * n_triangles, data, GL_STATIC_DRAW);
 
-		//printf("done testing bone mesh\n");
+	glGenVertexArrays(1, &model_p->VAO);
+	glBindVertexArray(model_p->VAO);
 
-		int n_triangles = fileSize / (BONE_MODEL_COMPONENT_SIZE * 3);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)0);
+	glEnableVertexAttribArray(0);
 
-		/*
-		for(int i = 0; i < n_triangles; i++){
-			
-			Vec3f p1 = *(Vec3f *)(data + (i * 3 + 0) * BONE_MODEL_COMPONENT_SIZE);
-			Vec3f p2 = *(Vec3f *)(data + (i * 3 + 1) * BONE_MODEL_COMPONENT_SIZE);
-			Vec3f p3 = *(Vec3f *)(data + (i * 3 + 2) * BONE_MODEL_COMPONENT_SIZE);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
 
-			Vec3f n = normalize(cross(p1 - p2, p1 - p3));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(6 * sizeof(float)));
+	glEnableVertexAttribArray(2);
 
-			Vec3f *n1_p = (Vec3f *)(data + (i * 3 + 0) * BONE_MODEL_COMPONENT_SIZE + sizeof(Vec3f));
-			Vec3f *n2_p = (Vec3f *)(data + (i * 3 + 1) * BONE_MODEL_COMPONENT_SIZE + sizeof(Vec3f));
-			Vec3f *n3_p = (Vec3f *)(data + (i * 3 + 2) * BONE_MODEL_COMPONENT_SIZE + sizeof(Vec3f));
+	glVertexAttribIPointer(3, 4, GL_UNSIGNED_BYTE, BONE_MODEL_COMPONENT_SIZE, (void *)(8 * sizeof(float)));
+	glEnableVertexAttribArray(3);
 
-			printf("---\n");
-			Vec3f_log(*n1_p);
-			Vec3f_log(*n2_p);
-			Vec3f_log(*n3_p);
-			Vec3f_log(n);
+	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(8 * sizeof(float) + 4 * sizeof(unsigned char)));
+	glEnableVertexAttribArray(4);
 
-			*n1_p = n;
-			*n2_p = n;
-			*n3_p = n;
+	model_p->n_triangles = n_triangles;
 
-		}
-		*/
+	free(data);
 
-		//printf("%i\n", fileSize);
-		//printf("%i\n", n_triangles);
+}
 
-		glGenBuffers(1, &model_p->VBO);
-		glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
-		glBufferData(GL_ARRAY_BUFFER, BONE_MODEL_COMPONENT_SIZE * 3 * n_triangles, data, GL_STATIC_DRAW);
+void BoneRig_initFromFile(BoneRig *boneRig_p, const char *path){
 
-		glGenVertexArrays(1, &model_p->VAO);
-		glBindVertexArray(model_p->VAO);
+	boneRig_p->originBones = getBonesFromFile(path);
 
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)0);
-		glEnableVertexAttribArray(0);
+	std::vector<Mat4f> bindMatrices = getBindMatricesFromBones(boneRig_p->originBones);
 
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(3 * sizeof(float)));
-		glEnableVertexAttribArray(1);
+	boneRig_p->inverseBindMatrices.clear();
 
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(6 * sizeof(float)));
-		glEnableVertexAttribArray(2);
-
-		glVertexAttribIPointer(3, 4, GL_UNSIGNED_BYTE, BONE_MODEL_COMPONENT_SIZE, (void *)(8 * sizeof(float)));
-		glEnableVertexAttribArray(3);
-
-		glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, BONE_MODEL_COMPONENT_SIZE, (void *)(8 * sizeof(float) + 4 * sizeof(unsigned char)));
-		glEnableVertexAttribArray(4);
-
-		model_p->n_triangles = n_triangles;
-
-		free(data);
-	
-	}
-
-	//load bones
-	{
-		int n_lines;
-		FileLine *fileLines = getFileLines_mustFree(bonesPath, &n_lines);
-
-		for(int i = 0; i < n_lines; i++){
-
-			if(strcmp(fileLines[i], ":BONE") == 0){
-				Bone bone;
-
-				String_set(bone.name, fileLines[i + 1], STRING_SIZE);
-
-				char *ptr = fileLines[i + 2];
-				bone.parent = strtol(ptr, &ptr, 10);
-
-				ptr = fileLines[i + 3];
-				bone.rotation.x = strtof(ptr, &ptr);
-				bone.rotation.y = strtof(ptr + 1, &ptr);
-				bone.rotation.z = strtof(ptr + 1, &ptr);
-				bone.rotation.w = strtof(ptr + 1, &ptr);
-
-				ptr = fileLines[i + 4];
-				bone.scale.x = strtof(ptr, &ptr);
-				bone.scale.y = strtof(ptr + 1, &ptr);
-				bone.scale.z = strtof(ptr + 1, &ptr);
-
-				ptr = fileLines[i + 5];
-				bone.translation.x = strtof(ptr, &ptr);
-				bone.translation.y = strtof(ptr + 1, &ptr);
-				bone.translation.z = strtof(ptr + 1, &ptr);
-
-				model_p->bones.push_back(bone);
-			}
-
-		}
-
-		std::vector<Mat4f> bindMatrices = getBindMatricesFromBones(model_p->bones);
-
-		model_p->inverseBindMatrices.clear();
-
-		for(int i = 0; i < bindMatrices.size(); i++){
-			model_p->inverseBindMatrices.push_back(inverse(bindMatrices[i]));
-		}
-
+	for(int i = 0; i < bindMatrices.size(); i++){
+		boneRig_p->inverseBindMatrices.push_back(inverse(bindMatrices[i]));
 	}
 
 }
 
+/*
 int BoneModel_getBoneIndexByName(BoneModel *model_p, const char *name){
 	for(int i = 0; i < model_p->bones.size(); i++){
 		if(strcmp(model_p->bones[i].name, name) == 0){
@@ -229,6 +157,51 @@ int BoneModel_getBoneIndexByName(BoneModel *model_p, const char *name){
 		}
 	}
 	return -1;
+}
+*/
+
+std::vector<Bone> getBonesFromFile(const char *path){
+
+	std::vector<Bone> bones;
+
+	int n_lines;
+	FileLine *fileLines = getFileLines_mustFree(path, &n_lines);
+
+	for(int i = 0; i < n_lines; i++){
+
+		if(strcmp(fileLines[i], ":BONE") == 0){
+			Bone bone;
+
+			String_set(bone.name, fileLines[i + 1], STRING_SIZE);
+
+			char *ptr = fileLines[i + 2];
+			bone.parent = strtol(ptr, &ptr, 10);
+
+			ptr = fileLines[i + 3];
+			bone.rotation.x = strtof(ptr, &ptr);
+			bone.rotation.y = strtof(ptr + 1, &ptr);
+			bone.rotation.z = strtof(ptr + 1, &ptr);
+			bone.rotation.w = strtof(ptr + 1, &ptr);
+
+			ptr = fileLines[i + 4];
+			bone.scale.x = strtof(ptr, &ptr);
+			bone.scale.y = strtof(ptr + 1, &ptr);
+			bone.scale.z = strtof(ptr + 1, &ptr);
+
+			ptr = fileLines[i + 5];
+			bone.translation.x = strtof(ptr, &ptr);
+			bone.translation.y = strtof(ptr + 1, &ptr);
+			bone.translation.z = strtof(ptr + 1, &ptr);
+
+			bones.push_back(bone);
+		}
+
+	}
+
+	free(fileLines);
+
+	return bones;
+
 }
 
 std::vector<Bone> getInterpolatedBones(std::vector<Bone> bones0, std::vector<Bone> bones1, float t){
@@ -322,27 +295,22 @@ std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone> bones){
 
 }
 
-/*
-void VertexMesh_initFromFile_mesh(VertexMesh *vertexMesh_p, const char *path){
+std::vector<Mat4f> getBoneRigTransformations(BoneRig *boneRig_p, std::vector<Bone> bones){
 
-	long int fileSize;
-	char *data = getFileData_mustFree(path, &fileSize);
+	std::vector<Mat4f> bindMatrices = getBindMatricesFromBones(bones);
 
-	int numberOfTriangles = fileSize / (sizeof(float) * 8 * 3);
+	std::vector<Mat4f> transformations;
 
-	vertexMesh_p->length = numberOfTriangles * 3;
-	vertexMesh_p->vertices = (Vec3f *)malloc(vertexMesh_p->length * sizeof(Vec3f));
-	
-	for(int i = 0; i < numberOfTriangles * 3; i++){
-		
-		memcpy(vertexMesh_p->vertices + i, data + i * 8 * sizeof(float), sizeof(Vec3f));
-
+	for(int i = 0; i < bindMatrices.size(); i++){
+		Mat4f transformation = boneRig_p->inverseBindMatrices[i];
+		transformation *= bindMatrices[i];
+		transformations.push_back(transformation);
 	}
 
-	free(data);
+	return transformations;
 
 }
-*/
+
 
 void TriangleMesh_initFromFile_mesh(TriangleMesh *triangleMesh_p, const char *path){
 
@@ -390,6 +358,33 @@ void PointMesh_initFromTriangleMesh(PointMesh *pointMesh_p, TriangleMesh triangl
 	memcpy(pointMesh_p->points, &points[0], sizeof(Vec3f) * pointMesh_p->n_points);
 
 	String_set(pointMesh_p->name, triangleMesh.name, STRING_SIZE);
+
+}
+
+void BoneTriangleMesh_initFromFile(BoneTriangleMesh *boneTriangleMesh_p, const char *path){
+
+	long int fileSize;
+	char *data = getFileData_mustFree(path, &fileSize);
+
+	int n_triangles = fileSize / (BONE_MODEL_COMPONENT_SIZE * 3);
+
+	boneTriangleMesh_p->triangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * n_triangles);
+	boneTriangleMesh_p->indices = (unsigned char *)malloc(sizeof(unsigned char) * 4 * 3 * n_triangles);
+	boneTriangleMesh_p->weights = (Vec4f *)malloc(sizeof(Vec4f) * 3 * n_triangles);
+
+	for(int i = 0; i < n_triangles * 3; i++){
+
+		memcpy(boneTriangleMesh_p->triangles + i, data + i * BONE_MODEL_COMPONENT_SIZE, sizeof(Vec3f));
+
+		memcpy(boneTriangleMesh_p->indices + i * 4, data + i * BONE_MODEL_COMPONENT_SIZE + 8 * sizeof(float), 4 * sizeof(unsigned char));
+
+		memcpy(boneTriangleMesh_p->weights + i, data + i * BONE_MODEL_COMPONENT_SIZE + 8 * sizeof(float) + 4 * sizeof(unsigned char), sizeof(Vec4f));
+
+	}
+
+	boneTriangleMesh_p->n_triangles = n_triangles;
+
+	free(data);
 
 }
 
