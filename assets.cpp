@@ -110,89 +110,6 @@ void Game_loadAssets(Game *game_p){
 		}
 	}
 
-	//load bone rigs
-	{
-		const char *names[] = {
-			"dude-bones",
-			"dude-bones2",
-		};
-
-		int n_names = sizeof(names) / sizeof(char *);
-
-		for(int i = 0; i < n_names; i++){
-
-			char path[STRING_SIZE];
-			String_set(path, "assets/models/", STRING_SIZE);
-			String_append(path, names[i]);
-			String_append(path, ".bones");
-
-			BoneRig rig;
-
-			BoneRig_initFromFile(&rig, path);
-
-			String_set(rig.name, names[i], STRING_SIZE);
-
-			game_p->boneRigs.push_back(rig);
-
-		}
-	
-	}
-
-	//load triangle meshes
-	{
-		const char *names[] = {
-			"quad",
-			"cube",
-		};
-
-		int n_names = sizeof(names) / sizeof(char *);
-
-		for(int i = 0; i < n_names; i++){
-
-			char path[STRING_SIZE];
-			String_set(path, "assets/models/", STRING_SIZE);
-			String_append(path, names[i]);
-			String_append(path, ".mesh");
-
-			TriangleMesh triangleMesh;
-
-			TriangleMesh_initFromFile_mesh(&triangleMesh, path);
-
-			String_set(triangleMesh.name, names[i], STRING_SIZE);
-
-			game_p->triangleMeshes.push_back(triangleMesh);
-
-		}
-	
-	}
-	
-	//load bone triangle meshes
-	{
-		const char *names[] = {
-			"dude-bones",
-		};
-
-		int n_names = sizeof(names) / sizeof(char *);
-
-		for(int i = 0; i < n_names; i++){
-
-			char path[STRING_SIZE];
-			String_set(path, "assets/models/", STRING_SIZE);
-			String_append(path, names[i]);
-			String_append(path, ".bonemesh");
-
-			BoneTriangleMesh boneTriangleMesh;
-
-			BoneTriangleMesh_initFromFile(&boneTriangleMesh, path);
-
-			String_set(boneTriangleMesh.name, names[i], STRING_SIZE);
-
-			game_p->boneTriangleMeshes.push_back(boneTriangleMesh);
-
-		}
-	
-	}
-
 	//load shaders
 	{
 		const char *names[] = {
@@ -236,6 +153,93 @@ void Game_loadAssets(Game *game_p){
 			game_p->shaders.push_back(shader);
 
 		}
+	}
+
+}
+
+void World_loadAssets(World *world_p){
+
+	//load triangle meshes
+	{
+		const char *names[] = {
+			"quad",
+			"cube",
+		};
+
+		int n_names = sizeof(names) / sizeof(char *);
+
+		for(int i = 0; i < n_names; i++){
+
+			char path[STRING_SIZE];
+			String_set(path, "assets/models/", STRING_SIZE);
+			String_append(path, names[i]);
+			String_append(path, ".mesh");
+
+			TriangleMesh triangleMesh;
+
+			TriangleMesh_initFromFile_mesh(&triangleMesh, path);
+
+			String_set(triangleMesh.name, names[i], STRING_SIZE);
+
+			world_p->triangleMeshes.push_back(triangleMesh);
+
+		}
+	
+	}
+	
+	//load bone triangle meshes
+	{
+		const char *names[] = {
+			"dude-bones",
+		};
+
+		int n_names = sizeof(names) / sizeof(char *);
+
+		for(int i = 0; i < n_names; i++){
+
+			char path[STRING_SIZE];
+			String_set(path, "assets/models/", STRING_SIZE);
+			String_append(path, names[i]);
+			String_append(path, ".bonemesh");
+
+			BoneTriangleMesh boneTriangleMesh;
+
+			BoneTriangleMesh_initFromFile(&boneTriangleMesh, path);
+
+			String_set(boneTriangleMesh.name, names[i], STRING_SIZE);
+
+			world_p->boneTriangleMeshes.push_back(boneTriangleMesh);
+
+		}
+	
+	}
+
+	//load bone rigs
+	{
+		const char *names[] = {
+			"dude-bones",
+			"dude-bones2",
+		};
+
+		int n_names = sizeof(names) / sizeof(char *);
+
+		for(int i = 0; i < n_names; i++){
+
+			char path[STRING_SIZE];
+			String_set(path, "assets/models/", STRING_SIZE);
+			String_append(path, names[i]);
+			String_append(path, ".bones");
+
+			BoneRig rig;
+
+			BoneRig_initFromFile(&rig, path);
+
+			String_set(rig.name, names[i], STRING_SIZE);
+
+			world_p->boneRigs.push_back(rig);
+
+		}
+	
 	}
 
 }

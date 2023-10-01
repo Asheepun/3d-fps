@@ -13,7 +13,7 @@
 #include <cstring>
 #include <vector>
 
-#define RUN_OFFLINE
+//#define RUN_OFFLINE
 
 enum RenderStage{
 	RENDER_STAGE_BIG_SHADOWS,
@@ -104,14 +104,19 @@ struct Tree{
 	Mat4f *sortedLeafTransformations;
 };
 
+struct World{
+	std::vector<Player> players;
+	std::vector<Obstacle> obstacles;
+	std::vector<TriangleMesh> triangleMeshes;
+	std::vector<BoneTriangleMesh> boneTriangleMeshes;
+	std::vector<BoneRig> boneRigs;
+};
+
 struct Game{
 
-	Player player;
-
-	std::vector<Player> otherPlayers;
+	World world;
 	
 	std::vector<Bullet> bullets;
-	std::vector<Obstacle> obstacles;
 	std::vector<Particle> bloodParticles;
 	std::vector<Particle> grassParticles;
 	std::vector<RigidBody> rigidBodies;
@@ -119,15 +124,14 @@ struct Game{
 
 	std::vector<Model> models;
 	std::vector<BoneModel> boneModels;
-	std::vector<BoneRig> boneRigs;
 	std::vector<Texture> textures;
-	std::vector<TriangleMesh> triangleMeshes;
 	std::vector<PointMesh> pointMeshes;
-	std::vector<BoneTriangleMesh> boneTriangleMeshes;
 	std::vector<Shader> shaders;
 
 	std::vector<Box> boundingBoxes;
 	std::vector<bool> boundingBoxesCulled;
+
+	Client client;
 
 	ServerGameState latestServerGameState_mutexed;
 	pthread_mutex_t serverStateMutex;
@@ -167,7 +171,15 @@ static float PLAYER_CROUCH_SPEED = 0.025;
 
 //FILE: world.cpp
 
-int Game_addObstacle(Game *, Vec3f, float, const char *, const char *, Vec4f);
+void Player_World_moveAndCollideBasedOnInputs_common(Player *, World *, Inputs);
+
+//void World_updatePlayersAndObstaclesCommon(World *);
+
+void World_addPlayer(World *, Vec3f, int);
+int World_addObstacle(World *, Vec3f, float, int, int, int, Vec4f);
+
+int World_getPlayerIndexByConnectionID(World *, int);
+Player *World_getPlayerPointerByConnectionID(World *, int);
 
 Mat4f getSwordMatrix(Vec3f, Vec3f, float);
 
@@ -177,25 +189,30 @@ bool checkBoxBoxCollision(Box, Box);
 
 int Game_getModelIndexByName(Game *, const char *);
 int Game_getTextureIndexByName(Game *, const char *);
-int Game_getTriangleMeshIndexByName(Game *, const char *);
+int World_getTriangleMeshIndexByName(World *, const char *);
 int Game_getShaderIndexByName(Game *, const char *);
 
 Model *Game_getModelPointerByName(Game *, const char *);
 Texture *Game_getTexturePointerByName(Game *, const char *);
-TriangleMesh *Game_getTriangleMeshPointerByName(Game *, const char *);
+TriangleMesh *World_getTriangleMeshPointerByName(World *, const char *);
 Shader *Game_getShaderPointerByName(Game *, const char *);
 
 Obstacle *Game_getObstacleByID(Game *, int);
 
 //FILE: client.cpp
 
-void Game_initClient(Game *);
-void Game_sendInputsToServer(Game *, Inputs);
-void *receiveServerMessages(void *);
+void Client_init(Client *);
+
+void Client_sendInputsToServer(Client *, Inputs);
+
+//void Game_initClient(Game *);
+//void Game_sendInputsToServer(Game *, Inputs);
+//void *receiveServerMessages(void *);
 
 //FILE: assets.cpp
 
 void Game_loadAssets(Game *);
+void World_loadAssets(World *);
 
 //FILE: trees.cpp
 

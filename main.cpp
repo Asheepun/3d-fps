@@ -105,10 +105,12 @@ void Engine_start(){
 	srand(0);
 
 #ifndef RUN_OFFLINE
-	Game_initClient(&game);
+	Client_init(&game.client);
+	//Game_initClient(&game);
 #endif
 
 	Game_loadAssets(&game);
+	World_loadAssets(&game.world);
 
 	Renderer2D_init(&renderer2D, WIDTH, HEIGHT);
 
@@ -273,7 +275,7 @@ void Engine_start(){
 		triangleMesh.n_triangles = n_triangles;
 		String_set(triangleMesh.name, "terrain", STRING_SIZE);
 
-		game.triangleMeshes.push_back(triangleMesh);
+		game.world.triangleMeshes.push_back(triangleMesh);
 
 		unsigned char *meshData = generateMeshDataFromTriangleMesh(triangleMesh, textureCoords);
 
@@ -310,7 +312,7 @@ void Engine_start(){
 
 	//generate grass positions
 	{
-		TriangleMesh *terrainTriangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
+		TriangleMesh *terrainTriangleMesh_p = World_getTriangleMeshPointerByName(&game.world, "terrain");
 
 		int n = 0;
 		int hits = 0;
@@ -446,10 +448,29 @@ void Engine_start(){
 	//init game
 	pthread_mutex_init(&game.serverStateMutex, NULL);
 
-	Game_addObstacle(&game, getVec3f(0.0, 0.0, 0.0), TERRAIN_SCALE, "terrain", "terrain", getVec4f(1.0, 1.0, 1.0, 1.0));
+	World_addObstacle(
+		&game.world,
+		getVec3f(0.0, 0.0, 0.0),
+		TERRAIN_SCALE,
+		World_getTriangleMeshIndexByName(&game.world, "terrain"),
+		Game_getModelIndexByName(&game, "terrain"),
+		Game_getTextureIndexByName(&game, "terrain"),
+		getVec4f(1.0, 1.0, 1.0, 1.0)
+	);
 
-	Game_addObstacle(&game, getVec3f(30.0, 0.0, 20.0), 3.0, "cube", "blank", getVec4f(0.7, 0.7, 0.7, 1.0));
+	World_addObstacle(
+		&game.world,
+		getVec3f(30.0, 0.0, 20.0),
+		3.0,
+		World_getTriangleMeshIndexByName(&game.world, "cube"),
+		Game_getModelIndexByName(&game, "cube"),
+		Game_getTextureIndexByName(&game, "blank"),
+		getVec4f(0.7, 0.7, 0.7, 1.0)
+	);
 
+	World_addPlayer(&game.world, getVec3f(5.0, 3.0, 5.0), game.client.connectionID);
+
+	/*
 	{
 		game.player.pos = getVec3f(5.0, 3.0, 5.0);
 		game.player.lastPos = game.player.pos;
@@ -465,6 +486,7 @@ void Engine_start(){
 		player.pos = getVec3f(10.0, 5.0, 30.0);
 		game.otherPlayers.push_back(player);
 	}
+	*/
 	/*
 	{
 		RigidBody rigidBody;
@@ -523,16 +545,16 @@ void Engine_start(){
 	Game_addTree(&game, getVec3f(40.0, 0.0, 40.0));
 
 	//generate point meshes
-	for(int i = 0; i < game.triangleMeshes.size(); i++){
+	for(int i = 0; i < game.world.triangleMeshes.size(); i++){
 		PointMesh pointMesh;
-		PointMesh_initFromTriangleMesh(&pointMesh, game.triangleMeshes[i]);
+		PointMesh_initFromTriangleMesh(&pointMesh, game.world.triangleMeshes[i]);
 		game.pointMeshes.push_back(pointMesh);
 	}
 
 	//generate centers for triangle meshes
-	for(int i = 0; i < game.triangleMeshes.size(); i++){
+	for(int i = 0; i < game.world.triangleMeshes.size(); i++){
 		
-		TriangleMesh *triangleMesh_p = &game.triangleMeshes[i];
+		TriangleMesh *triangleMesh_p = &game.world.triangleMeshes[i];
 
 		triangleMesh_p->triangleRadii = (float *)malloc(sizeof(float) * triangleMesh_p->n_triangles);
 
@@ -553,9 +575,9 @@ void Engine_start(){
 	}
 
 	//generate bounding boxes for obstacles
-	for(int i = 0; i < game.obstacles.size(); i++){
+	for(int i = 0; i < game.world.obstacles.size(); i++){
 		
-		Obstacle *obstacle_p = &game.obstacles[i];
+		Obstacle *obstacle_p = &game.world.obstacles[i];
 		PointMesh *pointMesh_p = &game.pointMeshes[obstacle_p->triangleMeshIndex];
 
 		Mat4f modelMatrix = getIdentityMat4f();
@@ -607,12 +629,14 @@ void Engine_update(float deltaTime){
 	if(Engine_keys[ENGINE_KEY_T].downed){
 		drawTimings = !drawTimings;
 	}
+	/*
 	if(Engine_keys[ENGINE_KEY_G].downed){
-		game.player.weapon = (Weapon)((int)game.player.weapon + 1);
-		if(game.player.weapon >= N_WEAPONS){
-			game.player.weapon = (Weapon)0;
+		game.players[0].weapon = (Weapon)((int)game.players[0].weapon + 1);
+		if(game.players[0].weapon >= N_WEAPONS){
+			game.players[0].weapon = (Weapon)0;
 		}
 	}
+	*/
 
 	//printf("---\n");
 
@@ -674,12 +698,19 @@ void Engine_update(float deltaTime){
 	inputs.cameraDirection = cameraDirection;
 
 	//buffer inputs
+	game.inputsBuffer.clear();
 	game.inputsBuffer.push_back(inputs);
 
 #ifndef RUN_OFFLINE
 	//send inputs to server
-	Game_sendInputsToServer(&game, inputs);
+	Client_sendInputsToServer(&game.client, inputs);
+	//Game_sendInputsToServer(&game, inputs);
 
+	//apply inputs to player
+	{
+	}
+
+	/*
 	//update client based on latest server state
 	game.otherPlayers.clear();
 
@@ -699,59 +730,22 @@ void Engine_update(float deltaTime){
 	while(game.inputsBuffer.size() > game.n_sentInputs - latestServerGameState.n_handledInputs){
 		game.inputsBuffer.erase(game.inputsBuffer.begin());
 	}
+	*/
 #endif
 
 	//simulate inputs on client
 	for(int i = 0; i < game.inputsBuffer.size(); i++){
 
+		//printf("%i\n", i);
+
 		Inputs inputs = game.inputsBuffer[i];
 
 		//control player based on inputs
-		Vec2f cameraDirectionXZ = getVec2f(inputs.cameraDirection.x, inputs.cameraDirection.z);
-		Vec2f_normalize(&cameraDirectionXZ);
+		Player *player_p = World_getPlayerPointerByConnectionID(&game.world, game.client.connectionID);
 
-		float speed = PLAYER_SPEED;
-		if(inputs.crouch == 1){
-			speed = PLAYER_CROUCH_SPEED;
-		}
+		//Player_applyInputs(player_p, inputs);
 
-		if(inputs.forwards == 1){
-			game.player.velocity.x += cameraDirectionXZ.x * speed;
-			game.player.velocity.z += cameraDirectionXZ.y * speed;
-		}
-		if(inputs.backwards == 1){
-			game.player.velocity.x += -cameraDirectionXZ.x * speed;
-			game.player.velocity.z += -cameraDirectionXZ.y * speed;
-		}
-		if(inputs.left == 1){
-			Vec3f left = getCrossVec3f(inputs.cameraDirection, getVec3f(0, 1.0, 0));
-			Vec3f_normalize(&left);
-			game.player.velocity.x += left.x * speed;
-			game.player.velocity.z += left.z * speed;
-		}
-		if(inputs.right == 1){
-			Vec3f right = getCrossVec3f(getVec3f(0, 1.0, 0), inputs.cameraDirection);
-			Vec3f_normalize(&right);
-			game.player.velocity.x += right.x * speed;
-			game.player.velocity.z += right.z * speed;
-		}
-		if(inputs.jump == 1
-		&& game.player.onGround){
-			game.player.velocity.y += PLAYER_JUMP_SPEED;
-		}
-		if(inputs.jump == 0
-		&& game.player.velocity.y > 0.0){
-			game.player.velocity.y *= 0.9;
-		}
-		if(inputs.crouch == 1){
-			if(game.player.height > PLAYER_HEIGHT_CROUCHING){
-				game.player.height -= PLAYER_HEIGHT_SPEED;
-			}
-		}else{
-			if(game.player.height < PLAYER_HEIGHT_STANDING){
-				game.player.height += PLAYER_HEIGHT_SPEED * 1.2;
-			}
-		}
+		/*
 		if(inputs.shoot == 1){
 
 			if(game.player.weapon == WEAPON_GUN){
@@ -832,83 +826,14 @@ void Engine_update(float deltaTime){
 			}
 
 		}
+*/
 
-		//handle player physics
-		game.player.velocity.y += -PLAYER_GRAVITY;
-
-		game.player.velocity.x *= PLAYER_WALK_RESISTANCE;
-		game.player.velocity.z *= PLAYER_WALK_RESISTANCE;
-
-		Vec3f_add(&game.player.pos, game.player.velocity);
-
-		game.player.onGround = false;
-
-		//handle collision between player and obstacles
-		for(int i = 0; i < game.obstacles.size(); i++){
-
-			Obstacle *obstacle_p = &game.obstacles[i];
-			TriangleMesh *triangleMesh_p = &game.triangleMeshes[obstacle_p->triangleMeshIndex];
-
-			for(int j = 0; j < triangleMesh_p->n_triangles; j++){
-
-				Vec3f triangle1 = triangleMesh_p->triangles[j * 3 + 0];
-				Vec3f triangle2 = triangleMesh_p->triangles[j * 3 + 1];
-				Vec3f triangle3 = triangleMesh_p->triangles[j * 3 + 2];
-
-				Vec3f_mulByFloat(&triangle1, obstacle_p->scale);
-				Vec3f_mulByFloat(&triangle2, obstacle_p->scale);
-				Vec3f_mulByFloat(&triangle3, obstacle_p->scale);
-
-				Vec3f_add(&triangle1, obstacle_p->pos);
-				Vec3f_add(&triangle2, obstacle_p->pos);
-				Vec3f_add(&triangle3, obstacle_p->pos);
-
-				Vec3f up = getVec3f(0.0, 1.0, 0.0);
-
-				Vec3f u = getSubVec3f(triangle2, triangle1);
-				Vec3f v = getSubVec3f(triangle3, triangle1);
-				Vec3f N = getCrossVec3f(u, v);
-				Vec3f_normalize(&N);
-
-				float r = 0.2;
-				Vec3f playerFeetPos = game.player.pos;
-				playerFeetPos.y += r;
-
-				if(getDotVec3f(up, N) > 0.7){
-
-					Vec3f intersectionPoint;
-					bool hit = checkLineToTriangleIntersectionVec3f(game.player.pos, getAddVec3f(game.player.pos, up), triangle1, triangle2, triangle3, &intersectionPoint);
-
-					if(hit
-					&& intersectionPoint.y > game.player.pos.y
-					&& intersectionPoint.y < game.player.lastPos.y + r){
-						//printf("did all that\n");
-						game.player.pos.y = intersectionPoint.y;
-						game.player.velocity.y = 0.0;
-						game.player.onGround = true;
-					}
-
-				}else{
-
-					bool hit = checkSphereToTriangleCollision(playerFeetPos, r, triangle1, triangle2, triangle3);
-
-					if(hit){
-
-						float distance = r - fabs((getDotVec3f(playerFeetPos, N) - getDotVec3f(triangle1, N)) / getDotVec3f(N, N));
-
-						Vec3f_add(&game.player.pos, getMulVec3fFloat(N, distance));
-						Vec3f_add(&game.player.velocity, getMulVec3fFloat(N, distance));
-						//Vec3f_add(&game.player.velocity, N);
-					}
-				
-				}
-
-			}
-
-		}
+		//World_updatePlayersAndObstaclesCommon(&game.world);
 
 	}
 
+
+	/*
 	//check if rigid bodies are dragged
 	for(int i = 0; i < game.rigidBodies.size(); i++){
 		
@@ -953,13 +878,6 @@ void Engine_update(float deltaTime){
 
 		if(Engine_pointer.down
 		&& currentlyHeldRigidBodyIndex == i){
-			/*
-			rigidBody_p->velocity = (cameraPos + cameraDirection * holdingDistance - rigidBody_p->pos) * 0.5;
-			float maxSpeed = 1.0;
-			if(getMagVec3f(rigidBody_p->velocity) > maxSpeed){
-				rigidBody_p->velocity = normalize(rigidBody_p->velocity) * maxSpeed;
-			}
-			*/
 			rigidBody_p->pos = cameraPos + cameraDirection * holdingDistance;
 			rigidBody_p->velocity = getVec3f(0.0, 0.0, 0.0);
 			rigidBody_p->angularVelocity = getVec3f(0.0, 0.0, 0.0);
@@ -1297,6 +1215,7 @@ void Engine_update(float deltaTime){
 		rigidBody_p->framesSinceHit++;
 
 	}
+	*/
 
 	//PERFORMANCE TEST CAMERA
 	//game.player.pos = getVec3f(90.0, 5.0, 23.0);
@@ -1305,141 +1224,14 @@ void Engine_update(float deltaTime){
 #ifdef RUN_OFFLINE
 		game.inputsBuffer.clear();
 #endif
-	//Game_simulateInputsOnClient(&game, inputs);
 
-	//handle camera movement
-	/*
-	Vec2f cameraDirectionXZ = getVec2f(cameraDirection.x, cameraDirection.z);
-	Vec2f_normalize(&cameraDirectionXZ);
+	//update camera position
+	{
+		Player *player_p = World_getPlayerPointerByConnectionID(&game.world, game.client.connectionID);
 
-	if(Engine_keys[ENGINE_KEY_W].down){
-		game.player.velocity.x += cameraDirectionXZ.x * PLAYER_SPEED;
-		game.player.velocity.z += cameraDirectionXZ.y * PLAYER_SPEED;
+		cameraPos = player_p->pos;
+		cameraPos.y += player_p->height;
 	}
-	if(Engine_keys[ENGINE_KEY_S].down){
-		game.player.velocity.x += -cameraDirectionXZ.x * PLAYER_SPEED;
-		game.player.velocity.z += -cameraDirectionXZ.y * PLAYER_SPEED;
-	}
-	if(Engine_keys[ENGINE_KEY_A].down){
-		Vec3f left = getCrossVec3f(cameraDirection, getVec3f(0, 1.0, 0));
-		Vec3f_normalize(&left);
-		game.player.velocity.x += left.x * PLAYER_SPEED;
-		game.player.velocity.z += left.z * PLAYER_SPEED;
-	}
-	if(Engine_keys[ENGINE_KEY_D].down){
-		Vec3f right = getCrossVec3f(getVec3f(0, 1.0, 0), cameraDirection);
-		Vec3f_normalize(&right);
-		game.player.velocity.x += right.x * PLAYER_SPEED;
-		game.player.velocity.z += right.z * PLAYER_SPEED;
-	}
-
-	if(Engine_keys[ENGINE_KEY_SPACE].down
-	&& game.player.onGround){
-		game.player.velocity.y += PLAYER_JUMP_SPEED;
-	}
-
-	if(!Engine_keys[ENGINE_KEY_SPACE].down
-	&& game.player.velocity.y > 0.0){
-		game.player.velocity.y *= 0.9;
-	}
-
-	game.player.velocity.x *= PLAYER_WALK_RESISTANCE;
-	game.player.velocity.z *= PLAYER_WALK_RESISTANCE;
-
-	if(Engine_keys[ENGINE_KEY_CONTROL].down){
-		if(game.player.height > PLAYER_HEIGHT_CROUCHING){
-			game.player.height -= PLAYER_HEIGHT_SPEED;
-		}
-	}else{
-		if(game.player.height < PLAYER_HEIGHT_STANDING){
-			game.player.height += PLAYER_HEIGHT_SPEED * 1.2;
-		}
-	}
-
-	game.player.velocity.y += -PLAYER_GRAVITY;
-
-	game.player.lastPos = game.player.pos;
-	Vec3f_add(&game.player.pos, game.player.velocity);
-
-	game.player.onGround = false;
-
-	if(game.player.pos.y < 0.0){
-		game.player.pos.y = 0.0;
-		game.player.velocity.y = 0.0;
-		game.player.onGround = true;
-	}
-
-	//handle collision between player and obstacles
-	for(int i = 0; i < game.obstacles.size(); i++){
-
-		Obstacle *obstacle_p = &game.obstacles[i];
-		TriangleMesh *triangleMesh_p = &game.triangleMeshes[obstacle_p->triangleMeshIndex];
-
-		for(int j = 0; j < triangleMesh_p->n_triangles; j++){
-
-			Vec3f triangle1 = triangleMesh_p->triangles[j * 3 + 0];
-			Vec3f triangle2 = triangleMesh_p->triangles[j * 3 + 1];
-			Vec3f triangle3 = triangleMesh_p->triangles[j * 3 + 2];
-
-			Vec3f_mulByFloat(&triangle1, obstacle_p->scale);
-			Vec3f_mulByFloat(&triangle2, obstacle_p->scale);
-			Vec3f_mulByFloat(&triangle3, obstacle_p->scale);
-
-			Vec3f_add(&triangle1, obstacle_p->pos);
-			Vec3f_add(&triangle2, obstacle_p->pos);
-			Vec3f_add(&triangle3, obstacle_p->pos);
-
-			//printf("%i\n", i);
-			//Vec3f_log(triangle1);
-			//Vec3f_log(triangle2);
-			//Vec3f_log(triangle3);
-
-			Vec3f up = getVec3f(0.0, 1.0, 0.0);
-
-			Vec3f u = getSubVec3f(triangle2, triangle1);
-			Vec3f v = getSubVec3f(triangle3, triangle1);
-			Vec3f N = getCrossVec3f(u, v);
-			Vec3f_normalize(&N);
-
-			float r = 0.2;
-			Vec3f playerFeetPos = game.player.pos;
-			playerFeetPos.y += r;
-
-			if(getDotVec3f(up, N) > 0.7){
-
-				Vec3f intersectionPoint;
-				bool hit = checkLineToTriangleIntersectionVec3f(game.player.pos, getAddVec3f(game.player.pos, up), triangle1, triangle2, triangle3, &intersectionPoint);
-
-				if(hit
-				&& intersectionPoint.y > game.player.pos.y
-				&& intersectionPoint.y < game.player.lastPos.y + r){
-					game.player.pos.y = intersectionPoint.y;
-					game.player.velocity.y = 0.0;
-					game.player.onGround = true;
-				}
-
-			}else{
-
-				bool hit = checkSphereToTriangleCollision(playerFeetPos, r, triangle1, triangle2, triangle3);
-
-				if(hit){
-
-					float distance = r - fabs((getDotVec3f(playerFeetPos, N) - getDotVec3f(triangle1, N)) / getDotVec3f(N, N));
-
-					Vec3f_add(&game.player.pos, getMulVec3fFloat(N, distance));
-					Vec3f_add(&game.player.velocity, getMulVec3fFloat(N, distance));
-					//Vec3f_add(&game.player.velocity, N);
-				}
-			
-			}
-
-		}
-
-	}
-*/
-
-	cameraPos = game.player.pos;
-	cameraPos.y += game.player.height;
 
 	//update blood particles
 	for(int i = 0; i < game.bloodParticles.size(); i++){
@@ -1481,7 +1273,7 @@ void Engine_update(float deltaTime){
 			}
 
 			//check collision with ground
-			TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "terrain");
+			TriangleMesh *triangleMesh_p = World_getTriangleMeshPointerByName(&game.world, "terrain");
 
 			Vec3f intersectionPoint;
 			checkClosestLineTriangleMeshIntersection(particle_p->pos, getVec3f(0.0, -1.0, 0.0), *triangleMesh_p, getVec3f(0.0, 0.0, 0.0), TERRAIN_SCALE, &intersectionPoint, NULL);
@@ -1543,7 +1335,7 @@ void Engine_update(float deltaTime){
 	{
 		if(swingAngle < SWING_ANGLE_RANGE){
 
-			TriangleMesh *triangleMesh_p = Game_getTriangleMeshPointerByName(&game, "quad");
+			TriangleMesh *triangleMesh_p = World_getTriangleMeshPointerByName(&game.world, "quad");
 
 			Mat4f swordMatrix = getSwordMatrix(cameraPos, cameraDirection, swingAngle);
 
@@ -1748,7 +1540,7 @@ void Engine_draw(){
 
 		//perspectiveMatrix = getIdentityMat4f();
 
-		Mat4f lightViewMatrix = getTranslationMat4f(round(-game.player.pos.x), round(-game.player.pos.y), round(-game.player.pos.z));
+		Mat4f lightViewMatrix = getTranslationMat4f(round(-cameraPos.x), round(-cameraPos.y), round(-cameraPos.z));
 		lightViewMatrix *= getTranslationMat4f(getVec3f(lightDirection.x, 0.0, lightDirection.z) * lightPos.y);
 		lightViewMatrix *= getTranslationMat4f(getVec3f(round(-cameraDirection.x * shadowMapScale), 0.0, round(-cameraDirection.z * shadowMapScale)));
 		lightViewMatrix *= getLookAtMat4f(lightPos, lightDirection);
@@ -1805,9 +1597,9 @@ void Engine_draw(){
 			GL3D_uniformMat4f(shader_p->ID, "bigLightViewMatrix", bigLightViewMatrix);
 
 			//draw obstacles
-			for(int i = 0; i < game.obstacles.size(); i++){
+			for(int i = 0; i < game.world.obstacles.size(); i++){
 
-				Obstacle *obstacle_p = &game.obstacles[i];
+				Obstacle *obstacle_p = &game.world.obstacles[i];
 
 				Mat4f modelMatrix = getModelMatrix(obstacle_p->pos, getVec3f(obstacle_p->scale), IDENTITY_QUATERNION);
 
@@ -1854,7 +1646,7 @@ void Engine_draw(){
 
 		//draw grass
 		if((renderStage == RENDER_STAGE_GRASS_SHADOWS
-		|| renderStage == RENDER_STAGE_SCENE) && true){
+		|| renderStage == RENDER_STAGE_SCENE) && false){
 			glDisable(GL_CULL_FACE);
 
 			Vec3f pos = getVec3f(0.0, 4.0, 0.0);
@@ -1985,6 +1777,7 @@ void Engine_draw(){
 		}
 		*/
 
+		/*
 		//draw other players
 		if(renderStage == RENDER_STAGE_SCENE){
 
@@ -2023,6 +1816,7 @@ void Engine_draw(){
 			}
 
 		}
+		*/
 
 		/*
 		//draw bounding boxes
@@ -2107,60 +1901,6 @@ void Engine_draw(){
 
 		}
 		*/
-
-		//draw other players
-		if(renderStage == RENDER_STAGE_SCENE){
-
-			for(int i = 0; i < game.otherPlayers.size(); i++){
-
-				Player *player_p = &game.otherPlayers[i];
-
-				float scale = 1.0;
-
-				/*
-				Mat4f modelMatrix = getIdentityMat4f();
-
-				modelMatrix *= getScalingMat4f(scale);
-
-				modelMatrix *= getTranslationMat4f(player_p->pos);
-
-				Shader *shader_p = Game_getShaderPointerByName(&game, "model");
-				if(renderStage == RENDER_STAGE_SHADOWS
-				|| renderStage == RENDER_STAGE_BIG_SHADOWS){
-					shader_p = Game_getShaderPointerByName(&game, "model-shadow");
-				}
-
-				glUseProgram(shader_p->ID);
-				
-				Model *model_p = Game_getModelPointerByName(&game, "cube");
-
-				Texture *texture_p = Game_getTexturePointerByName(&game, "blank");
-				Texture *alphaTexture_p = Game_getTexturePointerByName(&game, "blank-alpha");
-
-				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
-				glBindVertexArray(model_p->VAO);
-
-				GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
-
-				GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
-				GL3D_uniformTexture(shader_p->ID, "alphaTexture", 1, alphaTexture_p->ID);
-				GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 2, shadowMapDepthTexture.ID);
-				GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 3, grassShadowMapDepthTexture.ID);
-				GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 4, bigShadowMapDepthTexture.ID);
-
-				GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
-				GL3D_uniformMat4f(shader_p->ID, "lightViewMatrix", lightViewMatrix);
-				GL3D_uniformMat4f(shader_p->ID, "bigLightViewMatrix", bigLightViewMatrix);
-				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
-
-				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.5, 0.5, 0.5, 1.0));
-
-				glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
-				*/
-
-			}
-		
-		}
 
 		//draw rigid bodies
 		if(renderStage == RENDER_STAGE_SCENE){
@@ -2393,12 +2133,14 @@ void Engine_draw(){
 
 			Renderer2D_drawText(&renderer2D, totalText, 80, 200, 60, font);
 
+			/*
 			if(game.player.weapon == WEAPON_GUN){
 				Renderer2D_drawText(&renderer2D, "Gun", WIDTH - 220, 40, 60, font);
 			}
 			if(game.player.weapon == WEAPON_SWORD){
 				Renderer2D_drawText(&renderer2D, "Sword", WIDTH - 220, 40, 60, font);
 			}
+			*/
 		
 		}
 	

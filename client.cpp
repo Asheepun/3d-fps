@@ -8,12 +8,64 @@
 
 #include "pthread.h"
 
+void *receiveServerMessages(void *);
+
 //int n_sentInputs = 0;
+void Client_init(Client *client_p){
+	
+	client_p->n_sentInputs = 0;
+	client_p->n_receivedInputs = 0;
 
-int sockfd;
-struct sockaddr_in addr;
-socklen_t addr_size;
+	const char *ip = "127.0.0.1";
 
+	client_p->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	memset(&client_p->address, '\0', sizeof(client_p->address));
+	client_p->address.sin_family = AF_INET;
+	client_p->address.sin_port = htons(PORT);
+	client_p->address.sin_addr.s_addr = inet_addr(ip);
+
+	client_p->addressSize = sizeof(client_p->address);
+
+	Message message;
+	message.type = MESSAGE_CONNECTION_REQUEST;
+	sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr *)&client_p->address, client_p->addressSize);
+
+	memset(&message, 0, sizeof(Message));
+	recvfrom(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, &client_p->addressSize);
+
+	client_p->connectionID = message.connectionID;
+
+	printf("got answer and id: %i\n", message.connectionID);
+
+	pthread_t receiverThread;
+	pthread_create(&receiverThread, NULL, receiveServerMessages, client_p);
+
+}
+
+void *receiveServerMessages(void *clientPointer){
+
+	Client *client_p = (Client *)clientPointer;
+
+	while(true){
+
+		Message message;
+		memset(&message, 0, sizeof(Message));
+		recvfrom(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, &client_p->addressSize);
+
+		if(message.type == MESSAGE_SERVER_GAME_STATE){
+
+			ServerGameState gameState;
+			memcpy(&gameState, message.buffer, sizeof(ServerGameState));
+			printf("got game state!\n");
+			Vec3f_log(gameState.playerPositions[0]);
+		
+		}
+
+	}
+
+}
+
+/*
 void Game_initClient(Game *game_p){
 
 	game_p->n_sentInputs = 0;
@@ -26,15 +78,15 @@ void Game_initClient(Game *game_p){
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = inet_addr(ip);
+	client_p->addr_size = sizeof(client_p->addr);
 
 	char buffer[BUFFER_SIZE];
 	memset(buffer, 0, BUFFER_SIZE);
 	buffer[0] = CONNECTION_REQUEST;
-	sendto(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&addr, sizeof(addr));
+	sendto(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&addr, client_p->addr_size);
 	//printf("[+]Data send: %s\n", buffer);
 
 	memset(buffer, 0, BUFFER_SIZE);
-	addr_size = sizeof(addr);
 	recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&addr, &addr_size);
 
 	if(buffer[0] == CONNECTION_ID){
@@ -45,8 +97,8 @@ void Game_initClient(Game *game_p){
 	
 	}
 
-	pthread_t receiverThread;
-	pthread_create(&receiverThread, NULL, receiveServerMessages, game_p);
+	//pthread_t receiverThread;
+	//pthread_create(&receiverThread, NULL, receiveServerMessages, game_p);
 
 	//printf("[+]Data recv: %s\n", buffer);
  
@@ -112,4 +164,21 @@ void Game_sendInputsToServer(Game *game_p, Inputs inputs){
 
 	game_p->n_sentInputs++;
 	
+}
+*/
+
+void Client_sendInputsToServer(Client *client_p, Inputs inputs){
+
+	Message message;
+	memset(&message, 0, sizeof(Message));
+
+	message.type = MESSAGE_CLIENT_INPUTS;
+	message.connectionID = client_p->connectionID;
+
+	memcpy(message.buffer, &inputs, sizeof(Inputs));
+
+	sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, client_p->addressSize);
+
+	client_p->n_sentInputs++;
+
 }

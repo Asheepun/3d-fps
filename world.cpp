@@ -7,7 +7,149 @@ int CURRENT_AVAILABLE_ID = 0;
 
 //ENTITY FUNCTIONS
 
-int Game_addObstacle(Game *game_p, Vec3f pos, float scale, const char *modelName, const char *textureName, Vec4f color){
+void Player_World_moveAndCollideBasedOnInputs_common(Player *player_p, World *world_p, Inputs inputs){
+
+	//apply inputs
+	{
+		Vec2f cameraDirectionXZ = getVec2f(inputs.cameraDirection.x, inputs.cameraDirection.z);
+		Vec2f_normalize(&cameraDirectionXZ);
+
+		float speed = PLAYER_SPEED;
+		if(inputs.crouch == 1){
+			speed = PLAYER_CROUCH_SPEED;
+		}
+
+		if(inputs.forwards == 1){
+			player_p->velocity.x += cameraDirectionXZ.x * speed;
+			player_p->velocity.z += cameraDirectionXZ.y * speed;
+		}
+		if(inputs.backwards == 1){
+			player_p->velocity.x += -cameraDirectionXZ.x * speed;
+			player_p->velocity.z += -cameraDirectionXZ.y * speed;
+		}
+		if(inputs.left == 1){
+			Vec3f left = getCrossVec3f(inputs.cameraDirection, getVec3f(0, 1.0, 0));
+			Vec3f_normalize(&left);
+			player_p->velocity.x += left.x * speed;
+			player_p->velocity.z += left.z * speed;
+		}
+		if(inputs.right == 1){
+			Vec3f right = getCrossVec3f(getVec3f(0, 1.0, 0), inputs.cameraDirection);
+			Vec3f_normalize(&right);
+			player_p->velocity.x += right.x * speed;
+			player_p->velocity.z += right.z * speed;
+		}
+		if(inputs.jump == 1
+		&& player_p->onGround){
+			player_p->velocity.y += PLAYER_JUMP_SPEED;
+		}
+		if(inputs.jump == 0
+		&& player_p->velocity.y > 0.0){
+			player_p->velocity.y *= 0.9;
+		}
+		if(inputs.crouch == 1){
+			if(player_p->height > PLAYER_HEIGHT_CROUCHING){
+				player_p->height -= PLAYER_HEIGHT_SPEED;
+			}
+		}else{
+			if(player_p->height < PLAYER_HEIGHT_STANDING){
+				player_p->height += PLAYER_HEIGHT_SPEED * 1.2;
+			}
+		}
+	}
+
+	//handle physics and move
+	{
+		player_p->velocity.y += -PLAYER_GRAVITY;
+
+		player_p->velocity.x *= PLAYER_WALK_RESISTANCE;
+		player_p->velocity.z *= PLAYER_WALK_RESISTANCE;
+
+		Vec3f_add(&player_p->pos, player_p->velocity);
+
+		player_p->onGround = false;
+	}
+
+	//handle obstacle collisions
+	{
+		float radius = 0.5;
+
+		Mat4f cylinderMatrix = getScalingMat4f(1.0 / radius, 1.0 / player_p->height, 1.0 / radius) * getTranslationMat4f(-player_p->pos.x, -(player_p->pos.y), -player_p->pos.z);
+
+		for(int j = 0; j < world_p->obstacles.size(); j++){
+
+			Obstacle *obstacle_p = &world_p->obstacles[j];
+			TriangleMesh *triangleMesh_p = &world_p->triangleMeshes[obstacle_p->triangleMeshIndex];
+
+			Mat4f triangleMatrix = cylinderMatrix * getModelMatrix(obstacle_p->pos, getVec3f(obstacle_p->scale), IDENTITY_QUATERNION);
+
+			Vec3f intersectionPoint;
+			Vec3f collisionNormal;
+			bool hit = false;
+
+			for(int k = 0; k < triangleMesh_p->n_triangles; k++){
+
+				Vec3f p1 = mulVec3fMat4f(triangleMesh_p->triangles[k * 3 + 0], triangleMatrix, 1.0);
+				Vec3f p2 = mulVec3fMat4f(triangleMesh_p->triangles[k * 3 + 1], triangleMatrix, 1.0);
+				Vec3f p3 = mulVec3fMat4f(triangleMesh_p->triangles[k * 3 + 2], triangleMatrix, 1.0);
+
+				collisionNormal = normalize(cross(p1 - p2, p1 - p3));
+
+				if(checkLineToTriangleIntersectionVec3f(getVec3f(collisionNormal.x, 0.0, collisionNormal.z), getVec3f(collisionNormal.x, 1.0, collisionNormal.z), p1, p2, p3, &intersectionPoint)
+				&& intersectionPoint.y > 0.0 && intersectionPoint.y < 1.0){
+					hit = true;
+					break;
+				}
+
+				float maxY = fmax(fmax(p1.y, p2.y), p3.y);
+				float minY = fmin(fmin(p1.y, p2.y), p3.y);
+
+				if(maxY > 1.0
+				&& minY < 0.0){
+					bool checkHit = checkLineToTriangleIntersectionVec3f(getVec3f(0.0, 0.0, 0.0), getVec3f(-collisionNormal.x, 0.0, -collisionNormal.z), p1, p2, p3, &intersectionPoint);
+
+					if(checkHit
+					&& dot(intersectionPoint, intersectionPoint) < 1.0){
+						hit = true;
+						break;
+					}
+
+				}
+
+			}
+
+			if(hit){
+				if(acos(dot(collisionNormal, getVec3f(0.0, 1.0, 0.0))) < M_PI / 4.0){
+					player_p->pos.y += intersectionPoint.y;
+					player_p->velocity.y = 0.0;
+					player_p->onGround = true;
+				}else{
+					player_p->pos += collisionNormal * (radius - dot(getVec3f(intersectionPoint.x * radius, intersectionPoint.y, intersectionPoint.z * radius), collisionNormal * -1.0));
+				}
+			}
+
+		}
+	}
+
+}
+
+void World_addPlayer(World *world_p, Vec3f pos, int connectionID){
+
+	Player player;
+
+	player.connectionID = connectionID;
+	player.pos = pos;
+	player.lastPos = player.pos;
+	player.velocity = getVec3f(0.0);
+	player.onGround = false;
+	player.height = PLAYER_HEIGHT_STANDING;
+	player.weapon = WEAPON_GUN;
+
+	world_p->players.push_back(player);
+
+}
+
+int World_addObstacle(World *world_p, Vec3f pos, float scale, int triangleMeshIndex, int modelIndex, int textureIndex, Vec4f color){
 
 	Obstacle obstacle;	
 
@@ -16,15 +158,39 @@ int Game_addObstacle(Game *game_p, Vec3f pos, float scale, const char *modelName
 
 	obstacle.pos = pos;
 	obstacle.scale = scale;
-
-	obstacle.triangleMeshIndex = Game_getTriangleMeshIndexByName(game_p, modelName);
-	obstacle.modelIndex = Game_getModelIndexByName(game_p, modelName);
-	obstacle.textureIndex = Game_getTextureIndexByName(game_p, textureName);
+	obstacle.triangleMeshIndex = triangleMeshIndex;
+	obstacle.modelIndex = modelIndex;
+	obstacle.textureIndex = textureIndex;
 	obstacle.color = color;
 
-	game_p->obstacles.push_back(obstacle);
+	world_p->obstacles.push_back(obstacle);
 
 	return obstacle.ID;
+
+}
+
+int World_getPlayerIndexByConnectionID(World *world_p, int connectionID){
+
+	for(int i = 0; i < world_p->players.size(); i++){
+		if(world_p->players[i].connectionID == connectionID){
+			return i;
+		}
+	}
+
+	printf("Could not find player with connection ID: %i\n", connectionID);
+
+	return -1;
+}
+
+Player *World_getPlayerPointerByConnectionID(World *world_p, int connectionID){
+
+	int index = World_getPlayerIndexByConnectionID(world_p, connectionID);
+
+	if(index != -1){
+		return &world_p->players[index];
+	}
+
+	return NULL;
 
 }
 
@@ -98,10 +264,10 @@ int Game_getTextureIndexByName(Game *game_p, const char *name){
 
 }
 
-int Game_getTriangleMeshIndexByName(Game *game_p, const char *name){
+int World_getTriangleMeshIndexByName(World *world_p, const char *name){
 
-	for(int i = 0; i < game_p->triangleMeshes.size(); i++){
-		if(strcmp(game_p->triangleMeshes[i].name, name) == 0){
+	for(int i = 0; i < world_p->triangleMeshes.size(); i++){
+		if(strcmp(world_p->triangleMeshes[i].name, name) == 0){
 			return i;
 		}
 	}
@@ -150,15 +316,15 @@ Texture *Game_getTexturePointerByName(Game *game_p, const char *name){
 
 }
 
-TriangleMesh *Game_getTriangleMeshPointerByName(Game *game_p, const char *name){
+TriangleMesh *World_getTriangleMeshPointerByName(World *world_p, const char *name){
 
-	int index = Game_getTriangleMeshIndexByName(game_p, name);
+	int index = World_getTriangleMeshIndexByName(world_p, name);
 
 	if(index == -1){
 		return NULL;
 	}
 
-	return &game_p->triangleMeshes[index];
+	return &world_p->triangleMeshes[index];
 
 }
 

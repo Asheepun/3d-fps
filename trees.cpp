@@ -236,10 +236,10 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 
 	//String_set(model.name, "tree", STRING_SIZE);
 
-	game_p->triangleMeshes.push_back(triangleMesh);
+	game_p->world.triangleMeshes.push_back(triangleMesh);
 	game_p->models.push_back(model);
 
-	int triangleMeshIndex = game_p->triangleMeshes.size() - 1;
+	int triangleMeshIndex = game_p->world.triangleMeshes.size() - 1;
 	int modelIndex = game_p->models.size() - 1;
 
 	free(meshData);
@@ -318,14 +318,14 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 
 	game_p->trees.push_back(tree);
 
-	int obstacleID = Game_addObstacle(game_p, treePos, TREE_SCALE, "cube", "bark", getVec4f(1.0, 1.0, 1.0, 1.0));
-
-	//fix obstacle and sprite model and meshindex
-	for(int i = 0; i < game_p->obstacles.size(); i++){
-		if(game_p->obstacles[i].ID == obstacleID){
-			game_p->obstacles[i].triangleMeshIndex = triangleMeshIndex;
-			game_p->obstacles[i].modelIndex = modelIndex;
-		}
-	}
+	int obstacleID = World_addObstacle(
+		&game_p->world,
+		treePos,
+		TREE_SCALE,
+		triangleMeshIndex,
+		modelIndex,
+		Game_getTextureIndexByName(game_p, "bark"),
+		getVec4f(0.7, 0.7, 0.7, 1.0)
+	);
 
 }

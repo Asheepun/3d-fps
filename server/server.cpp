@@ -15,39 +15,24 @@
 #include "../game.h"
 #include "connection.h"
 
-int currentConnectionID = 0;
+Server server;
+World world;
 
-const int INPUT_QUEUE_SIZE = 64;
+//int currentConnectionID = 0;
 
-struct Connection{
-	struct sockaddr_in clientAddress;
-	socklen_t clientAddressSize;
-	int ID;
-	Inputs inputQueue[INPUT_QUEUE_SIZE];
-	long int n_receivedInputs;
-	long int n_handledInputs;
-	long int ticksSinceLastInput;
-};
+//std::vector<TriangleMesh> triangleMeshes;
 
-struct Message{
-	char type;
-	int connectionID;
-	char data[BUFFER_SIZE];
-};
-
-std::vector<TriangleMesh> triangleMeshes;
-
-std::vector<Obstacle> obstacles;
-std::vector<Player> players;
+//std::vector<Obstacle> obstacles;
+//std::vector<Player> players;
 
 //Vec3f playerPos = getVec3f(5.0, 3.0, 5.0);
 //Vec3f playerDirection = getVec3f(0.0, 0.0, 1.0);
 //Vec3f playerVelocity = getVec3f(0.0, 0.0, 0.0);
 
-std::vector<Connection> connections;
-std::vector<Message> messages;
+//std::vector<Connection> connections;
+//std::vector<Message> messages;
 
-int sockfd;
+//int sockfd;
 
 void *gameLoop(void *){
 
@@ -57,8 +42,64 @@ void *gameLoop(void *){
 
 		auto frameStartTime = std::chrono::high_resolution_clock::now();
 		
-		printf("game loop\n");
+		//printf("game loop\n");
 
+		//handle inputs from clients
+		for(int i = 0; i < server.connections.size(); i++){
+			
+			Connection *connection_p = &server.connections[i];
+			
+			//check if client has disconnected
+			if(connection_p->ticksSinceLastInput - connection_p->n_receivedInputs > TICKS_UNTIL_DISCONNECT){
+				printf("disconnected client\n");
+
+				world.players.erase(world.players.begin() + World_getPlayerIndexByConnectionID(&world, connection_p->ID));
+
+				server.connections.erase(server.connections.begin() + i);
+				i--;
+				continue;
+
+			}
+
+			//update player based on inputs buffer
+			Player *player_p = World_getPlayerPointerByConnectionID(&world, connection_p->ID);
+
+			while(connection_p->n_handledInputs < connection_p->n_receivedInputs){
+				
+				Player_World_moveAndCollideBasedOnInputs_common(player_p, &world, connection_p->inputQueue[connection_p->n_handledInputs % INPUT_QUEUE_SIZE]);
+
+				connection_p->n_handledInputs++;
+
+				//Vec3f_log(player_p->velocity);
+				//Vec3f_log(player_p->pos);
+
+			}
+
+			if(connection_p->n_receivedInputs > 0){
+				connection_p->ticksSinceLastInput++;
+			}
+
+		}
+
+		//send game state to clients
+		for(int i = 0; i < server.connections.size(); i++){
+
+			Connection *connection_p = &server.connections[i];
+
+			ServerGameState gameState;
+			gameState.playerPositions[0] = world.players[0].pos;
+			gameState.n_handledInputs = connection_p->n_handledInputs;
+
+			Message message;
+			message.type = MESSAGE_SERVER_GAME_STATE;
+			message.connectionID = connection_p->ID;
+			memcpy(message.buffer, &gameState, sizeof(ServerGameState));
+
+			sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+		
+		}
+
+		/*
 		//handle inputs from clients
 		for(int i = 0; i < connections.size(); i++){
 
@@ -73,9 +114,9 @@ void *gameLoop(void *){
 						playerIndex = j;
 					}
 				}
+				//players.erase(players.begin() + playerIndex);
 				printf("disconnected client!\n");
 				connections.erase(connections.begin() + i);
-				players.erase(players.begin() + playerIndex);
 				i--;
 				continue;
 
@@ -241,6 +282,7 @@ void *gameLoop(void *){
 			printf("sent game state\n");
 		
 		}
+		*/
 
 		auto frameStopTime = std::chrono::high_resolution_clock::now();
 
@@ -260,47 +302,31 @@ void *gameLoop(void *){
  
 int main(int argc, char **argv){
 
-	//generate terrain mesh
+	//init server
 	{
-		TriangleMesh triangleMesh = generateTerrainTriangleMesh(TERRAIN_WIDTH, (1 / (TERRAIN_SCALE / 2.0)));
-		triangleMeshes.push_back(triangleMesh);
+		const char *ip = "127.0.0.1";
+	
+		server.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+		if (server.sockfd < 0) {
+			perror("[-]socket error");
+			exit(1);
+		}
+
+		memset(&server.address, '\0', sizeof(server.address));
+		server.address.sin_family = AF_INET;
+		server.address.sin_port = htons(PORT);
+		server.address.sin_addr.s_addr = inet_addr(ip);
+
+		server.addressSize = sizeof(server.address);
+
+		int n = bind(server.sockfd, (struct sockaddr*)&server.address, server.addressSize);
+		if (n < 0){
+			perror("[-]bind error");
+			exit(1);
+		}
 	}
-
-	//generate world
-	{
-		Obstacle obstacle;	
-		obstacle.pos = getVec3f(0.0, 0.0, 0.0);
-		obstacle.scale = TERRAIN_SCALE;
-		obstacle.triangleMeshIndex = 0;
-
-		obstacles.push_back(obstacle);
-	}
-
+	
 	printf("started server\n");
-
-	const char *ip = "127.0.0.1";
-	int port = PORT;
-
-	struct sockaddr_in server_addr, client_addr;
-	socklen_t addr_size;
-	int n;
-
-	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sockfd < 0) {
-		perror("[-]socket error");
-		exit(1);
-	}
-
-	memset(&server_addr, '\0', sizeof(server_addr));
-	server_addr.sin_family = AF_INET;
-	server_addr.sin_port = htons(port);
-	server_addr.sin_addr.s_addr = inet_addr(ip);
-
-	n = bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
-	if (n < 0){
-		perror("[-]bind error");
-		exit(1);
-	}
 
 	//start game loop
 	pthread_t gameLoopThread;
@@ -309,24 +335,40 @@ int main(int argc, char **argv){
 	//receive messages from clients
 	while(true){
 
-		char buffer[BUFFER_SIZE];
-		memset(buffer, 0, BUFFER_SIZE);
-		addr_size = sizeof(client_addr);
-		recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&client_addr, &addr_size);
+		//char buffer[BUFFER_SIZE];
+		//memset(buffer, 0, BUFFER_SIZE);
+		struct sockaddr_in clientAddress;
+		socklen_t clientAddressSize;
+		clientAddressSize = sizeof(clientAddress);
 
-		if(buffer[0] == CONNECTION_REQUEST){
+		Message message;
+		recvfrom(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&clientAddress, &clientAddressSize);
+
+		if(message.type == MESSAGE_CONNECTION_REQUEST){
+
+			printf("got connection request!\n");
 
 			Connection connection;
-			connection.ID = currentConnectionID;
-			connection.clientAddress = client_addr;
-			connection.clientAddressSize = addr_size;
+			connection.ID = server.currentConnectionID;
+			connection.clientAddress = clientAddress;
+			connection.clientAddressSize = clientAddressSize;
 			connection.n_handledInputs = 0;
 			connection.n_receivedInputs = 0;
 			connection.ticksSinceLastInput = 0;
-			currentConnectionID++;
+			server.currentConnectionID++;
 
-			connections.push_back(connection);
+			server.connections.push_back(connection);
 
+			World_addPlayer(&world, getVec3f(5.0, 3.0, 5.0), connection.ID);
+
+			Message message;
+			message.type = MESSAGE_CONNECTION_ID;
+			message.connectionID = connection.ID;
+			sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection.clientAddress, connection.clientAddressSize);
+
+			printf("sent id: %i\n", connection.ID);
+
+			/*
 			Player player;
 			player.pos = getVec3f(5.0, 3.0, 5.0);
 			player.direction = getVec3f(0.0, 0.0, 1.0);
@@ -342,9 +384,32 @@ int main(int argc, char **argv){
 			memcpy(buffer + 1, &connection.ID, sizeof(int));
 
 			sendto(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&connection.clientAddress, connection.clientAddressSize);
+			*/
 
+		}else if(message.type == MESSAGE_CLIENT_INPUTS){
+			Inputs inputs;
+			memcpy(&inputs, message.buffer, sizeof(Inputs));
+			//printf("got inputs!\n");
+
+			//printf("%i\n", inputs.forwards);
+			//printf("%i\n", inputs.backwards);
+			//printf("%i\n", inputs.left);
+			//printf("%i\n", inputs.right);
+
+			for(int i = 0; i < server.connections.size(); i++){
+
+				Connection *connection_p = &server.connections[i];
+
+				if(connection_p->ID == message.connectionID){
+					//printf("bruh\n");
+					connection_p->inputQueue[connection_p->n_receivedInputs % INPUT_QUEUE_SIZE] = inputs;
+					connection_p->n_receivedInputs++;
+				}
+
+			}
 		}
 
+		/*
 		if(buffer[0] == CLIENT_INPUTS){
 
 			int connectionID;
@@ -376,6 +441,7 @@ int main(int argc, char **argv){
 			//printf("Got inputs from: %i\n", connectionID);
 
 		}
+		*/
 
 	}
 
