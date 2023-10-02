@@ -194,82 +194,13 @@ void Engine_start(){
 
 	//generate terrain
 	{
+		Vec3f *triangles;
+		Vec2f *textureCoords;
+		int n_triangles;
+
 		setRandomSeed(1);
+		generateTerrainTriangles(&triangles, &textureCoords, &n_triangles);
 
-		int width = 20;
-
-		Vec3f *points = (Vec3f *)malloc(sizeof(Vec3f) * (width + 1) * (width + 1));
-
-		for(int x = 0; x < width + 1; x++){
-			for(int y = 0; y < width + 1; y++){
-
-				int index = y * (width + 1) + x;
-
-				points[index].x = x;
-				points[index].z = y;
-				points[index].y = getRandom() / TERRAIN_SCALE * 2.0;
-				//points[index].y = 0.0;
-
-				if(y == 0 || x == 0 || y == width || x == width){
-					points[index].y = 0.0;
-				}
-
-				points[index].x /= (float)width;
-				points[index].z /= (float)width;
-
-				terrainMaxHeight = fmax(terrainMaxHeight, points[index].y * TERRAIN_SCALE);
-			
-			}
-		}
-
-		//printf("%f\n", terrainMaxHeight);
-
-		int n_triangles = 2 * (width) * (width);
-
-		Vec3f *triangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * n_triangles);
-		Vec2f *textureCoords = (Vec2f *)malloc(sizeof(Vec2f) * 3 * n_triangles);
-
-		int triangleIndex = 0;
-
-		for(int x = 0; x < width; x++){
-			for(int y = 0; y < width; y++){
-
-				int pointsIndex1 = y * (width + 1) + x;
-				int pointsIndex2 = (y + 1) * (width + 1) + x;
-				int pointsIndex3 = y * (width + 1) + (x + 1);
-				int pointsIndex4 = (y + 1) * (width + 1) + (x + 1);
-
-				Vec3f point1 = points[pointsIndex1];
-				Vec3f point2 = points[pointsIndex2];
-				Vec3f point3 = points[pointsIndex3];
-				Vec3f point4 = points[pointsIndex4];
-
-				triangles[triangleIndex * 3 * 2 + 0] = point1;
-				triangles[triangleIndex * 3 * 2 + 1] = point2;
-				triangles[triangleIndex * 3 * 2 + 2] = point4;
-				triangles[triangleIndex * 3 * 2 + 3] = point1;
-				triangles[triangleIndex * 3 * 2 + 4] = point4;
-				triangles[triangleIndex * 3 * 2 + 5] = point3;
-
-				Vec2f t1 = getVec2f(x, y) / (float)width;
-				Vec2f t2 = getVec2f(x, y + 1.0) / (float)width;
-				Vec2f t3 = getVec2f(x + 1.0, y) / (float)width;
-				Vec2f t4 = getVec2f(x + 1.0, y + 1.0) / (float)width;
-
-				textureCoords[triangleIndex * 3 * 2 + 0] = t1;
-				textureCoords[triangleIndex * 3 * 2 + 1] = t2;
-				textureCoords[triangleIndex * 3 * 2 + 2] = t4;
-				textureCoords[triangleIndex * 3 * 2 + 3] = t1;
-				textureCoords[triangleIndex * 3 * 2 + 4] = t4;
-				textureCoords[triangleIndex * 3 * 2 + 5] = t3;
-
-				triangleIndex++;
-
-			}
-		}
-
-		free(points);
-		
 		TriangleMesh triangleMesh;
 		triangleMesh.triangles = triangles;
 		triangleMesh.n_triangles = n_triangles;
@@ -287,8 +218,14 @@ void Engine_start(){
 
 		game.models.push_back(model);
 
+		terrainMaxHeight = 0.0;
+		for(int i = 0; i < n_triangles * 3; i++){
+			terrainMaxHeight = fmax(terrainMaxHeight, triangles[i].y * TERRAIN_SCALE);
+		}
+
 		//free unneeded data
 		free(meshData);
+		free(textureCoords);
 
 	}
 
@@ -446,7 +383,6 @@ void Engine_start(){
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
 	//init game
-	pthread_mutex_init(&game.serverStateMutex, NULL);
 
 	World_addObstacle(
 		&game.world,
@@ -458,6 +394,7 @@ void Engine_start(){
 		getVec4f(1.0, 1.0, 1.0, 1.0)
 	);
 
+	/*
 	World_addObstacle(
 		&game.world,
 		getVec3f(30.0, 0.0, 20.0),
@@ -467,8 +404,11 @@ void Engine_start(){
 		Game_getTextureIndexByName(&game, "blank"),
 		getVec4f(0.7, 0.7, 0.7, 1.0)
 	);
+	*/
 
 	World_addPlayer(&game.world, getVec3f(5.0, 3.0, 5.0), game.client.connectionID);
+
+	//World_addPlayer(&game.world, getVec3f(15.0, 3.0, 15.0), 100);
 
 	/*
 	{
@@ -641,13 +581,11 @@ void Engine_update(float deltaTime){
 	//printf("---\n");
 
 	//get latest server game state
-	pthread_mutex_lock(&game.serverStateMutex);
+	pthread_mutex_lock(&game.client.serverGameStateMutex);
 
-	ServerGameState latestServerGameState = game.latestServerGameState_mutexed;
+	ServerGameState latestServerGameState = game.client.latestServerGameState_mutexed;
 
-	pthread_mutex_unlock(&game.serverStateMutex);
-
-	//game.player.pos = latestServerGameState.playerPos;
+	pthread_mutex_unlock(&game.client.serverGameStateMutex);
 
 	//printf("%i, %i\n", latestServerGameState.n_handledInputs, game.n_sentInputs);
 
@@ -698,8 +636,8 @@ void Engine_update(float deltaTime){
 	inputs.cameraDirection = cameraDirection;
 
 	//buffer inputs
-	game.inputsBuffer.clear();
-	game.inputsBuffer.push_back(inputs);
+	//game.inputsBuffer.clear();
+	//game.inputsBuffer.push_back(inputs);
 
 #ifndef RUN_OFFLINE
 	//send inputs to server
@@ -733,12 +671,31 @@ void Engine_update(float deltaTime){
 	*/
 #endif
 
+	//update client based on latest server game state
+	{
+		for(int i = 0; i < latestServerGameState.n_players; i++){
+
+			PlayerData *serverPlayerData_p = &latestServerGameState.players[i];
+			Player *player_p = World_getPlayerPointerByConnectionID(&game.world, serverPlayerData_p->connectionID);
+
+			if(player_p == NULL){
+				World_addPlayer(&game.world, getVec3f(0.0), serverPlayerData_p->connectionID);
+				player_p = World_getPlayerPointerByConnectionID(&game.world, serverPlayerData_p->connectionID);
+			}
+
+			player_p->pos = serverPlayerData_p->pos;
+			player_p->velocity = serverPlayerData_p->velocity;
+			player_p->onGround = serverPlayerData_p->onGround;
+
+		}
+	}
+
 	//simulate inputs on client
-	for(int i = 0; i < game.inputsBuffer.size(); i++){
+	for(int i = 0; i < game.client.inputsBuffer.size(); i++){
 
 		//printf("%i\n", i);
 
-		Inputs inputs = game.inputsBuffer[i];
+		Inputs inputs = game.client.inputsBuffer[i];
 
 		//control player based on inputs
 		Player *player_p = World_getPlayerPointerByConnectionID(&game.world, game.client.connectionID);
@@ -1777,7 +1734,6 @@ void Engine_draw(){
 		}
 		*/
 
-		/*
 		//draw other players
 		if(renderStage == RENDER_STAGE_SCENE){
 
@@ -1787,9 +1743,13 @@ void Engine_draw(){
 
 			GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
 
-			for(int i = 0; i < game.otherPlayers.size(); i++){
+			for(int i = 0; i < game.world.players.size(); i++){
 
-				Player *player_p = &game.otherPlayers[i];
+				Player *player_p = &game.world.players[i];
+
+				if(player_p->connectionID == game.client.connectionID){
+					continue;
+				}
 
 				float scale = 0.5;
 
@@ -1797,8 +1757,8 @@ void Engine_draw(){
 
 				BoneModel *model_p = &game.boneModels[0];
 
-				BoneRig *boneRig_p = &game.boneRigs[0];
-				BoneRig *boneRig2_p = &game.boneRigs[1];
+				BoneRig *boneRig_p = &game.world.boneRigs[0];
+				BoneRig *boneRig2_p = &game.world.boneRigs[1];
 
 				std::vector<Mat4f> boneTransformations = getBoneRigTransformations(boneRig_p, boneRig2_p->originBones);
 
@@ -1816,7 +1776,6 @@ void Engine_draw(){
 			}
 
 		}
-		*/
 
 		/*
 		//draw bounding boxes

@@ -60,6 +60,8 @@ void Player_World_moveAndCollideBasedOnInputs_common(Player *player_p, World *wo
 
 	//handle physics and move
 	{
+		player_p->lastPos = player_p->pos;
+
 		player_p->velocity.y += -PLAYER_GRAVITY;
 
 		player_p->velocity.x *= PLAYER_WALK_RESISTANCE;
@@ -68,6 +70,30 @@ void Player_World_moveAndCollideBasedOnInputs_common(Player *player_p, World *wo
 		Vec3f_add(&player_p->pos, player_p->velocity);
 
 		player_p->onGround = false;
+	}
+
+	//handle oub
+	{
+		if(player_p->pos.y < 0.0){
+			player_p->pos.y = 0.0;
+			player_p->velocity.y = 0.0;
+		}
+		if(player_p->pos.x < 0.0){
+			player_p->pos.x = 0.0;
+			player_p->velocity.x = 0.0;
+		}
+		if(player_p->pos.x > TERRAIN_SCALE){
+			player_p->pos.x = TERRAIN_SCALE;
+			player_p->velocity.x = 0.0;
+		}
+		if(player_p->pos.z < 0.0){
+			player_p->pos.z = 0.0;
+			player_p->velocity.z = 0.0;
+		}
+		if(player_p->pos.z > TERRAIN_SCALE){
+			player_p->pos.z = TERRAIN_SCALE;
+			player_p->velocity.z = 0.0;
+		}
 	}
 
 	//handle obstacle collisions
@@ -192,6 +218,93 @@ Player *World_getPlayerPointerByConnectionID(World *world_p, int connectionID){
 
 	return NULL;
 
+}
+
+void generateTerrainTriangles(Vec3f **output_triangles, Vec2f **output_textureCoords, int *output_n_triangles){
+
+	int width = 20;
+
+	Vec3f *points = (Vec3f *)malloc(sizeof(Vec3f) * (width + 1) * (width + 1));
+
+	for(int x = 0; x < width + 1; x++){
+		for(int y = 0; y < width + 1; y++){
+
+			int index = y * (width + 1) + x;
+
+			points[index].x = x;
+			points[index].z = y;
+			points[index].y = getRandom() / TERRAIN_SCALE * 2.0;
+			//points[index].y = 0.0;
+
+			if(y == 0 || x == 0 || y == width || x == width){
+				points[index].y = 0.0;
+			}
+
+			points[index].x /= (float)width;
+			points[index].z /= (float)width;
+		
+		}
+	}
+
+	//printf("%f\n", terrainMaxHeight);
+
+	int n_triangles = 2 * (width) * (width);
+
+	if(output_triangles != NULL){
+		*output_triangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * n_triangles);
+	}
+	if(output_textureCoords != NULL){
+		*output_textureCoords = (Vec2f *)malloc(sizeof(Vec2f) * 3 * n_triangles);
+	}
+	if(output_n_triangles != NULL){
+		*output_n_triangles = n_triangles;
+	}
+
+	int triangleIndex = 0;
+
+	for(int x = 0; x < width; x++){
+		for(int y = 0; y < width; y++){
+
+			int pointsIndex1 = y * (width + 1) + x;
+			int pointsIndex2 = (y + 1) * (width + 1) + x;
+			int pointsIndex3 = y * (width + 1) + (x + 1);
+			int pointsIndex4 = (y + 1) * (width + 1) + (x + 1);
+
+			Vec3f point1 = points[pointsIndex1];
+			Vec3f point2 = points[pointsIndex2];
+			Vec3f point3 = points[pointsIndex3];
+			Vec3f point4 = points[pointsIndex4];
+
+			if(output_triangles != NULL){
+				(*output_triangles)[triangleIndex * 3 * 2 + 0] = point1;
+				(*output_triangles)[triangleIndex * 3 * 2 + 1] = point2;
+				(*output_triangles)[triangleIndex * 3 * 2 + 2] = point4;
+				(*output_triangles)[triangleIndex * 3 * 2 + 3] = point1;
+				(*output_triangles)[triangleIndex * 3 * 2 + 4] = point4;
+				(*output_triangles)[triangleIndex * 3 * 2 + 5] = point3;
+			}
+
+			Vec2f t1 = getVec2f(x, y) / (float)width;
+			Vec2f t2 = getVec2f(x, y + 1.0) / (float)width;
+			Vec2f t3 = getVec2f(x + 1.0, y) / (float)width;
+			Vec2f t4 = getVec2f(x + 1.0, y + 1.0) / (float)width;
+
+			if(output_textureCoords != NULL){
+				(*output_textureCoords)[triangleIndex * 3 * 2 + 0] = t1;
+				(*output_textureCoords)[triangleIndex * 3 * 2 + 1] = t2;
+				(*output_textureCoords)[triangleIndex * 3 * 2 + 2] = t4;
+				(*output_textureCoords)[triangleIndex * 3 * 2 + 3] = t1;
+				(*output_textureCoords)[triangleIndex * 3 * 2 + 4] = t4;
+				(*output_textureCoords)[triangleIndex * 3 * 2 + 5] = t3;
+			}
+
+			triangleIndex++;
+
+		}
+	}
+
+	free(points);
+	
 }
 
 //MISC FUNCTIONS

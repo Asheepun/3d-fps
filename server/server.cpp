@@ -70,9 +70,6 @@ void *gameLoop(void *){
 
 				connection_p->n_handledInputs++;
 
-				//Vec3f_log(player_p->velocity);
-				//Vec3f_log(player_p->pos);
-
 			}
 
 			if(connection_p->n_receivedInputs > 0){
@@ -87,7 +84,16 @@ void *gameLoop(void *){
 			Connection *connection_p = &server.connections[i];
 
 			ServerGameState gameState;
-			gameState.playerPositions[0] = world.players[0].pos;
+
+			for(int j = 0; j < world.players.size(); j++){
+				gameState.players[j].connectionID = world.players[j].connectionID;
+				gameState.players[j].pos = world.players[j].pos;
+				gameState.players[j].velocity = world.players[j].velocity;
+				gameState.players[j].onGround = world.players[j].onGround;
+			}
+
+			gameState.n_players = world.players.size();
+
 			gameState.n_handledInputs = connection_p->n_handledInputs;
 
 			Message message;
@@ -98,191 +104,6 @@ void *gameLoop(void *){
 			sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
 		
 		}
-
-		/*
-		//handle inputs from clients
-		for(int i = 0; i < connections.size(); i++){
-
-			Connection *connection_p = &connections[i];
-
-			//check if connection is lost
-			if(connection_p->ticksSinceLastInput > 120){
-
-				int playerIndex;
-				for(int j = 0; j < players.size(); j++){
-					if(players[j].connectionID == connection_p->ID){
-						playerIndex = j;
-					}
-				}
-				//players.erase(players.begin() + playerIndex);
-				printf("disconnected client!\n");
-				connections.erase(connections.begin() + i);
-				i--;
-				continue;
-
-			}
-
-			Player *player_p;
-			for(int j = 0; j < players.size(); j++){
-				if(players[j].connectionID == connection_p->ID){
-					player_p = &players[j];
-				}
-			}
-
-			if(connection_p->n_handledInputs < connection_p->n_receivedInputs){
-
-				connection_p->ticksSinceLastInput = 0;
-
-				//printf("handling inputs\n");
-				//printf("%i, %i\n", connection_p->n_handledInputs, connection_p->n_receivedInputs);
-
-				Inputs inputs = connection_p->inputQueue[connection_p->n_handledInputs % INPUT_QUEUE_SIZE];
-				connection_p->n_handledInputs++;
-
-				//control player based on inputs
-				Vec2f cameraDirectionXZ = getVec2f(inputs.cameraDirection.x, inputs.cameraDirection.z);
-				Vec2f_normalize(&cameraDirectionXZ);
-
-				if(inputs.forwards == 1){
-					player_p->velocity.x += cameraDirectionXZ.x * PLAYER_SPEED;
-					player_p->velocity.z += cameraDirectionXZ.y * PLAYER_SPEED;
-				}
-				if(inputs.backwards == 1){
-					player_p->velocity.x += -cameraDirectionXZ.x * PLAYER_SPEED;
-					player_p->velocity.z += -cameraDirectionXZ.y * PLAYER_SPEED;
-				}
-				if(inputs.left == 1){
-					Vec3f left = getCrossVec3f(inputs.cameraDirection, getVec3f(0, 1.0, 0));
-					Vec3f_normalize(&left);
-					player_p->velocity.x += left.x * PLAYER_SPEED;
-					player_p->velocity.z += left.z * PLAYER_SPEED;
-				}
-				if(inputs.right == 1){
-					Vec3f right = getCrossVec3f(getVec3f(0, 1.0, 0), inputs.cameraDirection);
-					Vec3f_normalize(&right);
-					player_p->velocity.x += right.x * PLAYER_SPEED;
-					player_p->velocity.z += right.z * PLAYER_SPEED;
-				}
-				if(inputs.jump == 1
-				&& player_p->onGround){
-					player_p->velocity.y += PLAYER_JUMP_SPEED;
-				}
-				if(inputs.jump == 0
-				&& player_p->velocity.y > 0.0){
-					player_p->velocity.y *= 0.9;
-				}
-
-				//handle player physics
-				player_p->velocity.y += -PLAYER_GRAVITY;
-
-				player_p->velocity.x *= PLAYER_WALK_RESISTANCE;
-				player_p->velocity.z *= PLAYER_WALK_RESISTANCE;
-
-				player_p->lastPos = player_p->pos;
-				Vec3f_add(&player_p->pos, player_p->velocity);
-
-				player_p->onGround = false;
-
-				//handle collision between player and obstacles
-				for(int i = 0; i < obstacles.size(); i++){
-					
-					Obstacle *obstacle_p = &obstacles[i];
-					TriangleMesh *triangleMesh_p = &triangleMeshes[obstacle_p->triangleMeshIndex];
-
-					for(int j = 0; j < triangleMesh_p->n_triangles; j++){
-
-						Vec3f triangle1 = triangleMesh_p->triangles[j * 3 + 0];
-						Vec3f triangle2 = triangleMesh_p->triangles[j * 3 + 1];
-						Vec3f triangle3 = triangleMesh_p->triangles[j * 3 + 2];
-
-						Vec3f_mulByFloat(&triangle1, obstacle_p->scale);
-						Vec3f_mulByFloat(&triangle2, obstacle_p->scale);
-						Vec3f_mulByFloat(&triangle3, obstacle_p->scale);
-
-						Vec3f_add(&triangle1, obstacle_p->pos);
-						Vec3f_add(&triangle2, obstacle_p->pos);
-						Vec3f_add(&triangle3, obstacle_p->pos);
-
-						Vec3f up = getVec3f(0.0, 1.0, 0.0);
-
-						Vec3f u = getSubVec3f(triangle2, triangle1);
-						Vec3f v = getSubVec3f(triangle3, triangle1);
-						Vec3f N = getCrossVec3f(u, v);
-						Vec3f_normalize(&N);
-
-						float r = 0.2;
-						Vec3f playerFeetPos = player_p->pos;
-						playerFeetPos.y += r;
-
-						if(getDotVec3f(up, N) > 0.7){
-
-							Vec3f intersectionPoint;
-							bool hit = checkLineToTriangleIntersectionVec3f(player_p->pos, getAddVec3f(player_p->pos, up), triangle1, triangle2, triangle3, &intersectionPoint);
-
-							if(hit
-							&& intersectionPoint.y > player_p->pos.y
-							&& intersectionPoint.y < player_p->lastPos.y + r){
-								player_p->pos.y = intersectionPoint.y;
-								player_p->velocity.y = 0.0;
-								player_p->onGround = true;
-							}
-
-						}else{
-
-							bool hit = checkSphereToTriangleCollision(playerFeetPos, r, triangle1, triangle2, triangle3);
-
-							if(hit){
-
-								float distance = r - fabs((getDotVec3f(playerFeetPos, N) - getDotVec3f(triangle1, N)) / getDotVec3f(N, N));
-
-								Vec3f_add(&player_p->pos, getMulVec3fFloat(N, distance));
-								Vec3f_add(&player_p->velocity, getMulVec3fFloat(N, distance));
-								//Vec3f_add(&game.player.velocity, N);
-							}
-						
-						}
-
-					}
-				
-				}
-			
-			}else{
-				connection_p->ticksSinceLastInput++;
-			}
-
-		}
-
-		//playerPos.y -= PLAYER_GRAVITY;
-
-		//send updated state to clients
-		for(int i = 0; i < connections.size(); i++){
-
-			Connection *connection_p = &connections[i];
-
-			ServerGameState gameState;
-			for(int j = 0; j < players.size(); j++){
-				gameState.playerPositions[j] = players[j].pos;
-				gameState.playerVelocities[j] = players[j].velocity;
-				gameState.playerOnGrounds[j] = players[j].onGround;
-				gameState.playerConnectionIDs[j] = players[j].connectionID;
-			}
-			gameState.n_players = players.size();
-			//gameState.playerPos = playerPos;
-			//gameState.playerVelocity = playerVelocity;
-			gameState.n_handledInputs = connection_p->n_handledInputs;
-
-			char buffer[BUFFER_SIZE];
-			memset(buffer, 0, BUFFER_SIZE);
-
-			buffer[0] = SERVER_GAME_STATE;
-			memcpy(buffer + 1, &gameState, sizeof(ServerGameState));
-
-			sendto(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
-
-			printf("sent game state\n");
-		
-		}
-		*/
 
 		auto frameStopTime = std::chrono::high_resolution_clock::now();
 
@@ -324,6 +145,36 @@ int main(int argc, char **argv){
 			perror("[-]bind error");
 			exit(1);
 		}
+	}
+
+	//init world
+	{
+		//generate triangle mesh
+		{
+			Vec3f *triangles;
+			int n_triangles;
+
+			setRandomSeed(1);
+			generateTerrainTriangles(&triangles, NULL, &n_triangles);
+
+			TriangleMesh triangleMesh;
+			triangleMesh.triangles = triangles;
+			triangleMesh.n_triangles = n_triangles;
+			String_set(triangleMesh.name, "terrain", STRING_SIZE);
+
+			world.triangleMeshes.push_back(triangleMesh);
+		}
+
+		World_addObstacle(
+			&world,
+			getVec3f(0.0, 0.0, 0.0),
+			TERRAIN_SCALE,
+			World_getTriangleMeshIndexByName(&world, "terrain"),
+			0,
+			0,
+			getVec4f(1.0, 1.0, 1.0, 1.0)
+		);
+
 	}
 	
 	printf("started server\n");

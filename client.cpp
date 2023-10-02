@@ -12,11 +12,13 @@ void *receiveServerMessages(void *);
 
 //int n_sentInputs = 0;
 void Client_init(Client *client_p){
+
+	pthread_mutex_init(&client_p->serverGameStateMutex, NULL);
 	
 	client_p->n_sentInputs = 0;
-	client_p->n_receivedInputs = 0;
 
 	const char *ip = "127.0.0.1";
+	//const char *ip = "206.189.58.34";
 
 	client_p->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	memset(&client_p->address, '\0', sizeof(client_p->address));
@@ -29,6 +31,7 @@ void Client_init(Client *client_p){
 	Message message;
 	message.type = MESSAGE_CONNECTION_REQUEST;
 	sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr *)&client_p->address, client_p->addressSize);
+	printf("sent message to port\n");
 
 	memset(&message, 0, sizeof(Message));
 	recvfrom(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, &client_p->addressSize);
@@ -56,8 +59,14 @@ void *receiveServerMessages(void *clientPointer){
 
 			ServerGameState gameState;
 			memcpy(&gameState, message.buffer, sizeof(ServerGameState));
-			printf("got game state!\n");
-			Vec3f_log(gameState.playerPositions[0]);
+			//printf("got game state!\n");
+			//Vec3f_log(gameState.playerPositions[0]);
+
+			pthread_mutex_lock(&client_p->serverGameStateMutex);
+
+			client_p->latestServerGameState_mutexed = gameState;
+
+			pthread_mutex_unlock(&client_p->serverGameStateMutex);
 		
 		}
 

@@ -133,10 +133,10 @@ struct Game{
 
 	Client client;
 
-	ServerGameState latestServerGameState_mutexed;
-	pthread_mutex_t serverStateMutex;
-	int n_sentInputs;
-	std::vector<Inputs> inputsBuffer;
+	//ServerGameState latestServerGameState_mutexed;
+	//pthread_mutex_t serverStateMutex;
+	//int n_sentInputs;
+	//std::vector<Inputs> inputsBuffer;
 
 	int connectionID;
 
@@ -180,6 +180,8 @@ int World_addObstacle(World *, Vec3f, float, int, int, int, Vec4f);
 
 int World_getPlayerIndexByConnectionID(World *, int);
 Player *World_getPlayerPointerByConnectionID(World *, int);
+
+void generateTerrainTriangles(Vec3f **, Vec2f **, int *);
 
 Mat4f getSwordMatrix(Vec3f, Vec3f, float);
 

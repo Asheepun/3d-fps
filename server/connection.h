@@ -30,12 +30,20 @@ struct Inputs{
 	Vec3f cameraDirection;
 };
 
+struct PlayerData{
+	int connectionID;
+	Vec3f pos;
+	Vec3f velocity;
+	bool onGround;
+};
+
 struct ServerGameState{
 	int n_players;
-	Vec3f playerPositions[N_PLAYERS_MAX];
-	Vec3f playerVelocities[N_PLAYERS_MAX];
-	bool playerOnGrounds[N_PLAYERS_MAX];
-	int playerConnectionIDs[N_PLAYERS_MAX];
+	PlayerData players[N_PLAYERS_MAX];
+	//Vec3f playerPositions[N_PLAYERS_MAX];
+	//Vec3f playerVelocities[N_PLAYERS_MAX];
+	//bool playerOnGrounds[N_PLAYERS_MAX];
+	//int playerConnectionIDs[N_PLAYERS_MAX];
 	int n_handledInputs;
 };
 
@@ -71,7 +79,9 @@ struct Client{
 	socklen_t addressSize;
 	int connectionID;
 	int n_sentInputs;
-	int n_receivedInputs;
+	std::vector<Inputs> inputsBuffer;
+	ServerGameState latestServerGameState_mutexed;
+	pthread_mutex_t serverGameStateMutex;
 };
 
 #endif
