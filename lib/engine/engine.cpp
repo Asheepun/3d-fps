@@ -373,117 +373,150 @@ int main(){
 
 	//bool quit = false;
 
+	bool lastFocused = false;
+	bool focused = false;
+
 	while(!programShouldQuit){
 
 		//startTicks = clock();
 		auto frameStartTime = std::chrono::high_resolution_clock::now();
 
-		//handle window and button press events
-		while(XPending(dpy) > 0){
 
-			XNextEvent(dpy, &xev);
+		lastFocused = focused;
+		focused = false;
 
-			if(xev.type == ClientMessage
-			|| xev.type == DestroyNotify){
-				programShouldQuit = true;
-			}
-
-			if(xev.type == ConfigureNotify){
-
-				XConfigureEvent xce = xev.xconfigure;
-
-				if(xce.width != Engine_clientWidth
-				|| xce.height != Engine_clientHeight){
-					Engine_clientWidth = xce.width;
-					Engine_clientHeight = xce.height;
-				}
-
-			}
-
-			if(xev.type == ButtonPress){
-				XButtonEvent *buttonEvent_p = (XButtonEvent *)&xev;
-
-				if(buttonEvent_p->button == 1){
-					Engine_pointer.down = true;
-					Engine_pointer.downed = true;
-					Engine_pointer.lastDownedPos = Engine_pointer.pos;
-				}
-
-			}
-			if(xev.type == ButtonRelease){
-
-				XButtonEvent *buttonEvent_p = (XButtonEvent *)&xev;
-
-				if(buttonEvent_p->button == 1){
-					Engine_pointer.down = false;
-					Engine_pointer.upped = true;
-					Engine_pointer.lastUppedPos = Engine_pointer.pos;
-				}
-
-				if(buttonEvent_p->button == 4){
-					Engine_pointer.scroll++;
-				}
-				if(buttonEvent_p->button == 5){
-					Engine_pointer.scroll--;
-				}
-
-			}
-
-		}
-
-		//get keyboard state
 		{
-			char keys[32];
-			XQueryKeymap(dpy, keys);
-
-			for(int i = 0; i < ENGINE_KEYS_LENGTH; i++){
-
-				int keyCode = XKeysymToKeycode(dpy, OS_KEY_IDENTIFIERS[i]);
-				int byteIndex = keyCode / 8;
-				int bitIndex = keyCode % 8;
-
-				if((keys[byteIndex] >> bitIndex) & 0x01){
-					if(!Engine_keys[i].down){
-						Engine_keys[i].downed = true;
-					}
-					Engine_keys[i].down = true;
-				}else{
-					if(Engine_keys[i].down){
-						Engine_keys[i].upped = true;
-					}
-					Engine_keys[i].down = false;
-				}
-				
-			}
-		}
-
-		//get pointer state
-		{
-			Window returnWindow;
+			Window focusedWindow;
 			int returnInt;
-			int XPointerX, XPointerY;
-			unsigned int buttonMask;
-			if(XQueryPointer(dpy, win, &returnWindow, &returnWindow, &returnInt, &returnInt, &XPointerX, &XPointerY, &buttonMask)){
+			XGetInputFocus(dpy, &focusedWindow, &returnInt);
 
-				Engine_pointer.pos.x = XPointerX;
-				Engine_pointer.pos.y = XPointerY;
-
-				Engine_pointer.movement.x = Engine_pointer.pos.x - Engine_clientWidth / 2;
-				Engine_pointer.movement.y = Engine_pointer.pos.y - Engine_clientHeight / 2;
-
+			if(focusedWindow == win){
+				focused = true;
 			}
 		}
 
-		//do fps magic
+		//printf("%i\n", focused);
 
-		if(Engine_fpsModeOn){
+		if(focused){
 
-			int screenWidth = DisplayWidth(dpy, DefaultScreen(dpy));
-			int screenHeight = DisplayHeight(dpy, DefaultScreen(dpy));
+			//handle window and button press events
+			while(XPending(dpy) > 0){
 
-			XWarpPointer(dpy, None, root, 0, 0, 0, 0, screenWidth / 2, screenHeight / 2);
+				XNextEvent(dpy, &xev);
 
-		}else{
+				if(xev.type == ClientMessage
+				|| xev.type == DestroyNotify){
+					programShouldQuit = true;
+				}
+
+				if(xev.type == ConfigureNotify){
+
+					XConfigureEvent xce = xev.xconfigure;
+
+					if(xce.width != Engine_clientWidth
+					|| xce.height != Engine_clientHeight){
+						Engine_clientWidth = xce.width;
+						Engine_clientHeight = xce.height;
+					}
+
+				}
+
+				if(xev.type == ButtonPress){
+					XButtonEvent *buttonEvent_p = (XButtonEvent *)&xev;
+
+					if(buttonEvent_p->button == 1){
+						Engine_pointer.down = true;
+						Engine_pointer.downed = true;
+						Engine_pointer.lastDownedPos = Engine_pointer.pos;
+					}
+
+				}
+				if(xev.type == ButtonRelease){
+
+					XButtonEvent *buttonEvent_p = (XButtonEvent *)&xev;
+
+					if(buttonEvent_p->button == 1){
+						Engine_pointer.down = false;
+						Engine_pointer.upped = true;
+						Engine_pointer.lastUppedPos = Engine_pointer.pos;
+					}
+
+					if(buttonEvent_p->button == 4){
+						Engine_pointer.scroll++;
+					}
+					if(buttonEvent_p->button == 5){
+						Engine_pointer.scroll--;
+					}
+
+				}
+
+			}
+
+			//get keyboard state
+			{
+				char keys[32];
+				XQueryKeymap(dpy, keys);
+
+				for(int i = 0; i < ENGINE_KEYS_LENGTH; i++){
+
+					int keyCode = XKeysymToKeycode(dpy, OS_KEY_IDENTIFIERS[i]);
+					int byteIndex = keyCode / 8;
+					int bitIndex = keyCode % 8;
+
+					if((keys[byteIndex] >> bitIndex) & 0x01){
+						if(!Engine_keys[i].down){
+							Engine_keys[i].downed = true;
+						}
+						Engine_keys[i].down = true;
+					}else{
+						if(Engine_keys[i].down){
+							Engine_keys[i].upped = true;
+						}
+						Engine_keys[i].down = false;
+					}
+					
+				}
+			}
+
+			//get pointer state
+			{
+				Window returnWindow;
+				int returnInt;
+				int XPointerX, XPointerY;
+				unsigned int buttonMask;
+				if(XQueryPointer(dpy, win, &returnWindow, &returnWindow, &returnInt, &returnInt, &XPointerX, &XPointerY, &buttonMask)){
+
+					Engine_pointer.pos.x = XPointerX;
+					Engine_pointer.pos.y = XPointerY;
+
+					Engine_pointer.movement.x = Engine_pointer.pos.x - Engine_clientWidth / 2;
+					Engine_pointer.movement.y = Engine_pointer.pos.y - Engine_clientHeight / 2;
+
+				}
+			}
+
+			//do fps magic
+			if(Engine_fpsModeOn){
+
+				if(!lastFocused){
+					XFixesHideCursor(dpy, root);
+					XFlush(dpy);
+				}
+
+				int screenWidth = DisplayWidth(dpy, DefaultScreen(dpy));
+				int screenHeight = DisplayHeight(dpy, DefaultScreen(dpy));
+
+				XWarpPointer(dpy, None, root, 0, 0, 0, 0, screenWidth / 2, screenHeight / 2);
+
+			}
+
+		}
+
+		if(!focused
+		&& lastFocused
+		&& Engine_fpsModeOn){
+			XFixesShowCursor(dpy, root);
+			XFlush(dpy);
 		}
 
 		//update
@@ -858,6 +891,7 @@ void Engine_setFPSMode(bool setting){
 
 	Engine_fpsModeOn = setting;
 
+	/*
 #ifdef __linux__
 	if(Engine_fpsModeOn){
 		XFixesHideCursor(dpy, root);
@@ -881,6 +915,7 @@ void Engine_setFPSMode(bool setting){
 		while(ShowCursor(true) <= 0){}
 	}
 #endif
+*/
 
 }
 

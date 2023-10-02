@@ -328,7 +328,8 @@ void Engine_start(){
 
 	Engine_centerWindow();
 
-	Engine_setFPSMode(true);
+	Engine_fpsModeOn = true;
+	//Engine_setFPSMode(true);
 
 	//OpenGL stuff
 	glEnable(GL_BLEND);
