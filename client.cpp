@@ -176,6 +176,10 @@ void Game_sendInputsToServer(Game *game_p, Inputs inputs){
 }
 */
 
+#define SEND_WITH_LAG
+int SEND_LAG_FRAMES = 10;
+std::vector<Message> lagBuffer;
+
 void Client_sendInputsToServer(Client *client_p, Inputs inputs){
 
 	Message message;
@@ -186,7 +190,16 @@ void Client_sendInputsToServer(Client *client_p, Inputs inputs){
 
 	memcpy(message.buffer, &inputs, sizeof(Inputs));
 
+#ifdef SEND_WITH_LAG
+	lagBuffer.push_back(message);
+
+	if(lagBuffer.size() > SEND_LAG_FRAMES){
+		sendto(client_p->sockfd, &lagBuffer[0], sizeof(Message), 0, (struct sockaddr*)&client_p->address, client_p->addressSize);
+		lagBuffer.erase(lagBuffer.begin());
+	}
+#else
 	sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, client_p->addressSize);
+#endif
 
 	client_p->n_sentInputs++;
 

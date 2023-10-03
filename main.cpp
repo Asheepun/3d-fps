@@ -584,7 +584,7 @@ void Engine_update(float deltaTime){
 	//get latest server game state
 	pthread_mutex_lock(&game.client.serverGameStateMutex);
 
-	ServerGameState latestServerGameState = game.client.latestServerGameState_mutexed;
+	ServerGameState serverGameState = game.client.latestServerGameState_mutexed;
 
 	pthread_mutex_unlock(&game.client.serverGameStateMutex);
 
@@ -619,6 +619,7 @@ void Engine_update(float deltaTime){
 	}
 
 	inputs.sendingNumber = game.client.n_sentInputs;
+	inputs.gameTime = serverGameState.gameTime;
 
 	//handle pointer intputs
 	cameraRotation.x += -Engine_pointer.movement.x * PLAYER_LOOK_SPEED;
@@ -639,81 +640,55 @@ void Engine_update(float deltaTime){
 	inputs.cameraDirection = cameraDirection;
 
 	//buffer inputs
-	game.client.inputsBuffer.clear();
-	game.client.inputsBuffer.push_back(inputs);
+	//game.client.inputsBuffer.clear();
+	//game.client.inputsBuffer.push_back(inputs);
 
 #ifndef RUN_OFFLINE
 	//send inputs to server
 	Client_sendInputsToServer(&game.client, inputs);
-	//Game_sendInputsToServer(&game, inputs);
 
-	//apply inputs to player
-	{
-	}
+	//update world based on latest server game state
+	for(int i = 0; i < serverGameState.n_players; i++){
 
-	/*
-	//update client based on latest server state
-	game.otherPlayers.clear();
+		PlayerData *serverPlayerData_p = &serverGameState.players[i];
+		Player *player_p = World_getPlayerPointerByConnectionID(&game.world, serverPlayerData_p->connectionID);
 
-	for(int i = 0; i < latestServerGameState.n_players; i++){
-		printf("player %i\n", i);
-		if(game.connectionID == latestServerGameState.playerConnectionIDs[i]){
-			game.player.pos = latestServerGameState.playerPositions[i];
-			game.player.velocity = latestServerGameState.playerVelocities[i];
-			game.player.onGround = latestServerGameState.playerOnGrounds[i];
-		}else{
-			Player otherPlayer;
-			otherPlayer.pos = latestServerGameState.playerPositions[i];
-			game.otherPlayers.push_back(otherPlayer);
+		if(player_p == NULL){
+			World_addPlayer(&game.world, getVec3f(0.0), serverPlayerData_p->connectionID);
+			player_p = World_getPlayerPointerByConnectionID(&game.world, serverPlayerData_p->connectionID);
 		}
-	}
 
-	while(game.inputsBuffer.size() > game.n_sentInputs - latestServerGameState.n_handledInputs){
-		game.inputsBuffer.erase(game.inputsBuffer.begin());
-	}
-	*/
-#endif
-
-	//update client based on latest server game state
-	{
-		for(int i = 0; i < latestServerGameState.n_players; i++){
-
-			PlayerData *serverPlayerData_p = &latestServerGameState.players[i];
-			Player *player_p = World_getPlayerPointerByConnectionID(&game.world, serverPlayerData_p->connectionID);
-
-			if(player_p == NULL){
-				World_addPlayer(&game.world, getVec3f(0.0), serverPlayerData_p->connectionID);
-				player_p = World_getPlayerPointerByConnectionID(&game.world, serverPlayerData_p->connectionID);
-			}
-
+		//skip player position update unless they are too unsyncronized
+		if(!(player_p->connectionID == game.client.connectionID
+		&& length(player_p->pos - serverPlayerData_p->pos) < 10.0)){
 			player_p->pos = serverPlayerData_p->pos;
 			player_p->velocity = serverPlayerData_p->velocity;
 			player_p->onGround = serverPlayerData_p->onGround;
-			player_p->health = serverPlayerData_p->health;
-
 		}
+
+		player_p->health = serverPlayerData_p->health;
+
 	}
 
-	//simulate inputs on client
-	for(int i = 0; i < game.client.inputsBuffer.size(); i++){
+	//discard inputs that the server has simulated past
+	//while(game.client.inputsBuffer.size() > game.client.n_sentInputs - serverGameState.n_handledInputs){
+		//game.client.inputsBuffer.erase(game.client.inputsBuffer.begin());
+	//}
+#endif
 
-		//printf("%i\n", i);
-
-		Inputs inputs = game.client.inputsBuffer[i];
-
-		//control player based on inputs
+	//handle inputs on client
+	{
 		Player *player_p = World_getPlayerPointerByConnectionID(&game.world, game.client.connectionID);
 
 		player_p->direction = inputs.cameraDirection;
 
 		if(inputs.shoot){
-
 			if(player_p->weapon == WEAPON_GUN){
 
 				Vec3f hitPosition;
 				Vec3f hitNormal;
 				int hitConnectionID;
-				bool hit = Player_World_shoot_common(player_p, &game.world, &hitPosition, &hitNormal, &hitConnectionID);
+				bool hit = Player_World_shoot_common(player_p, &game.world, game.world.players, &hitPosition, &hitNormal, &hitConnectionID);
 
 				if(hit){
 
@@ -733,73 +708,43 @@ void Engine_update(float deltaTime){
 					}
 
 				}
-			
+
 			}
 		}
+	
+		Player_World_moveAndCollideBasedOnInputs_common(player_p, &game.world, inputs);
+	}
+	/*
+	//simulate inputs on client
+	for(int i = 0; i < game.client.inputsBuffer.size(); i++){
 
-		//Player_applyInputs(player_p, inputs);
+		//printf("%i\n", i);
 
-		/*
-		if(inputs.shoot == 1){
+		Inputs inputs = game.client.inputsBuffer[i];
 
-			if(game.player.weapon == WEAPON_GUN){
-				for(int i = 0; i < game.otherPlayers.size(); i++){
-					
-					Player *player_p = &game.otherPlayers[i];
+		//control player based on inputs
+		Player *player_p = World_getPlayerPointerByConnectionID(&game.world, game.client.connectionID);
 
-					BoneTriangleMesh *boneTriangleMesh_p = &game.boneTriangleMeshes[0];
-					BoneRig *boneRig_p = &game.boneRigs[0];
-					BoneRig *boneRig2_p = &game.boneRigs[1];
+		player_p->direction = inputs.cameraDirection;
 
-					std::vector<Mat4f> boneTransformations = getBoneRigTransformations(boneRig_p, boneRig2_p->originBones);
+		if(i == game.client.inputsBuffer.size() - 1){
+			if(inputs.shoot){
+				if(player_p->weapon == WEAPON_GUN){
 
-					float scale = 0.5;
+					Vec3f hitPosition;
+					Vec3f hitNormal;
+					int hitConnectionID;
+					bool hit = Player_World_shoot_common(player_p, &game.world, game.world.players, &hitPosition, &hitNormal, &hitConnectionID);
 
-					Mat4f modelMatrix = getModelMatrix(player_p->pos, getVec3f(scale), IDENTITY_QUATERNION);
-
-					Vec3f intersectionPoint;
-					Vec3f intersectionNormal;
-					float intersectionDistance = -1.0;
-
-					for(int j = 0; j < boneTriangleMesh_p->n_triangles; j++){
-
-						Vec3f checkPoint;
-
-						Vec3f points[3];
-
-						for(int k = 0; k < 3; k++){
-
-							int triangleIndex = j * 3 + k;
-
-							Mat4f jointMatrix = boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 0] - 1] * boneTriangleMesh_p->weights[triangleIndex].x
-								+ boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 1] - 1] * boneTriangleMesh_p->weights[triangleIndex].y
-								+ boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 2] - 1] * boneTriangleMesh_p->weights[triangleIndex].z
-								+ boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 3] - 1] * boneTriangleMesh_p->weights[triangleIndex].w;
-
-							points[k] = mulVec3fMat4f(boneTriangleMesh_p->triangles[triangleIndex], modelMatrix * jointMatrix, 1.0);
-
-						}
-
-						if(checkLineToTriangleIntersectionVec3f(cameraPos, cameraPos + cameraDirection, points[0], points[1], points[2], &checkPoint)
-						&& (intersectionDistance < 0.0
-						|| length(checkPoint - cameraPos) < intersectionDistance)){
-							intersectionPoint = checkPoint;
-							intersectionNormal = cross(points[0] - points[1], points[0] - points[2]);
-							intersectionDistance = length(checkPoint - cameraPos);
-						}
-					}
-
-					intersectionNormal = normalize(intersectionNormal);
-
-					if(intersectionDistance >= 0.0){
+					if(hit){
 
 						int n_particles = 17 + getRandom() * 5;
 
 						for(int j = 0; j < n_particles; j++){
 
 							Particle particle;
-							particle.pos = intersectionPoint;
-							particle.velocity = intersectionNormal * 0.1;
+							particle.pos = hitPosition;
+							particle.velocity = hitNormal * 0.1;
 							particle.velocity.y += 0.1;
 							particle.velocity += normalize(getVec3f(getRandom() - 0.5, getRandom() - 0.5, getRandom() - 0.5)) * 0.05;
 							particle.scale = getVec3f(0.1 * (0.8 + 0.4 * getRandom()));
@@ -809,22 +754,15 @@ void Engine_update(float deltaTime){
 						}
 
 					}
-
+				
 				}
 			}
-			if(game.player.weapon == WEAPON_SWORD){
-
-				swingAngle = -SWING_ANGLE_RANGE;
-				//swingAngle = 0.0;
-
-			}
-
 		}
-*/
 
-		//World_updatePlayersAndObstaclesCommon(&game.world);
+		Player_World_moveAndCollideBasedOnInputs_common(player_p, &game.world, inputs);
 
 	}
+	*/
 
 
 	/*

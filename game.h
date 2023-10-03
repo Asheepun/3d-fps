@@ -172,7 +172,7 @@ static float PLAYER_CROUCH_SPEED = 0.025;
 
 //FILE: world.cpp
 
-bool Player_World_shoot_common(Player *, World *, Vec3f *, Vec3f *, int *);
+bool Player_World_shoot_common(Player *, World *, std::vector<Player>, Vec3f *, Vec3f *, int *);
 void Player_World_moveAndCollideBasedOnInputs_common(Player *, World *, Inputs);
 
 //void World_updatePlayersAndObstaclesCommon(World *);

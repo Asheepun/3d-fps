@@ -18,6 +18,8 @@ const int N_PLAYERS_MAX = 4;
 const int INPUT_QUEUE_SIZE = 64;
 const int TICKS_UNTIL_DISCONNECT = 120;
 
+const int PAST_PLAYERS_BUFFER_SIZE = 30;
+
 //COMMON
 struct Inputs{
 	char forwards;
@@ -29,6 +31,7 @@ struct Inputs{
 	char crouch;
 	Vec3f cameraDirection;
 	int sendingNumber;
+	int gameTime;
 };
 
 struct PlayerData{
@@ -42,11 +45,8 @@ struct PlayerData{
 struct ServerGameState{
 	int n_players;
 	PlayerData players[N_PLAYERS_MAX];
-	//Vec3f playerPositions[N_PLAYERS_MAX];
-	//Vec3f playerVelocities[N_PLAYERS_MAX];
-	//bool playerOnGrounds[N_PLAYERS_MAX];
-	//int playerConnectionIDs[N_PLAYERS_MAX];
 	int n_handledInputs;
+	int gameTime;
 };
 
 struct Message{
@@ -72,6 +72,7 @@ struct Server{
 	socklen_t addressSize;
 	std::vector<Connection> connections;
 	int currentConnectionID;
+	int gameTime;
 };
 
 //CLIENT SIDE

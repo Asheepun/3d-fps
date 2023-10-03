@@ -17,6 +17,7 @@
 
 Server server;
 World world;
+std::vector<std::vector<Player>> pastPlayersBuffer;
 
 //int currentConnectionID = 0;
 
@@ -68,17 +69,20 @@ void *gameLoop(void *){
 
 				Inputs inputs = connection_p->inputQueue[connection_p->n_handledInputs % INPUT_QUEUE_SIZE];
 
-				//printf("input: %i\n", inputs.sendingNumber);
-
 				player_p->direction = inputs.cameraDirection;
 
 				if(inputs.shoot){
+
+					//calculate shot relative to the shooters time
+					int timeDifference = server.gameTime - inputs.gameTime;
+					int pastPlayersBufferIndex = max(pastPlayersBuffer.size() - 1 - timeDifference, 0);
+
 					if(player_p->weapon == WEAPON_GUN){
 
 						Vec3f hitPosition;
 						Vec3f hitNormal;
 						int hitConnectionID;
-						bool hit = Player_World_shoot_common(player_p, &world, &hitPosition, &hitNormal, &hitConnectionID);
+						bool hit = Player_World_shoot_common(player_p, &world, pastPlayersBuffer[pastPlayersBufferIndex], &hitPosition, &hitNormal, &hitConnectionID);
 
 						if(hit){
 							Player *hitPlayer_p = World_getPlayerPointerByConnectionID(&world, hitConnectionID);
@@ -118,6 +122,7 @@ void *gameLoop(void *){
 			gameState.n_players = world.players.size();
 
 			gameState.n_handledInputs = connection_p->n_handledInputs;
+			gameState.gameTime = server.gameTime;
 
 			Message message;
 			message.type = MESSAGE_SERVER_GAME_STATE;
@@ -127,6 +132,15 @@ void *gameLoop(void *){
 			sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
 		
 		}
+
+		//save player states in buffer
+		pastPlayersBuffer.push_back(world.players);
+
+		if(pastPlayersBuffer.size() > PAST_PLAYERS_BUFFER_SIZE){
+			pastPlayersBuffer.erase(pastPlayersBuffer.begin());
+		}
+
+		server.gameTime++;
 
 		auto frameStopTime = std::chrono::high_resolution_clock::now();
 
@@ -168,6 +182,8 @@ int main(int argc, char **argv){
 			perror("[-]bind error");
 			exit(1);
 		}
+
+		server.gameTime = 0;
 	}
 
 	//init world

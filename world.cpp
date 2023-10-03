@@ -7,7 +7,7 @@ int CURRENT_AVAILABLE_ID = 0;
 
 //ENTITY FUNCTIONS
 
-bool Player_World_shoot_common(Player *player_p, World *world_p, Vec3f *output_hitPosition, Vec3f *output_hitNormal, int *output_hitConnectionID){
+bool Player_World_shoot_common(Player *player_p, World *world_p, std::vector<Player> checkPlayers, Vec3f *output_hitPosition, Vec3f *output_hitNormal, int *output_hitConnectionID){
 
 	Vec3f rayPosition = player_p->pos + getVec3f(0.0, player_p->height, 0.0);
 	Vec3f rayDirection = player_p->direction;
@@ -18,15 +18,11 @@ bool Player_World_shoot_common(Player *player_p, World *world_p, Vec3f *output_h
 	int hitConnectionID;
 	bool hit = false;
 
-	for(int i = 0; i < world_p->players.size(); i++){
+	for(int i = 0; i < checkPlayers.size(); i++){
 
 		Player *checkPlayer_p = &world_p->players[i];
 
 		if(checkPlayer_p->connectionID != player_p->connectionID){
-
-			Vec3f_log(checkPlayer_p->pos);
-			Vec3f_log(rayPosition);
-			Vec3f_log(rayDirection);
 
 			BoneTriangleMesh *boneTriangleMesh_p = &world_p->boneTriangleMeshes[0];
 			BoneRig *boneRig_p = &world_p->boneRigs[0];
