@@ -15,7 +15,7 @@
 Vec3f treePos = { 10.0, 0.0, 15.0 };
 TextureBuffer leafTransformationsTextureBuffer;
 
-bool drawTimings = true;
+bool drawTimings = false;
 
 float gameTime = 0.0;
 
@@ -110,7 +110,7 @@ void Engine_start(){
 #endif
 
 	Game_loadAssets(&game);
-	World_loadAssets(&game.world);
+	World_loadAssets(&game.world, "./");
 
 	Renderer2D_init(&renderer2D, WIDTH, HEIGHT);
 
@@ -409,7 +409,7 @@ void Engine_start(){
 
 	World_addPlayer(&game.world, getVec3f(5.0, 3.0, 5.0), game.client.connectionID);
 
-	//World_addPlayer(&game.world, getVec3f(15.0, 3.0, 15.0), 100);
+	World_addPlayer(&game.world, getVec3f(10.0, 3.0, 15.0), 100);
 
 	/*
 	{
@@ -618,6 +618,8 @@ void Engine_update(float deltaTime){
 		inputs.shoot = 1;
 	}
 
+	inputs.sendingNumber = game.client.n_sentInputs;
+
 	//handle pointer intputs
 	cameraRotation.x += -Engine_pointer.movement.x * PLAYER_LOOK_SPEED;
 	cameraRotation.y += -Engine_pointer.movement.y * PLAYER_LOOK_SPEED;
@@ -637,8 +639,8 @@ void Engine_update(float deltaTime){
 	inputs.cameraDirection = cameraDirection;
 
 	//buffer inputs
-	//game.inputsBuffer.clear();
-	//game.inputsBuffer.push_back(inputs);
+	game.client.inputsBuffer.clear();
+	game.client.inputsBuffer.push_back(inputs);
 
 #ifndef RUN_OFFLINE
 	//send inputs to server
@@ -687,6 +689,7 @@ void Engine_update(float deltaTime){
 			player_p->pos = serverPlayerData_p->pos;
 			player_p->velocity = serverPlayerData_p->velocity;
 			player_p->onGround = serverPlayerData_p->onGround;
+			player_p->health = serverPlayerData_p->health;
 
 		}
 	}
@@ -700,6 +703,39 @@ void Engine_update(float deltaTime){
 
 		//control player based on inputs
 		Player *player_p = World_getPlayerPointerByConnectionID(&game.world, game.client.connectionID);
+
+		player_p->direction = inputs.cameraDirection;
+
+		if(inputs.shoot){
+
+			if(player_p->weapon == WEAPON_GUN){
+
+				Vec3f hitPosition;
+				Vec3f hitNormal;
+				int hitConnectionID;
+				bool hit = Player_World_shoot_common(player_p, &game.world, &hitPosition, &hitNormal, &hitConnectionID);
+
+				if(hit){
+
+					int n_particles = 17 + getRandom() * 5;
+
+					for(int j = 0; j < n_particles; j++){
+
+						Particle particle;
+						particle.pos = hitPosition;
+						particle.velocity = hitNormal * 0.1;
+						particle.velocity.y += 0.1;
+						particle.velocity += normalize(getVec3f(getRandom() - 0.5, getRandom() - 0.5, getRandom() - 0.5)) * 0.05;
+						particle.scale = getVec3f(0.1 * (0.8 + 0.4 * getRandom()));
+						
+						game.bloodParticles.push_back(particle);
+
+					}
+
+				}
+			
+			}
+		}
 
 		//Player_applyInputs(player_p, inputs);
 
@@ -1735,7 +1771,7 @@ void Engine_draw(){
 		}
 		*/
 
-		//draw other players
+		//draw players
 		if(renderStage == RENDER_STAGE_SCENE){
 
 			Shader *shader_p = Game_getShaderPointerByName(&game, "bone");
@@ -2092,16 +2128,30 @@ void Engine_draw(){
 			Renderer2D_drawText(&renderer2D, drawText, 80, 130, 60, font);
 
 			Renderer2D_drawText(&renderer2D, totalText, 80, 200, 60, font);
-
-			/*
-			if(game.player.weapon == WEAPON_GUN){
-				Renderer2D_drawText(&renderer2D, "Gun", WIDTH - 220, 40, 60, font);
-			}
-			if(game.player.weapon == WEAPON_SWORD){
-				Renderer2D_drawText(&renderer2D, "Sword", WIDTH - 220, 40, 60, font);
-			}
-			*/
 		
+		}
+
+		//draw hud
+		{
+			Player *player_p = World_getPlayerPointerByConnectionID(&game.world, game.client.connectionID);
+
+			Renderer2D_setShader(&renderer2D, renderer2D.textureColorShader);
+
+			Renderer2D_setColor(&renderer2D, getVec4f(1.0, 1.0, 1.0, 1.0));
+
+			char healthText[STRING_SIZE];
+			String_set(healthText, "", STRING_SIZE);
+			sprintf(healthText, "%i HP", player_p->health);
+
+			Renderer2D_drawText(&renderer2D, healthText, 40, 40, 60, font);
+
+
+			if(player_p->weapon == WEAPON_GUN){
+				Renderer2D_drawText(&renderer2D, "Gun", 40, 100, 60, font);
+			}
+			if(player_p->weapon == WEAPON_SWORD){
+				Renderer2D_drawText(&renderer2D, "Sword", 40, 100, 60, font);
+			}
 		}
 	
 		glEnable(GL_DEPTH_TEST);

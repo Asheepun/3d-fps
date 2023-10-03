@@ -3,7 +3,7 @@ import base64
 import struct
 import math
 
-fileName = "dude-bones"
+fileName = "dude-bones2"
   
 gltfFile = open(fileName + ".gltf")
 #gltfFile = open('minimalfile.gltf')
@@ -73,10 +73,10 @@ for i in indices:
         normals[i * 3 + 2],
         texCoords[i * 2 + 0],
         texCoords[i * 2 + 1],
-        joints[i * 4 + 0],
-        joints[i * 4 + 1],
-        joints[i * 4 + 2],
-        joints[i * 4 + 3],
+        max(joints[i * 4 + 0] - 1, 0),
+        max(joints[i * 4 + 1] - 1, 0),
+        max(joints[i * 4 + 2] - 1, 0),
+        max(joints[i * 4 + 3] - 1, 0),
         weights[i * 4 + 0],
         weights[i * 4 + 1],
         weights[i * 4 + 2],

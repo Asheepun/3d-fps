@@ -20,10 +20,10 @@ void main(){
 	vec4 vertexPosition = vec4(attribute_vertex.xyz, 1.0);
 	vec4 vertexNormal = vec4(attribute_normalVertex.xyz, 1.0);
 
-	mat4 boneTransformationSum = boneTransformations[int(attribute_boneIndices.x) - 1] * attribute_boneWeights.x
-							   + boneTransformations[int(attribute_boneIndices.y) - 1] * attribute_boneWeights.y
-							   + boneTransformations[int(attribute_boneIndices.z) - 1] * attribute_boneWeights.z
-							   + boneTransformations[int(attribute_boneIndices.w) - 1] * attribute_boneWeights.w;
+	mat4 boneTransformationSum = boneTransformations[int(attribute_boneIndices.x)] * attribute_boneWeights.x
+							   + boneTransformations[int(attribute_boneIndices.y)] * attribute_boneWeights.y
+							   + boneTransformations[int(attribute_boneIndices.z)] * attribute_boneWeights.z
+							   + boneTransformations[int(attribute_boneIndices.w)] * attribute_boneWeights.w;
 
 	vertexPosition *= boneTransformationSum;
 	vertexNormal *= boneTransformationSum;

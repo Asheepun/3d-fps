@@ -65,8 +65,30 @@ void *gameLoop(void *){
 			Player *player_p = World_getPlayerPointerByConnectionID(&world, connection_p->ID);
 
 			while(connection_p->n_handledInputs < connection_p->n_receivedInputs){
+
+				Inputs inputs = connection_p->inputQueue[connection_p->n_handledInputs % INPUT_QUEUE_SIZE];
+
+				//printf("input: %i\n", inputs.sendingNumber);
+
+				player_p->direction = inputs.cameraDirection;
+
+				if(inputs.shoot){
+					if(player_p->weapon == WEAPON_GUN){
+
+						Vec3f hitPosition;
+						Vec3f hitNormal;
+						int hitConnectionID;
+						bool hit = Player_World_shoot_common(player_p, &world, &hitPosition, &hitNormal, &hitConnectionID);
+
+						if(hit){
+							Player *hitPlayer_p = World_getPlayerPointerByConnectionID(&world, hitConnectionID);
+							hitPlayer_p->health -= 20;
+						}
+					
+					}
+				}
 				
-				Player_World_moveAndCollideBasedOnInputs_common(player_p, &world, connection_p->inputQueue[connection_p->n_handledInputs % INPUT_QUEUE_SIZE]);
+				Player_World_moveAndCollideBasedOnInputs_common(player_p, &world, inputs);
 
 				connection_p->n_handledInputs++;
 
@@ -90,6 +112,7 @@ void *gameLoop(void *){
 				gameState.players[j].pos = world.players[j].pos;
 				gameState.players[j].velocity = world.players[j].velocity;
 				gameState.players[j].onGround = world.players[j].onGround;
+				gameState.players[j].health = world.players[j].health;
 			}
 
 			gameState.n_players = world.players.size();
@@ -149,6 +172,8 @@ int main(int argc, char **argv){
 
 	//init world
 	{
+		World_loadAssets(&world, "../");
+
 		//generate triangle mesh
 		{
 			Vec3f *triangles;
@@ -219,24 +244,6 @@ int main(int argc, char **argv){
 
 			printf("sent id: %i\n", connection.ID);
 
-			/*
-			Player player;
-			player.pos = getVec3f(5.0, 3.0, 5.0);
-			player.direction = getVec3f(0.0, 0.0, 1.0);
-			player.velocity = getVec3f(0.0, 0.0, 0.0);
-			player.connectionID = connection.ID;
-
-			players.push_back(player);
-
-			char buffer[BUFFER_SIZE];
-			memset(buffer, 0, BUFFER_SIZE);
-
-			buffer[0] = CONNECTION_ID;
-			memcpy(buffer + 1, &connection.ID, sizeof(int));
-
-			sendto(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&connection.clientAddress, connection.clientAddressSize);
-			*/
-
 		}else if(message.type == MESSAGE_CLIENT_INPUTS){
 			Inputs inputs;
 			memcpy(&inputs, message.buffer, sizeof(Inputs));
@@ -252,56 +259,14 @@ int main(int argc, char **argv){
 				Connection *connection_p = &server.connections[i];
 
 				if(connection_p->ID == message.connectionID){
-					//printf("bruh\n");
 					connection_p->inputQueue[connection_p->n_receivedInputs % INPUT_QUEUE_SIZE] = inputs;
 					connection_p->n_receivedInputs++;
 				}
 
 			}
 		}
-
-		/*
-		if(buffer[0] == CLIENT_INPUTS){
-
-			int connectionID;
-			memcpy(&connectionID, buffer + 1, sizeof(int));
-
-			Inputs inputs;
-			memcpy(&inputs, buffer + 1 + sizeof(int), sizeof(Inputs));
-
-			printf("got inputs\n");
-			printf("%i\n", inputs.forwards);
-			printf("%i\n", inputs.backwards);
-			printf("%i\n", inputs.left);
-			printf("%i\n", inputs.right);
-			Vec3f_log(inputs.cameraDirection);
-
-			for(int i = 0; i < connections.size(); i++){
-
-				Connection *connection_p = &connections[i];
-
-				if(connection_p->ID == connectionID){
-
-					connection_p->inputQueue[connection_p->n_receivedInputs % INPUT_QUEUE_SIZE] = inputs;
-					connection_p->n_receivedInputs++;
-
-				}
-
-			}
-			
-			//printf("Got inputs from: %i\n", connectionID);
-
-		}
-		*/
 
 	}
-
-	/*
-	bzero(buffer, 1024);
-	strcpy(buffer, "Welcome to the UDP Server.");
-	sendto(sockfd, buffer, 1024, 0, (struct sockaddr*)&client_addr, sizeof(client_addr));
-	printf("[+]Data send: %s\n", buffer);
-	*/
 
 	return 0;
 

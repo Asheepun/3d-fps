@@ -28,10 +28,12 @@ struct Inputs{
 	char shoot;
 	char crouch;
 	Vec3f cameraDirection;
+	int sendingNumber;
 };
 
 struct PlayerData{
 	int connectionID;
+	int health;
 	Vec3f pos;
 	Vec3f velocity;
 	bool onGround;

@@ -164,6 +164,15 @@ std::vector<Bone> getBonesFromFile(const char *path){
 
 	std::vector<Bone> bones;
 
+	//this fixes indexing
+	/*
+	Bone fillerBone;
+	fillerBone.rotation = IDENTITY_QUATERNION;
+	fillerBone.scale = getVec3f(0.0);
+	fillerBone.translation = getVec3f(0.0);
+	*/
+	//bones.push_back(fillerBone);
+
 	int n_lines;
 	FileLine *fileLines = getFileLines_mustFree(path, &n_lines);
 

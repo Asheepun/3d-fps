@@ -157,7 +157,7 @@ void Game_loadAssets(Game *game_p){
 
 }
 
-void World_loadAssets(World *world_p){
+void World_loadAssets(World *world_p, const char *rootPath){
 
 	//load triangle meshes
 	{
@@ -171,7 +171,8 @@ void World_loadAssets(World *world_p){
 		for(int i = 0; i < n_names; i++){
 
 			char path[STRING_SIZE];
-			String_set(path, "assets/models/", STRING_SIZE);
+			String_set(path, rootPath, STRING_SIZE);
+			String_append(path, "assets/models/");
 			String_append(path, names[i]);
 			String_append(path, ".mesh");
 
@@ -198,7 +199,8 @@ void World_loadAssets(World *world_p){
 		for(int i = 0; i < n_names; i++){
 
 			char path[STRING_SIZE];
-			String_set(path, "assets/models/", STRING_SIZE);
+			String_set(path, rootPath, STRING_SIZE);
+			String_append(path, "assets/models/");
 			String_append(path, names[i]);
 			String_append(path, ".bonemesh");
 
@@ -226,7 +228,8 @@ void World_loadAssets(World *world_p){
 		for(int i = 0; i < n_names; i++){
 
 			char path[STRING_SIZE];
-			String_set(path, "assets/models/", STRING_SIZE);
+			String_set(path, rootPath, STRING_SIZE);
+			String_append(path, "assets/models/");
 			String_append(path, names[i]);
 			String_append(path, ".bones");
 

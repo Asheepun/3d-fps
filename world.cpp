@@ -7,6 +7,105 @@ int CURRENT_AVAILABLE_ID = 0;
 
 //ENTITY FUNCTIONS
 
+bool Player_World_shoot_common(Player *player_p, World *world_p, Vec3f *output_hitPosition, Vec3f *output_hitNormal, int *output_hitConnectionID){
+
+	Vec3f rayPosition = player_p->pos + getVec3f(0.0, player_p->height, 0.0);
+	Vec3f rayDirection = player_p->direction;
+
+	Vec3f intersectionPoint = getVec3f(0.0);
+	float minDistance = -1.0;
+	Vec3f intersectionNormal;
+	int hitConnectionID;
+	bool hit = false;
+
+	for(int i = 0; i < world_p->players.size(); i++){
+
+		Player *checkPlayer_p = &world_p->players[i];
+
+		if(checkPlayer_p->connectionID != player_p->connectionID){
+
+			Vec3f_log(checkPlayer_p->pos);
+			Vec3f_log(rayPosition);
+			Vec3f_log(rayDirection);
+
+			BoneTriangleMesh *boneTriangleMesh_p = &world_p->boneTriangleMeshes[0];
+			BoneRig *boneRig_p = &world_p->boneRigs[0];
+			BoneRig *boneRig2_p = &world_p->boneRigs[1];
+
+			std::vector<Mat4f> boneTransformations = getBoneRigTransformations(boneRig_p, boneRig2_p->originBones);
+
+			float scale = 0.5;
+
+			Mat4f modelMatrix = getModelMatrix(checkPlayer_p->pos, getVec3f(scale), IDENTITY_QUATERNION);
+
+			for(int j = 0; j < boneTriangleMesh_p->n_triangles; j++){
+
+				Vec3f checkPoint;
+
+				Vec3f points[3];
+
+				for(int k = 0; k < 3; k++){
+
+					int triangleIndex = j * 3 + k;
+
+					Mat4f jointMatrix = boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 0]] * boneTriangleMesh_p->weights[triangleIndex].x
+						+ boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 1]] * boneTriangleMesh_p->weights[triangleIndex].y
+						+ boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 2]] * boneTriangleMesh_p->weights[triangleIndex].z
+						+ boneTransformations[boneTriangleMesh_p->indices[triangleIndex * 4 + 3]] * boneTriangleMesh_p->weights[triangleIndex].w;
+
+					points[k] = mulVec3fMat4f(boneTriangleMesh_p->triangles[triangleIndex], modelMatrix * jointMatrix, 1.0);
+
+				}
+
+				if(checkLineToTriangleIntersectionVec3f(rayPosition, rayPosition + rayDirection, points[0], points[1], points[2], &checkPoint)
+				&& (minDistance < 0.0
+				|| length(checkPoint - rayPosition) < minDistance
+				&& dot(checkPoint - rayPosition, rayDirection) > 0.0)){
+					intersectionPoint = checkPoint;
+					minDistance = length(intersectionPoint - rayPosition);
+					intersectionNormal = cross(points[0] - points[1], points[0] - points[2]);
+					hitConnectionID = checkPlayer_p->connectionID;
+					hit = true;
+				}
+			}
+		
+		}
+	
+	}
+
+	for(int i = 0; i < world_p->obstacles.size(); i++){
+		
+		Obstacle *obstacle_p = &world_p->obstacles[i];
+		TriangleMesh *triangleMesh_p = &world_p->triangleMeshes[obstacle_p->triangleMeshIndex];
+
+		Mat4f modelMatrix = getModelMatrix(obstacle_p->pos, getVec3f(obstacle_p->scale), IDENTITY_QUATERNION);
+
+		for(int j = 0; j < triangleMesh_p->n_triangles; j++){
+			
+			Vec3f p1 = mulVec3fMat4f(triangleMesh_p->triangles[j * 3 + 0], modelMatrix, 1.0);
+			Vec3f p2 = mulVec3fMat4f(triangleMesh_p->triangles[j * 3 + 1], modelMatrix, 1.0);
+			Vec3f p3 = mulVec3fMat4f(triangleMesh_p->triangles[j * 3 + 2], modelMatrix, 1.0);
+
+			Vec3f checkPoint;
+
+			if(checkLineToTriangleIntersectionVec3f(rayPosition, rayPosition + rayDirection, p1, p2, p3, &checkPoint)
+			&& length(checkPoint - rayPosition) < length(intersectionPoint - rayPosition)
+			&& dot(checkPoint - rayPosition, rayDirection) > 0.0){
+				hit = false;
+			}
+
+		}
+
+	}
+
+	*output_hitPosition = intersectionPoint;
+	*output_hitNormal = normalize(intersectionNormal);
+	*output_hitConnectionID = hitConnectionID;
+
+	return hit;
+
+}
+
 void Player_World_moveAndCollideBasedOnInputs_common(Player *player_p, World *world_p, Inputs inputs){
 
 	//apply inputs
@@ -163,13 +262,15 @@ void World_addPlayer(World *world_p, Vec3f pos, int connectionID){
 
 	Player player;
 
-	player.connectionID = connectionID;
 	player.pos = pos;
+	player.connectionID = connectionID;
+
 	player.lastPos = player.pos;
 	player.velocity = getVec3f(0.0);
 	player.onGround = false;
 	player.height = PLAYER_HEIGHT_STANDING;
 	player.weapon = WEAPON_GUN;
+	player.health = 100;
 
 	world_p->players.push_back(player);
 

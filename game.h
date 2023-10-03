@@ -94,6 +94,7 @@ struct Player{
 	enum Weapon weapon;
 	float height;
 	bool onGround;
+	int health;
 	int connectionID;
 };
 
@@ -171,6 +172,7 @@ static float PLAYER_CROUCH_SPEED = 0.025;
 
 //FILE: world.cpp
 
+bool Player_World_shoot_common(Player *, World *, Vec3f *, Vec3f *, int *);
 void Player_World_moveAndCollideBasedOnInputs_common(Player *, World *, Inputs);
 
 //void World_updatePlayersAndObstaclesCommon(World *);
@@ -214,7 +216,7 @@ void Client_sendInputsToServer(Client *, Inputs);
 //FILE: assets.cpp
 
 void Game_loadAssets(Game *);
-void World_loadAssets(World *);
+void World_loadAssets(World *, const char *);
 
 //FILE: trees.cpp
 
