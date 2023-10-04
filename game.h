@@ -6,6 +6,8 @@
 #include "engine/3d.h"
 #include "engine/strings.h"
 #include "engine/files.h"
+#include "engine/renderer2d.h"
+#include "engine/text.h"
 
 #include "server/connection.h"
 
@@ -13,7 +15,12 @@
 #include <cstring>
 #include <vector>
 
-//#define RUN_OFFLINE
+#define RUN_OFFLINE
+
+enum GameState{
+	GAME_STATE_LOBBY,
+	GAME_STATE_LEVEL,
+};
 
 enum RenderStage{
 	RENDER_STAGE_BIG_SHADOWS,
@@ -115,6 +122,8 @@ struct World{
 
 struct Game{
 
+	GameState currentState;
+
 	World world;
 	
 	std::vector<Bullet> bullets;
@@ -129,27 +138,68 @@ struct Game{
 	std::vector<PointMesh> pointMeshes;
 	std::vector<Shader> shaders;
 
+	unsigned int shadowMapFBO;
+	Texture shadowMapDepthTexture;
+
+	unsigned int grassShadowMapFBO;
+	Texture grassShadowMapDepthTexture;
+
+	unsigned int bigShadowMapFBO;
+	Texture bigShadowMapDepthTexture;
+
+	Texture paintMapTexture;
+	unsigned char *paintMap;
+
+	unsigned char *terrainTextureData;
+	float terrainMaxHeight;
+
+	TextureBuffer grassPositionsTextureBuffer;
+	std::vector<Vec4f> grassPositions;
+	Vec4f *sortedGrassPositions;
+
 	std::vector<Box> boundingBoxes;
 	std::vector<bool> boundingBoxesCulled;
 
+	Renderer2D_Renderer renderer2D;
+	Font font;
+
 	Client client;
-
-	//ServerGameState latestServerGameState_mutexed;
-	//pthread_mutex_t serverStateMutex;
-	//int n_sentInputs;
-	//std::vector<Inputs> inputsBuffer;
-
-	int connectionID;
 
 };
 
 //GLOBAL VARIABLES
+
+static int WIDTH = 1920;
+static int HEIGHT = 1080;
+
+static int SHADOW_MAP_WIDTH = 500;
+static int SHADOW_MAP_HEIGHT = 500;
+static float shadowMapScale = 10.0;
+
+static int GRASS_SHADOW_MAP_WIDTH = 500;
+static int GRASS_SHADOW_MAP_HEIGHT = 500;
+
+static int BIG_SHADOW_MAP_WIDTH = 500;
+static int BIG_SHADOW_MAP_HEIGHT = 500;
+static float bigShadowMapScale = 70.0;
+
+static int PAINT_MAP_WIDTH = 300;
+static int PAINT_MAP_HEIGHT = 300;
+static float PAINT_MAP_SCALE = 100.0;
+
+static int TERRAIN_TEXTURE_WIDTH = 1000;
 
 //static int TERRAIN_WIDTH = 20;
 //static float TERRAIN_SCALE = 100.0;
 static int TERRAIN_WIDTH = 20;
 static float TERRAIN_SCALE = 100.0;
 static Vec4f TERRAIN_COLOR = { 0.14, 0.55, 0.17, 1.0 };
+
+const int GRASS_GRID_WIDTH = 10;
+const float GRASS_DISTANCE = 1.1;
+const float GRASS_MARGIN = 3.0;
+const float GRASS_SHADOW_STRENGTH = 0.3;
+
 
 static float BULLET_SCALE = 0.2;
 static float BULLET_SPEED = 1.0;
@@ -221,5 +271,15 @@ void World_loadAssets(World *, const char *);
 //FILE: trees.cpp
 
 void Game_addTree(Game *, Vec3f);
+
+//FILE: levelState.cpp
+void levelState(Game *);
+
+void drawLevelState(Game *);
+
+//FILE: lobbyState.cpp
+void lobbyState(Game *);
+
+void drawLobbyState(Game *);
 
 #endif
