@@ -24,24 +24,22 @@ void levelState(Game *game_p){
 
 	//printf("---\n");
 
-	/*
 	if(Engine_keys[ENGINE_KEY_G].downed){
-		game_p->players[0].weapon = (Weapon)((int)game_p->players[0].weapon + 1);
-		if(game_p->players[0].weapon >= N_WEAPONS){
-			game_p->players[0].weapon = (Weapon)0;
+		game_p->world.players[0].weapon = (Weapon)((int)game_p->world.players[0].weapon + 1);
+		if(game_p->world.players[0].weapon >= N_WEAPONS){
+			game_p->world.players[0].weapon = (Weapon)0;
 		}
 	}
-	*/
 
 	//printf("---\n");
 
 	//get latest server game state
 #ifndef RUN_OFFLINE
-	pthread_mutex_lock(game_p->client.serverGameStateMutex);
+	pthread_mutex_lock(&game_p->client.serverGameStateMutex);
 
 	ServerGameState serverGameState = game_p->client.latestServerGameState_mutexed;
 
-	pthread_mutex_unlock(game_p->client.serverGameStateMutex);
+	pthread_mutex_unlock(&game_p->client.serverGameStateMutex);
 #endif
 
 	Inputs inputs;
@@ -95,18 +93,20 @@ void levelState(Game *game_p){
 
 #ifndef RUN_OFFLINE
 	//send inputs to server
-	Client_sendInputsToServer(game_p->client, inputs);
+	Client_sendInputsToServer(&game_p->client, inputs);
 
 	//update world based on latest server game state
 	for(int i = 0; i < serverGameState.n_players; i++){
 
 		PlayerData *serverPlayerData_p = &serverGameState.players[i];
-		Player *player_p = World_getPlayerPointerByConnectionID(game_p->world, serverPlayerData_p->connectionID);
+		Player *player_p = World_getPlayerPointerByConnectionID(&game_p->world, serverPlayerData_p->connectionID);
 
+		/*
 		if(player_p == NULL){
-			World_addPlayer(game_p->world, getVec3f(0.0), serverPlayerData_p->connectionID);
-			player_p = World_getPlayerPointerByConnectionID(game_p->world, serverPlayerData_p->connectionID);
+			World_addPlayer(&game_p->world, getVec3f(0.0), serverPlayerData_p->connectionID);
+			player_p = World_getPlayerPointerByConnectionID(&game_p->world, serverPlayerData_p->connectionID);
 		}
+		*/
 
 		//skip player position update unless they are too unsyncronized
 		if(!(player_p->connectionID == game_p->client.connectionID
@@ -154,6 +154,11 @@ void levelState(Game *game_p){
 
 				}
 
+			}
+			if(player_p->weapon == WEAPON_SWORD){
+
+				swingAngle = -SWING_ANGLE_RANGE;
+			
 			}
 		}
 	
@@ -784,7 +789,6 @@ void levelState(Game *game_p){
 
 	}
 
-
 }
 
 void drawLevelState(Game *game_p){
@@ -970,7 +974,7 @@ void drawLevelState(Game *game_p){
 
 		//draw grass
 		if((renderStage == RENDER_STAGE_GRASS_SHADOWS
-		|| renderStage == RENDER_STAGE_SCENE) && false){
+		|| renderStage == RENDER_STAGE_SCENE) && true){
 			glDisable(GL_CULL_FACE);
 
 			Vec3f pos = getVec3f(0.0, 4.0, 0.0);

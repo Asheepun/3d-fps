@@ -52,7 +52,11 @@ void Engine_start(){
 
 	game.font = getFont("assets/times.ttf", 60);
 
+#ifdef RUN_OFFLINE
+	game.currentState = GAME_STATE_LEVEL;
+#else
 	game.currentState = GAME_STATE_LOBBY;
+#endif
 
 	//generate water mesh
 	{
@@ -266,8 +270,11 @@ void Engine_start(){
 
 	Engine_centerWindow();
 
+#ifdef RUN_OFFLINE
 	Engine_fpsModeOn = true;
-	//Engine_setFPSMode(true);
+#else
+	Engine_fpsModeOn = false;
+#endif
 
 	//OpenGL stuff
 	glEnable(GL_BLEND);
@@ -322,6 +329,7 @@ void Engine_start(){
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
 	//init game
+	game.startLevel = false;
 
 	World_addObstacle(
 		&game.world,
@@ -345,9 +353,10 @@ void Engine_start(){
 	);
 	*/
 
+#ifdef RUN_OFFLINE
 	World_addPlayer(&game.world, getVec3f(5.0, 3.0, 5.0), game.client.connectionID);
-
 	World_addPlayer(&game.world, getVec3f(10.0, 3.0, 15.0), 100);
+#endif
 
 	/*
 	{
@@ -506,6 +515,16 @@ void Engine_update(float deltaTime){
 	if(Engine_keys[ENGINE_KEY_T].downed){
 		drawTimings = !drawTimings;
 	}
+
+	/*
+	if(game.client.startLevel){
+
+		//for(int i = )
+
+		game.currentState = GAME_STATE_LEVEL;
+		game.client.startLevel = false;
+	}
+	*/
 
 	switch(game.currentState){
 		case GAME_STATE_LEVEL:

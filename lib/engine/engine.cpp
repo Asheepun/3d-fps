@@ -373,6 +373,7 @@ int main(){
 
 	//bool quit = false;
 
+	bool cursorHidden = false;
 	bool lastFocused = false;
 	bool focused = false;
 
@@ -380,7 +381,6 @@ int main(){
 
 		//startTicks = clock();
 		auto frameStartTime = std::chrono::high_resolution_clock::now();
-
 
 		lastFocused = focused;
 		focused = false;
@@ -498,10 +498,12 @@ int main(){
 			//do fps magic
 			if(Engine_fpsModeOn){
 
+				/*
 				if(!lastFocused){
 					XFixesHideCursor(dpy, root);
 					XFlush(dpy);
 				}
+				*/
 
 				int screenWidth = DisplayWidth(dpy, DefaultScreen(dpy));
 				int screenHeight = DisplayHeight(dpy, DefaultScreen(dpy));
@@ -512,12 +514,29 @@ int main(){
 
 		}
 
+		if(focused
+		&& Engine_fpsModeOn){
+			if(!cursorHidden){
+				XFixesHideCursor(dpy, root);
+				XFlush(dpy);
+				cursorHidden = true;
+			}
+		}else{
+			if(cursorHidden){
+				XFixesShowCursor(dpy, root);
+				XFlush(dpy);
+				cursorHidden = false;
+			}
+		}
+
+		/*
 		if(!focused
 		&& lastFocused
 		&& Engine_fpsModeOn){
 			XFixesShowCursor(dpy, root);
 			XFlush(dpy);
 		}
+		*/
 
 		//update
 

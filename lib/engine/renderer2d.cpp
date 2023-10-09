@@ -254,3 +254,13 @@ void Renderer2D_drawText(Renderer2D_Renderer *renderer_p, const char *text, floa
 	Texture_free(&texture);
 
 }
+
+void Renderer2D_Texture2D_initFromText(Renderer2D_Texture2D *texture_p, const char *text, Font font){
+
+	char *textImage = getImageDataFromFontAndString_mustFree(font, text, &texture_p->width, &texture_p->height);
+
+	Texture_init(&texture_p->texture, text, (unsigned char *)textImage, texture_p->width, texture_p->height);
+
+	free(textImage);
+	
+}

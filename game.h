@@ -15,7 +15,7 @@
 #include <cstring>
 #include <vector>
 
-#define RUN_OFFLINE
+//#define RUN_OFFLINE
 
 enum GameState{
 	GAME_STATE_LOBBY,
@@ -165,6 +165,8 @@ struct Game{
 
 	Client client;
 
+	bool startLevel;
+
 };
 
 //GLOBAL VARIABLES
@@ -233,6 +235,8 @@ int World_addObstacle(World *, Vec3f, float, int, int, int, Vec4f);
 int World_getPlayerIndexByConnectionID(World *, int);
 Player *World_getPlayerPointerByConnectionID(World *, int);
 
+void World_clear(World *);
+
 void generateTerrainTriangles(Vec3f **, Vec2f **, int *);
 
 Mat4f getSwordMatrix(Vec3f, Vec3f, float);
@@ -258,6 +262,7 @@ Obstacle *Game_getObstacleByID(Game *, int);
 void Client_init(Client *);
 
 void Client_sendInputsToServer(Client *, Inputs);
+void Client_sendReadyToServer(Client *, bool);
 
 //void Game_initClient(Game *);
 //void Game_sendInputsToServer(Game *, Inputs);

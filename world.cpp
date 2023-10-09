@@ -317,6 +317,11 @@ Player *World_getPlayerPointerByConnectionID(World *world_p, int connectionID){
 
 }
 
+void World_clear(World *world_p){
+	world_p->obstacles.clear();
+	world_p->players.clear();
+}
+
 void generateTerrainTriangles(Vec3f **output_triangles, Vec2f **output_textureCoords, int *output_n_triangles){
 
 	int width = 20;

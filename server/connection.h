@@ -10,8 +10,11 @@ const int BUFFER_SIZE = 1024;
 
 const char MESSAGE_CONNECTION_REQUEST = 0;
 const char MESSAGE_CONNECTION_ID = 1;
-const char MESSAGE_CLIENT_INPUTS = 10;
-const char MESSAGE_SERVER_GAME_STATE = 20;
+const char MESSAGE_SERVER_GAME_STATE = 10;
+const char MESSAGE_CLIENT_INPUTS = 11;
+const char MESSAGE_SERVER_LOBBY_STATE = 20;
+const char MESSAGE_CLIENT_READY = 21;
+const char MESSAGE_START_LEVEL = 22;
 
 const int N_PLAYERS_MAX = 4;
 
@@ -55,7 +58,23 @@ struct Message{
 	char buffer[BUFFER_SIZE];
 };
 
+struct ServerLobbyState{
+	int n_players;
+	int n_readyPlayers;
+};
+
+struct StartLevelData{
+	int n_players;
+	int playerConnectionIDs[N_PLAYERS_MAX];
+	Vec3f playerPositions[N_PLAYERS_MAX];
+};
+
 //SERVER SIDE
+enum ServerState{
+	SERVER_STATE_LOBBY,
+	SERVER_STATE_LEVEL,
+};
+
 struct Connection{
 	struct sockaddr_in clientAddress;
 	socklen_t clientAddressSize;
@@ -63,10 +82,12 @@ struct Connection{
 	Inputs inputQueue[INPUT_QUEUE_SIZE];
 	long int n_receivedInputs;
 	long int n_handledInputs;
-	long int ticksSinceLastInput;
+	long int ticksSinceLastMessage;
+	bool ready;
 };
 
 struct Server{
+	enum ServerState currentState;
 	int sockfd;
 	struct sockaddr_in address;
 	socklen_t addressSize;
@@ -85,6 +106,12 @@ struct Client{
 	std::vector<Inputs> inputsBuffer;
 	ServerGameState latestServerGameState_mutexed;
 	pthread_mutex_t serverGameStateMutex;
+	bool ready;
+	ServerLobbyState latestServerLobbyState_mutexed;
+	pthread_mutex_t serverLobbyStateMutex;
+	bool startLevel;
+	StartLevelData startLevelData;
+	pthread_mutex_t startLevelMutex;
 };
 
 #endif

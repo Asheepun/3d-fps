@@ -19,22 +19,6 @@ Server server;
 World world;
 std::vector<std::vector<Player>> pastPlayersBuffer;
 
-//int currentConnectionID = 0;
-
-//std::vector<TriangleMesh> triangleMeshes;
-
-//std::vector<Obstacle> obstacles;
-//std::vector<Player> players;
-
-//Vec3f playerPos = getVec3f(5.0, 3.0, 5.0);
-//Vec3f playerDirection = getVec3f(0.0, 0.0, 1.0);
-//Vec3f playerVelocity = getVec3f(0.0, 0.0, 0.0);
-
-//std::vector<Connection> connections;
-//std::vector<Message> messages;
-
-//int sockfd;
-
 void *gameLoop(void *){
 
 	size_t frameTime = 1000000 / 60;
@@ -42,19 +26,15 @@ void *gameLoop(void *){
 	while(true){
 
 		auto frameStartTime = std::chrono::high_resolution_clock::now();
-		
-		//printf("game loop\n");
 
-		//handle inputs from clients
+		//check if a client has disconnected
 		for(int i = 0; i < server.connections.size(); i++){
-			
-			Connection *connection_p = &server.connections[i];
-			
-			//check if client has disconnected
-			if(connection_p->ticksSinceLastInput - connection_p->n_receivedInputs > TICKS_UNTIL_DISCONNECT){
-				printf("disconnected client\n");
 
-				world.players.erase(world.players.begin() + World_getPlayerIndexByConnectionID(&world, connection_p->ID));
+			Connection *connection_p = &server.connections[i];
+
+			if(connection_p->ticksSinceLastMessage > TICKS_UNTIL_DISCONNECT){
+
+				printf("disconnected client\n");
 
 				server.connections.erase(server.connections.begin() + i);
 				i--;
@@ -62,85 +42,172 @@ void *gameLoop(void *){
 
 			}
 
-			//update player based on inputs buffer
-			Player *player_p = World_getPlayerPointerByConnectionID(&world, connection_p->ID);
-
-			while(connection_p->n_handledInputs < connection_p->n_receivedInputs){
-
-				Inputs inputs = connection_p->inputQueue[connection_p->n_handledInputs % INPUT_QUEUE_SIZE];
-
-				player_p->direction = inputs.cameraDirection;
-
-				if(inputs.shoot){
-
-					//calculate shot relative to the shooters time
-					int timeDifference = server.gameTime - inputs.gameTime;
-					int pastPlayersBufferIndex = max(pastPlayersBuffer.size() - 1 - timeDifference, 0);
-
-					if(player_p->weapon == WEAPON_GUN){
-
-						Vec3f hitPosition;
-						Vec3f hitNormal;
-						int hitConnectionID;
-						bool hit = Player_World_shoot_common(player_p, &world, pastPlayersBuffer[pastPlayersBufferIndex], &hitPosition, &hitNormal, &hitConnectionID);
-
-						if(hit){
-							Player *hitPlayer_p = World_getPlayerPointerByConnectionID(&world, hitConnectionID);
-							hitPlayer_p->health -= 20;
-						}
-					
-					}
-				}
-				
-				Player_World_moveAndCollideBasedOnInputs_common(player_p, &world, inputs);
-
-				connection_p->n_handledInputs++;
-
-			}
-
-			if(connection_p->n_receivedInputs > 0){
-				connection_p->ticksSinceLastInput++;
-			}
-
-		}
-
-		//send game state to clients
-		for(int i = 0; i < server.connections.size(); i++){
-
-			Connection *connection_p = &server.connections[i];
-
-			ServerGameState gameState;
-
-			for(int j = 0; j < world.players.size(); j++){
-				gameState.players[j].connectionID = world.players[j].connectionID;
-				gameState.players[j].pos = world.players[j].pos;
-				gameState.players[j].velocity = world.players[j].velocity;
-				gameState.players[j].onGround = world.players[j].onGround;
-				gameState.players[j].health = world.players[j].health;
-			}
-
-			gameState.n_players = world.players.size();
-
-			gameState.n_handledInputs = connection_p->n_handledInputs;
-			gameState.gameTime = server.gameTime;
-
-			Message message;
-			message.type = MESSAGE_SERVER_GAME_STATE;
-			message.connectionID = connection_p->ID;
-			memcpy(message.buffer, &gameState, sizeof(ServerGameState));
-
-			sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+			connection_p->ticksSinceLastMessage++;
 		
 		}
 
-		//save player states in buffer
-		pastPlayersBuffer.push_back(world.players);
+		if(server.currentState == SERVER_STATE_LOBBY){
 
-		if(pastPlayersBuffer.size() > PAST_PLAYERS_BUFFER_SIZE){
-			pastPlayersBuffer.erase(pastPlayersBuffer.begin());
+			//send lobby states to clients
+			ServerLobbyState lobbyState;
+			lobbyState.n_players = server.connections.size();
+			lobbyState.n_readyPlayers = 0;
+			for(int i = 0; i < server.connections.size(); i++){
+				if(server.connections[i].ready){
+					lobbyState.n_readyPlayers++;
+				}
+			}
+
+			printf("%i, %i\n", lobbyState.n_players, lobbyState.n_readyPlayers);
+
+			for(int i = 0; i < server.connections.size(); i++){
+
+				Connection *connection_p = &server.connections[i];
+
+				Message message;
+				message.type = MESSAGE_SERVER_LOBBY_STATE;
+				message.connectionID = connection_p->ID;
+				memcpy(message.buffer, &lobbyState, sizeof(ServerLobbyState));
+
+				sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+			}
+			
+			//start the game if all players are ready
+			if(lobbyState.n_players > 1
+			&& lobbyState.n_readyPlayers == lobbyState.n_players){
+
+				//setup world
+				World_clear(&world);
+
+				//add obstacles
+				World_addObstacle(
+					&world,
+					getVec3f(0.0, 0.0, 0.0),
+					TERRAIN_SCALE,
+					World_getTriangleMeshIndexByName(&world, "terrain"),
+					0,
+					0,
+					getVec4f(1.0, 1.0, 1.0, 1.0)
+				);
+
+				//add players
+				for(int i = 0; i < server.connections.size(); i++){
+
+					Connection *connection_p = &server.connections[i];
+
+					World_addPlayer(&world, getVec3f(5.0, 3.0, 5.0), connection_p->ID);
+
+				}
+
+				//send message to clients
+				StartLevelData startLevelData;
+				startLevelData.n_players = world.players.size();
+				for(int i = 0; i < world.players.size(); i++){
+					startLevelData.playerConnectionIDs[i] = world.players[i].connectionID;
+					startLevelData.playerPositions[i] = world.players[i].pos;
+				}
+
+				for(int i = 0; i < server.connections.size(); i++){
+
+					Connection *connection_p = &server.connections[i];
+
+					//send start message
+					Message message;
+					message.type = MESSAGE_START_LEVEL;
+					message.connectionID = connection_p->ID;
+					memcpy(message.buffer, &startLevelData, sizeof(StartLevelData));
+
+					sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+				}
+
+				server.currentState = SERVER_STATE_LEVEL;
+				
+			}
+		
+		}else if(server.currentState == SERVER_STATE_LEVEL){
+
+			//handle inputs from clients
+			for(int i = 0; i < server.connections.size(); i++){
+				
+				Connection *connection_p = &server.connections[i];
+				
+				//update player based on inputs buffer
+				Player *player_p = World_getPlayerPointerByConnectionID(&world, connection_p->ID);
+
+				while(connection_p->n_handledInputs < connection_p->n_receivedInputs){
+
+					Inputs inputs = connection_p->inputQueue[connection_p->n_handledInputs % INPUT_QUEUE_SIZE];
+
+					player_p->direction = inputs.cameraDirection;
+
+					if(inputs.shoot){
+
+						//calculate shot relative to the shooters time
+						int timeDifference = server.gameTime - inputs.gameTime;
+						int pastPlayersBufferIndex = max(pastPlayersBuffer.size() - 1 - timeDifference, 0);
+
+						if(player_p->weapon == WEAPON_GUN){
+
+							Vec3f hitPosition;
+							Vec3f hitNormal;
+							int hitConnectionID;
+							bool hit = Player_World_shoot_common(player_p, &world, pastPlayersBuffer[pastPlayersBufferIndex], &hitPosition, &hitNormal, &hitConnectionID);
+
+							if(hit){
+								Player *hitPlayer_p = World_getPlayerPointerByConnectionID(&world, hitConnectionID);
+								hitPlayer_p->health -= 20;
+							}
+						
+						}
+					}
+					
+					Player_World_moveAndCollideBasedOnInputs_common(player_p, &world, inputs);
+
+					connection_p->n_handledInputs++;
+
+				}
+
+			}
+
+			//send game state to clients
+			for(int i = 0; i < server.connections.size(); i++){
+
+				Connection *connection_p = &server.connections[i];
+
+				ServerGameState gameState;
+
+				for(int j = 0; j < world.players.size(); j++){
+					gameState.players[j].connectionID = world.players[j].connectionID;
+					gameState.players[j].pos = world.players[j].pos;
+					gameState.players[j].velocity = world.players[j].velocity;
+					gameState.players[j].onGround = world.players[j].onGround;
+					gameState.players[j].health = world.players[j].health;
+				}
+
+				gameState.n_players = world.players.size();
+
+				gameState.n_handledInputs = connection_p->n_handledInputs;
+				gameState.gameTime = server.gameTime;
+
+				Message message;
+				message.type = MESSAGE_SERVER_GAME_STATE;
+				message.connectionID = connection_p->ID;
+				memcpy(message.buffer, &gameState, sizeof(ServerGameState));
+
+				sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+			
+			}
+
+			//save player states in buffer
+			pastPlayersBuffer.push_back(world.players);
+
+			if(pastPlayersBuffer.size() > PAST_PLAYERS_BUFFER_SIZE){
+				pastPlayersBuffer.erase(pastPlayersBuffer.begin());
+			}
+
+			server.gameTime++;
+
 		}
-
-		server.gameTime++;
 
 		auto frameStopTime = std::chrono::high_resolution_clock::now();
 
@@ -184,6 +251,7 @@ int main(int argc, char **argv){
 		}
 
 		server.gameTime = 0;
+		server.currentState = SERVER_STATE_LOBBY;
 	}
 
 	//init world
@@ -205,16 +273,6 @@ int main(int argc, char **argv){
 
 			world.triangleMeshes.push_back(triangleMesh);
 		}
-
-		World_addObstacle(
-			&world,
-			getVec3f(0.0, 0.0, 0.0),
-			TERRAIN_SCALE,
-			World_getTriangleMeshIndexByName(&world, "terrain"),
-			0,
-			0,
-			getVec4f(1.0, 1.0, 1.0, 1.0)
-		);
 
 	}
 	
@@ -246,12 +304,13 @@ int main(int argc, char **argv){
 			connection.clientAddressSize = clientAddressSize;
 			connection.n_handledInputs = 0;
 			connection.n_receivedInputs = 0;
-			connection.ticksSinceLastInput = 0;
+			connection.ticksSinceLastMessage = 0;
+			connection.ready = false;
 			server.currentConnectionID++;
 
 			server.connections.push_back(connection);
 
-			World_addPlayer(&world, getVec3f(5.0, 3.0, 5.0), connection.ID);
+			//World_addPlayer(&world, getVec3f(5.0, 3.0, 5.0), connection.ID);
 
 			Message message;
 			message.type = MESSAGE_CONNECTION_ID;
@@ -277,9 +336,26 @@ int main(int argc, char **argv){
 				if(connection_p->ID == message.connectionID){
 					connection_p->inputQueue[connection_p->n_receivedInputs % INPUT_QUEUE_SIZE] = inputs;
 					connection_p->n_receivedInputs++;
+					connection_p->ticksSinceLastMessage = 0;
 				}
 
 			}
+		}else if(message.type == MESSAGE_CLIENT_READY){
+
+			bool ready;
+			memcpy(&ready, message.buffer, sizeof(bool));
+
+			for(int i = 0; i < server.connections.size(); i++){
+
+				Connection *connection_p = &server.connections[i];
+
+				if(connection_p->ID == message.connectionID){
+					connection_p->ready = ready;
+					connection_p->ticksSinceLastMessage = 0;
+				}
+
+			}
+			
 		}
 
 	}

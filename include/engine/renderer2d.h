@@ -6,7 +6,7 @@
 #include "engine/geometry.h"
 #include "engine/3d.h"
 
-typedef struct Renderer2D_Renderer{
+struct Renderer2D_Renderer{
 	int width;
 	int height;
 	Vec2f offset;
@@ -19,13 +19,19 @@ typedef struct Renderer2D_Renderer{
 	unsigned int currentShader;
 
 	bool drawAroundCenter;
-}Renderer2D_Renderer;
+};
+
+struct Renderer2D_Texture2D{
+	Texture texture;
+	int width;
+	int height;
+};
 
 //INIT FUNCTIONS
 
 void Renderer2D_init(Renderer2D_Renderer *, int, int);
 
-void Texture_initFromText(Texture *, const char *, Font);
+void Renderer2D_Texture2D_initFromText(Renderer2D_Texture2D *, const char *, Font font);
 
 //SETTINGS FUNCTIONS
 

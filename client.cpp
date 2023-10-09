@@ -16,6 +16,8 @@ void Client_init(Client *client_p){
 	pthread_mutex_init(&client_p->serverGameStateMutex, NULL);
 	
 	client_p->n_sentInputs = 0;
+	client_p->ready = false;
+	client_p->startLevel = false;
 
 	const char *ip = "127.0.0.1";
 	//const char *ip = "206.189.58.34";
@@ -70,74 +72,29 @@ void *receiveServerMessages(void *clientPointer){
 		
 		}
 
-	}
+		if(message.type == MESSAGE_SERVER_LOBBY_STATE){
 
-}
+			ServerLobbyState serverLobbyState;
+			memcpy(&serverLobbyState, message.buffer, sizeof(ServerLobbyState));
 
-/*
-void Game_initClient(Game *game_p){
+			pthread_mutex_lock(&client_p->serverLobbyStateMutex);
 
-	game_p->n_sentInputs = 0;
+			client_p->latestServerLobbyState_mutexed = serverLobbyState;
 
-	const char *ip = "127.0.0.1";
-	int port = PORT;
-
-	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-	memset(&addr, '\0', sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = inet_addr(ip);
-	client_p->addr_size = sizeof(client_p->addr);
-
-	char buffer[BUFFER_SIZE];
-	memset(buffer, 0, BUFFER_SIZE);
-	buffer[0] = CONNECTION_REQUEST;
-	sendto(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&addr, client_p->addr_size);
-	//printf("[+]Data send: %s\n", buffer);
-
-	memset(buffer, 0, BUFFER_SIZE);
-	recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&addr, &addr_size);
-
-	if(buffer[0] == CONNECTION_ID){
-
-		memcpy(&game_p->connectionID, buffer + 1, sizeof(int));
-
-		printf("connectionID: %i\n", game_p->connectionID);
-	
-	}
-
-	//pthread_t receiverThread;
-	//pthread_create(&receiverThread, NULL, receiveServerMessages, game_p);
-
-	//printf("[+]Data recv: %s\n", buffer);
- 
-}
-
-void *receiveServerMessages(void *gamePointer){
-
-	Game *game_p = (Game *)gamePointer;
-
-	while(true){
+			pthread_mutex_unlock(&client_p->serverLobbyStateMutex);
 		
-		char buffer[BUFFER_SIZE];
-		memset(buffer, 0, BUFFER_SIZE);
-		addr_size = sizeof(addr);
-		recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&addr, &addr_size);
+		}
 
-		if(buffer[0] == SERVER_GAME_STATE){
+		if(message.type == MESSAGE_START_LEVEL){
 
-			ServerGameState gameState;
-			memcpy(&gameState, buffer + 1, sizeof(ServerGameState));
+			
+			pthread_mutex_lock(&client_p->startLevelMutex);
 
-			pthread_mutex_lock(&game_p->serverStateMutex);
+			client_p->startLevel = true;
+			memcpy(&client_p->startLevelData, message.buffer, sizeof(StartLevelData));
 
-			game_p->latestServerGameState_mutexed = gameState;
-
-			pthread_mutex_unlock(&game_p->serverStateMutex);
-
-			//game_p->player.pos = gameState.playerPos;
-			//Vec3f_log(gameState.playerPos);
-			//printf("got game state!\n");
+			pthread_mutex_unlock(&client_p->startLevelMutex);
+			
 		}
 
 	}
@@ -146,48 +103,13 @@ void *receiveServerMessages(void *gamePointer){
 
 #define SEND_WITH_LAG
 int SEND_LAG_FRAMES = 10;
-std::vector<char *>lagBuffers;
-
-void Game_sendInputsToServer(Game *game_p, Inputs inputs){
-
-	char buffer[BUFFER_SIZE];
-	memset(buffer, 0, BUFFER_SIZE);
-
-	buffer[0] = CLIENT_INPUTS;
-	memcpy(buffer + 1, &game_p->connectionID, sizeof(int));
-	memcpy(buffer + 1 + sizeof(int), &inputs, sizeof(Inputs));
-
-#ifdef SEND_WITH_LAG
-	char *copyBuffer = (char *)malloc(BUFFER_SIZE);
-	memcpy(copyBuffer, buffer, BUFFER_SIZE);
-	lagBuffers.push_back(copyBuffer);
-
-	if(lagBuffers.size() > SEND_LAG_FRAMES){
-		sendto(sockfd, lagBuffers[0], BUFFER_SIZE, 0, (struct sockaddr*)&addr, sizeof(addr));
-		free(lagBuffers[0]);
-		lagBuffers.erase(lagBuffers.begin());
-	}
-#else
-	sendto(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&addr, sizeof(addr));
-#endif
-
-	game_p->n_sentInputs++;
-	
-}
-*/
-
-#define SEND_WITH_LAG
-int SEND_LAG_FRAMES = 10;
 std::vector<Message> lagBuffer;
 
 void Client_sendInputsToServer(Client *client_p, Inputs inputs){
 
 	Message message;
-	memset(&message, 0, sizeof(Message));
-
 	message.type = MESSAGE_CLIENT_INPUTS;
 	message.connectionID = client_p->connectionID;
-
 	memcpy(message.buffer, &inputs, sizeof(Inputs));
 
 #ifdef SEND_WITH_LAG
@@ -202,5 +124,16 @@ void Client_sendInputsToServer(Client *client_p, Inputs inputs){
 #endif
 
 	client_p->n_sentInputs++;
+
+}
+
+void Client_sendReadyToServer(Client *client_p, bool ready){
+
+	Message message;
+	message.type = MESSAGE_CLIENT_READY;
+	message.connectionID = client_p->connectionID;
+	memcpy(message.buffer, &ready, sizeof(bool));
+
+	sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, client_p->addressSize);
 
 }
