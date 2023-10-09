@@ -197,11 +197,14 @@ static int TERRAIN_WIDTH = 20;
 static float TERRAIN_SCALE = 100.0;
 static Vec4f TERRAIN_COLOR = { 0.14, 0.55, 0.17, 1.0 };
 
-const int GRASS_GRID_WIDTH = 10;
-const float GRASS_DISTANCE = 1.1;
-const float GRASS_MARGIN = 3.0;
-const float GRASS_SHADOW_STRENGTH = 0.3;
+static const int GRASS_GRID_WIDTH = 10;
+static const float GRASS_DISTANCE = 1.1;
+static const float GRASS_MARGIN = 3.0;
+static const float GRASS_SHADOW_STRENGTH = 0.3;
 
+static const float TREE_SCALE = 1.5;
+static float TREE_TERRAIN_MARGIN = 5.0;
+static float TREE_MIN_DISTANCE = 7.0;
 
 static float BULLET_SCALE = 0.2;
 static float BULLET_SPEED = 1.0;
@@ -275,7 +278,8 @@ void World_loadAssets(World *, const char *);
 
 //FILE: trees.cpp
 
-void Game_addTree(Game *, Vec3f);
+//void Game_addTree(Game *, Vec3f);
+void generateTree(Vec3f, Tree *, Model *, TriangleMesh *);
 
 //FILE: levelState.cpp
 void levelState(Game *);

@@ -76,8 +76,20 @@ void *gameLoop(void *){
 			if(lobbyState.n_players > 1
 			&& lobbyState.n_readyPlayers == lobbyState.n_players){
 
+				int seed = 0;
+				srand(seed);
+
 				//setup world
 				World_clear(&world);
+
+				for(int i = 0; i < world.triangleMeshes.size(); i++){
+					if(strcmp(world.triangleMeshes[i].name, "generated-tree") == 0){
+						TriangleMesh_free(&world.triangleMeshes[i]);
+						world.triangleMeshes.erase(world.triangleMeshes.begin() + i);
+						i--;
+						continue;
+					}
+				}
 
 				//add obstacles
 				World_addObstacle(
@@ -90,6 +102,54 @@ void *gameLoop(void *){
 					getVec4f(1.0, 1.0, 1.0, 1.0)
 				);
 
+				//generate tree positions
+				int n_trees = 3 + (int)(getRandom() * 3.0);
+				std::vector<Vec3f> treePositions;
+
+				for(int i = 0; i < n_trees; i++){
+
+					Vec3f pos = getVec3f(
+						TREE_TERRAIN_MARGIN + getRandom() * (TERRAIN_SCALE - 2.0 * TREE_TERRAIN_MARGIN),
+						0.0,
+						TREE_TERRAIN_MARGIN + getRandom() * (TERRAIN_SCALE - 2.0 * TREE_TERRAIN_MARGIN)
+					);
+
+					bool redo = false;
+					for(int j = 0; j < treePositions.size(); j++){
+						if(length(pos - treePositions[j]) < TREE_MIN_DISTANCE){
+							redo = true;
+						}
+					}
+
+					if(redo){
+						i--;
+						continue;
+					}
+
+					treePositions.push_back(pos);
+
+				}
+
+				for(int i = 0; i < treePositions.size(); i++){
+
+					TriangleMesh triangleMesh;
+
+					generateTree(getVec3f(0.0), NULL, NULL, &triangleMesh);
+
+					world.triangleMeshes.push_back(triangleMesh);
+
+					World_addObstacle(
+						&world,
+						treePositions[i],
+						TREE_SCALE,
+						world.triangleMeshes.size() - 1,
+						0,
+						0,
+						getVec4f(0.7, 0.7, 0.7, 1.0)
+					);
+					
+				}
+
 				//add players
 				for(int i = 0; i < server.connections.size(); i++){
 
@@ -101,11 +161,15 @@ void *gameLoop(void *){
 
 				//send message to clients
 				StartLevelData startLevelData;
+
 				startLevelData.n_players = world.players.size();
 				for(int i = 0; i < world.players.size(); i++){
 					startLevelData.playerConnectionIDs[i] = world.players[i].connectionID;
 					startLevelData.playerPositions[i] = world.players[i].pos;
 				}
+
+				startLevelData.n_trees = treePositions.size();
+				memcpy(startLevelData.treePositions, &treePositions[0], startLevelData.n_trees * sizeof(Vec3f));
 
 				for(int i = 0; i < server.connections.size(); i++){
 

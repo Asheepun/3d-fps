@@ -162,10 +162,40 @@ void lobbyState(Game *game_p){
 	//check if level should start
 	pthread_mutex_lock(&game_p->client.startLevelMutex);
 
-	if(game_p->client.startLevel){
+	bool startLevel = game_p->client.startLevel;
+	StartLevelData startLevelData = game_p->client.startLevelData;
+
+	pthread_mutex_unlock(&game_p->client.startLevelMutex);
+
+	if(startLevel){
+
+		srand(startLevelData.seed);
 
 		//setup world
 		World_clear(&game_p->world);
+
+		for(int i = 0; i < game_p->trees.size(); i++){
+			TextureBuffer_free(&game_p->trees[i].leafTransformationsTextureBuffer);
+			free(game_p->trees[i].sortedLeafTransformations);
+		}
+
+		for(int i = 0; i < game_p->world.triangleMeshes.size(); i++){
+			if(strcmp(game_p->world.triangleMeshes[i].name, "generated-tree") == 0){
+				TriangleMesh_free(&game_p->world.triangleMeshes[i]);
+				game_p->world.triangleMeshes.erase(game_p->world.triangleMeshes.begin() + i);
+				i--;
+				continue;
+			}
+		}
+
+		for(int i = 0; i < game_p->models.size(); i++){
+			if(strcmp(game_p->models[i].name, "generated-tree") == 0){
+				Model_free(&game_p->models[i]);
+				game_p->models.erase(game_p->models.begin() + i);
+				i--;
+				continue;
+			}
+		}
 
 		//add obstacles
 		World_addObstacle(
@@ -178,9 +208,35 @@ void lobbyState(Game *game_p){
 			getVec4f(1.0, 1.0, 1.0, 1.0)
 		);
 
+		//add trees
+		for(int i = 0; i < startLevelData.n_trees; i++){
+
+			Tree tree;
+			Model model;
+			TriangleMesh triangleMesh;
+
+			generateTree(startLevelData.treePositions[i], &tree, &model, &triangleMesh);
+
+			game_p->trees.push_back(tree);
+
+			game_p->models.push_back(model);
+			game_p->world.triangleMeshes.push_back(triangleMesh);
+
+			World_addObstacle(
+				&game_p->world,
+				startLevelData.treePositions[i],
+				TREE_SCALE,
+				game_p->world.triangleMeshes.size() - 1,
+				game_p->models.size() - 1,
+				Game_getTextureIndexByName(game_p, "bark"),
+				getVec4f(0.7, 0.7, 0.7, 1.0)
+			);
+		
+		}
+
 		//add players
-		for(int i = 0; i < game_p->client.startLevelData.n_players; i++){
-			World_addPlayer(&game_p->world, game_p->client.startLevelData.playerPositions[i], game_p->client.startLevelData.playerConnectionIDs[i]);
+		for(int i = 0; i < startLevelData.n_players; i++){
+			World_addPlayer(&game_p->world, startLevelData.playerPositions[i], startLevelData.playerConnectionIDs[i]);
 		}
 
 		//change state
@@ -189,8 +245,6 @@ void lobbyState(Game *game_p){
 		Engine_fpsModeOn = true;
 
 	}
-
-	pthread_mutex_unlock(&game_p->client.startLevelMutex);
 
 }
 

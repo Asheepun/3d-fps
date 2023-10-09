@@ -428,6 +428,8 @@ void Texture_initAsDepthMap(Texture *texture_p, int width, int height){
 
 	Vec4f borderColor = getVec4f(1.0, 1.0, 1.0, 1.0);
 	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, (float *)&borderColor);
+	//float borderDepth = 0.0;
+	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_BORDER_DEPTH, borderDepth);
 
 }
 
@@ -615,20 +617,6 @@ void TextureBuffer_initAsMat4fArray(TextureBuffer *textureBuffer_p, Mat4f *matri
 
 }
 
-
-void TextureBuffer_free(TextureBuffer *textureBuffer_p){
-	
-	glDeleteBuffers(1, &textureBuffer_p->VBO);
-	glDeleteTextures(1, &textureBuffer_p->TB);
-
-}
-
-void Texture_free(Texture *texture_p){
-	
-	glDeleteTextures(1, &texture_p->ID);
-
-}
-
 void Shader_init(Shader *shader_p, const char *name, const char *vertexShaderPath, const char *fragmentShaderPath){
 
 	unsigned int vertexShader = getCompiledShader(vertexShaderPath, GL_VERTEX_SHADER);
@@ -773,6 +761,26 @@ Vec3f PointMesh_GJKSupport(PointMesh *pointMesh_p, Mat4f transformations, Vec3f 
 
 }
 
+//free functions
+void Model_free(Model *model_p){
+	glDeleteBuffers(1, &model_p->VBO);
+	glDeleteVertexArrays(1, &model_p->VAO);
+}
+
+void TriangleMesh_free(TriangleMesh *triangleMesh_p){
+	free(triangleMesh_p->triangles);
+}
+
+void TextureBuffer_free(TextureBuffer *textureBuffer_p){
+	glDeleteBuffers(1, &textureBuffer_p->VBO);
+	glDeleteTextures(1, &textureBuffer_p->TB);
+}
+
+void Texture_free(Texture *texture_p){
+	glDeleteTextures(1, &texture_p->ID);
+}
+
+//uniform functions
 void GL3D_uniformMat2f(unsigned int shaderProgram, const char *locationName, Mat2f m){
 
 	unsigned int location = glGetUniformLocation(shaderProgram, locationName);

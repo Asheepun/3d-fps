@@ -17,6 +17,7 @@ const char MESSAGE_CLIENT_READY = 21;
 const char MESSAGE_START_LEVEL = 22;
 
 const int N_PLAYERS_MAX = 4;
+const int N_TREES_MAX = 6;
 
 const int INPUT_QUEUE_SIZE = 64;
 const int TICKS_UNTIL_DISCONNECT = 120;
@@ -64,9 +65,12 @@ struct ServerLobbyState{
 };
 
 struct StartLevelData{
+	int seed;
 	int n_players;
 	int playerConnectionIDs[N_PLAYERS_MAX];
 	Vec3f playerPositions[N_PLAYERS_MAX];
+	int n_trees;
+	Vec3f treePositions[N_TREES_MAX];
 };
 
 //SERVER SIDE

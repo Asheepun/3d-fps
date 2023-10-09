@@ -150,16 +150,19 @@ void TextureBuffer_update(TextureBuffer *, int, int, void *);
 void TextureBuffer_initAsVec4fArray(TextureBuffer *, Vec4f *, int);
 void TextureBuffer_initAsMat4fArray(TextureBuffer *, Mat4f *, int, bool);
 
-void TextureBuffer_free(TextureBuffer *);
-
-void Texture_free(Texture *);
-
 void Shader_init(Shader *, const char *, const char *, const char *);
 
 bool checkTriangleMeshTriangleMeshCollision(TriangleMesh, TriangleMesh, Mat4f, Mat4f, Vec3f *, Vec3f *);
 
 Vec3f PointMesh_GJKSupport(PointMesh *, Mat4f, Vec3f);
 
+//free functions
+void Model_free(Model *);
+void TriangleMesh_free(TriangleMesh *);
+void TextureBuffer_free(TextureBuffer *);
+void Texture_free(Texture *);
+
+//uniform functions
 void GL3D_uniformMat2f(unsigned int, const char *, Mat2f);
 
 void GL3D_uniformMat4f(unsigned int, const char *, Mat4f);

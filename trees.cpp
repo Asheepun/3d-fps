@@ -3,17 +3,15 @@
 #include "stdio.h"
 #include "math.h"
 
-float TREE_SCALE = 1.5;
-
 struct TreeNode{
 	int parent;
 	Vec3f pos;
 	float radius;
 };
 
-void Game_addTree(Game *game_p, Vec3f treePos){
+void generateTree(Vec3f treePos, Tree *output_tree, Model *output_model, TriangleMesh *output_triangleMesh){
 
-	setRandomSeed(getRandom() * 100.0);
+	//setRandomSeed(getRandom() * 100.0);
 
 	Tree tree;
 
@@ -222,7 +220,7 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 
 	TriangleMesh triangleMesh;
 
-	//String_set(triangleMesh.name, "tree", STRING_SIZE);
+	String_set(triangleMesh.name, "generated-tree", STRING_SIZE);
 
 	triangleMesh.n_triangles = triangles.size() / 3;
 	triangleMesh.triangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * triangleMesh.n_triangles);
@@ -232,92 +230,109 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 
 	Model model;
 
-	Model_initFromMeshData(&model, meshData, triangleMesh.n_triangles);
+	if(output_model != NULL){
+		Model_initFromMeshData(&model, meshData, triangleMesh.n_triangles);
+	}
 
-	//String_set(model.name, "tree", STRING_SIZE);
+	String_set(model.name, "generated-tree", STRING_SIZE);
 
-	game_p->world.triangleMeshes.push_back(triangleMesh);
-	game_p->models.push_back(model);
+	//game_p->world.triangleMeshes.push_back(triangleMesh);
+	//game_p->models.push_back(model);
 
-	int triangleMeshIndex = game_p->world.triangleMeshes.size() - 1;
-	int modelIndex = game_p->models.size() - 1;
+	//int triangleMeshIndex = game_p->world.triangleMeshes.size() - 1;
+	//int modelIndex = game_p->models.size() - 1;
 
 	free(meshData);
 
 	//create leaves
-	for(int i = 0; i < nodes.size(); i++){
+	if(output_tree != NULL){
 
-		TreeNode *node1_p = &nodes[i];
-		TreeNode *node2_p = &nodes[node1_p->parent];
+		for(int i = 0; i < nodes.size(); i++){
 
-		if(node1_p->radius < 0.06){
+			TreeNode *node1_p = &nodes[i];
+			TreeNode *node2_p = &nodes[node1_p->parent];
 
-			int heightSegments = 5;
-			int radialSegments = 5;
-			//int heightSegments = 1;
-			//int radialSegments = 1;
+			if(node1_p->radius < 0.06){
 
-			//generate leaves pointing downards along branch
-			for(int j = 0; j < heightSegments; j++){
-				for(int n = 0; n < radialSegments; n++){
+				int heightSegments = 5;
+				int radialSegments = 5;
+				//int heightSegments = 1;
+				//int radialSegments = 1;
 
-					float h = (float)j / (float)heightSegments;
-					float t = (float)n / (float)radialSegments;
+				//generate leaves pointing downards along branch
+				for(int j = 0; j < heightSegments; j++){
+					for(int n = 0; n < radialSegments; n++){
 
-					Mat4f transformations = getIdentityMat4f();
+						float h = (float)j / (float)heightSegments;
+						float t = (float)n / (float)radialSegments;
 
-					//transformations *= getTranslationMat4f(getVec3f(0.0, 1.0, 0.0));
+						Mat4f transformations = getIdentityMat4f();
 
-					transformations *= getScalingMat4f((0.5 + 0.5 * sin(h * M_PI)) * TREE_SCALE);
+						//transformations *= getTranslationMat4f(getVec3f(0.0, 1.0, 0.0));
 
-					transformations *= getQuaternionMat4f(getQuaternion(getVec3f(1.0, 0.0, 0.0), M_PI / 2.0 + 0.2 + getRandom() * 0.3));
+						transformations *= getScalingMat4f((0.5 + 0.5 * sin(h * M_PI)) * TREE_SCALE);
 
-					transformations *= getQuaternionMat4f(getQuaternion(getVec3f(0.0, 1.0, 0.0), t * M_PI * 2.0 + h));
+						transformations *= getQuaternionMat4f(getQuaternion(getVec3f(1.0, 0.0, 0.0), M_PI / 2.0 + 0.2 + getRandom() * 0.3));
 
-					transformations *= getTranslationMat4f(treePos + (node2_p->pos + (node1_p->pos - node2_p->pos) * h) * TREE_SCALE);
+						transformations *= getQuaternionMat4f(getQuaternion(getVec3f(0.0, 1.0, 0.0), t * M_PI * 2.0 + h));
 
-					tree.leafTransformations.push_back(transformations);
-				
+						transformations *= getTranslationMat4f(treePos + (node2_p->pos + (node1_p->pos - node2_p->pos) * h) * TREE_SCALE);
+
+						tree.leafTransformations.push_back(transformations);
+					
+					}
 				}
+
+				heightSegments = 4;
+				radialSegments = 5;
+				//heightSegments = 1;
+				//radialSegments = 1;
+
+				//generate leaves pointing upwards on top
+				for(int j = 0; j < heightSegments; j++){
+					for(int n = 0; n < radialSegments; n++){
+
+						float h = (float)j / (float)heightSegments;
+						float t = (float)n / (float)radialSegments;
+
+						Mat4f transformations = getIdentityMat4f();
+
+						transformations *= getScalingMat4f((0.7 - 0.4 * h) * TREE_SCALE);
+
+						transformations *= getQuaternionMat4f(getQuaternion(getVec3f(1.0, 0.0, 0.0), M_PI / 2.0 - h * M_PI / 3.0 + 0.1 + 0.3 * getRandom()));
+
+						transformations *= getQuaternionMat4f(getQuaternion(getVec3f(0.0, 1.0, 0.0), t * M_PI * 2.0 + h));
+
+						transformations *= getTranslationMat4f(treePos + (node1_p->pos + getVec3f(0.0, -0.2, 0.0)) * TREE_SCALE);
+
+						tree.leafTransformations.push_back(transformations);
+					
+					}
+				}
+			
 			}
 
-			heightSegments = 4;
-			radialSegments = 5;
-			//heightSegments = 1;
-			//radialSegments = 1;
-
-			//generate leaves pointing upwards on top
-			for(int j = 0; j < heightSegments; j++){
-				for(int n = 0; n < radialSegments; n++){
-
-					float h = (float)j / (float)heightSegments;
-					float t = (float)n / (float)radialSegments;
-
-					Mat4f transformations = getIdentityMat4f();
-
-					transformations *= getScalingMat4f((0.7 - 0.4 * h) * TREE_SCALE);
-
-					transformations *= getQuaternionMat4f(getQuaternion(getVec3f(1.0, 0.0, 0.0), M_PI / 2.0 - h * M_PI / 3.0 + 0.1 + 0.3 * getRandom()));
-
-					transformations *= getQuaternionMat4f(getQuaternion(getVec3f(0.0, 1.0, 0.0), t * M_PI * 2.0 + h));
-
-					transformations *= getTranslationMat4f(treePos + (node1_p->pos + getVec3f(0.0, -0.2, 0.0)) * TREE_SCALE);
-
-					tree.leafTransformations.push_back(transformations);
-				
-				}
-			}
-		
 		}
+
+		TextureBuffer_initAsMat4fArray(&tree.leafTransformationsTextureBuffer, &tree.leafTransformations[0], tree.leafTransformations.size(), false);
+
+		tree.sortedLeafTransformations = (Mat4f *)malloc(sizeof(Mat4f) * tree.leafTransformations.size());
 
 	}
 
-	TextureBuffer_initAsMat4fArray(&tree.leafTransformationsTextureBuffer, &tree.leafTransformations[0], tree.leafTransformations.size(), false);
+	if(output_tree != NULL){
+		*output_tree = tree;
+	}
+	if(output_model != NULL){
+		*output_model = model;
+	}
+	if(output_triangleMesh != NULL){
+		*output_triangleMesh = triangleMesh;
+	}
 
-	tree.sortedLeafTransformations = (Mat4f *)malloc(sizeof(Mat4f) * tree.leafTransformations.size());
+	//game_p->trees.push_back(tree);
 
-	game_p->trees.push_back(tree);
-
+	/*
 	int obstacleID = World_addObstacle(
 		&game_p->world,
 		treePos,
@@ -327,5 +342,9 @@ void Game_addTree(Game *game_p, Vec3f treePos){
 		Game_getTextureIndexByName(game_p, "bark"),
 		getVec4f(0.7, 0.7, 0.7, 1.0)
 	);
+	*/
 
+}
+
+void Game_addTree(Game *game_p, Vec3f treePos){
 }

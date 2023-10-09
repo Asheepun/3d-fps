@@ -418,6 +418,33 @@ void Engine_start(){
 	}
 	*/
 
+	/*
+	{
+		Vec3f pos = getVec3f(10.0, 0.0, 10.0);
+		Tree tree;
+		Model model;
+		TriangleMesh triangleMesh;
+
+		generateTree(pos, &tree, &model, &triangleMesh);
+
+		game.trees.push_back(tree);
+
+		game.models.push_back(model);
+		game.world.triangleMeshes.push_back(triangleMesh);
+
+		World_addObstacle(
+			&game.world,
+			pos,
+			TREE_SCALE,
+			game.world.triangleMeshes.size() - 1,
+			game.models.size() - 1,
+			Game_getTextureIndexByName(&game, "bark"),
+			getVec4f(0.7, 0.7, 0.7, 1.0)
+		);
+	}
+	*/
+
+	/*
 	Game_addTree(&game, getVec3f(15.0, 0.0, 15.0));
 
 	Game_addTree(&game, getVec3f(25.0, 0.0, 15.0));
@@ -431,6 +458,7 @@ void Engine_start(){
 	Game_addTree(&game, getVec3f(90.0, 0.0, 90.0));
 
 	Game_addTree(&game, getVec3f(40.0, 0.0, 40.0));
+	*/
 
 	//generate point meshes
 	for(int i = 0; i < game.world.triangleMeshes.size(); i++){
