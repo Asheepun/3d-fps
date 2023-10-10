@@ -18,6 +18,8 @@ void Client_init(Client *client_p){
 	client_p->n_sentInputs = 0;
 	client_p->ready = false;
 	client_p->startLevel = false;
+	client_p->gameOver = false;
+	client_p->receivedGameState = false;
 
 	const char *ip = "127.0.0.1";
 	//const char *ip = "206.189.58.34";
@@ -69,6 +71,8 @@ void *receiveServerMessages(void *clientPointer){
 			client_p->latestServerGameState_mutexed = gameState;
 
 			pthread_mutex_unlock(&client_p->serverGameStateMutex);
+
+			client_p->receivedGameState = true;
 		
 		}
 
@@ -95,6 +99,10 @@ void *receiveServerMessages(void *clientPointer){
 
 			pthread_mutex_unlock(&client_p->startLevelMutex);
 			
+		}
+
+		if(message.type == MESSAGE_GAME_OVER){
+			client_p->gameOver = true;
 		}
 
 	}

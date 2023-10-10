@@ -166,6 +166,7 @@ struct Game{
 	Client client;
 
 	bool startLevel;
+	bool dead;
 
 };
 

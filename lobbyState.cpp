@@ -147,18 +147,6 @@ void lobbyState(Game *game_p){
 
 	pthread_mutex_unlock(&game_p->client.serverLobbyStateMutex);
 
-	char text[STRING_SIZE];
-	String_set(text, "", STRING_SIZE);
-	sprintf(text, "Ready players: %i/%i", serverLobbyState.n_readyPlayers, serverLobbyState.n_players);
-	addTextElement(300, 100, text, 100, game_p->font, getVec4f(0.3, 0.3, 0.3, 1.0));
-
-	if(!game_p->client.ready && textButtonDowned(300, 300, "Ready", 100, game_p->font, false)
-	|| game_p->client.ready && textButtonDowned(300, 300, "Not Ready", 100, game_p->font, false)){
-		game_p->client.ready = !game_p->client.ready;
-	}
-
-	Client_sendReadyToServer(&game_p->client, game_p->client.ready);
-
 	//check if level should start
 	pthread_mutex_lock(&game_p->client.startLevelMutex);
 
@@ -178,6 +166,7 @@ void lobbyState(Game *game_p){
 			TextureBuffer_free(&game_p->trees[i].leafTransformationsTextureBuffer);
 			free(game_p->trees[i].sortedLeafTransformations);
 		}
+		game_p->trees.clear();
 
 		for(int i = 0; i < game_p->world.triangleMeshes.size(); i++){
 			if(strcmp(game_p->world.triangleMeshes[i].name, "generated-tree") == 0){
@@ -241,10 +230,28 @@ void lobbyState(Game *game_p){
 
 		//change state
 		game_p->currentState = GAME_STATE_LEVEL;
+		game_p->client.gameOver = false;
+		game_p->dead = false;
+		game_p->client.receivedGameState = false;
 
 		Engine_fpsModeOn = true;
 
+		return;
+
 	}
+
+	char text[STRING_SIZE];
+	String_set(text, "", STRING_SIZE);
+	sprintf(text, "Ready players: %i/%i", serverLobbyState.n_readyPlayers, serverLobbyState.n_players);
+	addTextElement(300, 100, text, 100, game_p->font, getVec4f(0.3, 0.3, 0.3, 1.0));
+
+	if(!game_p->client.ready && textButtonDowned(300, 300, "Ready", 100, game_p->font, false)
+	|| game_p->client.ready && textButtonDowned(300, 300, "Not Ready", 100, game_p->font, false)){
+		game_p->client.ready = !game_p->client.ready;
+	}
+
+
+	Client_sendReadyToServer(&game_p->client, game_p->client.ready);
 
 }
 

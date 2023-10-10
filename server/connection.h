@@ -15,6 +15,7 @@ const char MESSAGE_CLIENT_INPUTS = 11;
 const char MESSAGE_SERVER_LOBBY_STATE = 20;
 const char MESSAGE_CLIENT_READY = 21;
 const char MESSAGE_START_LEVEL = 22;
+const char MESSAGE_GAME_OVER = 23;
 
 const int N_PLAYERS_MAX = 4;
 const int N_TREES_MAX = 6;
@@ -116,6 +117,8 @@ struct Client{
 	bool startLevel;
 	StartLevelData startLevelData;
 	pthread_mutex_t startLevelMutex;
+	bool gameOver;
+	bool receivedGameState;
 };
 
 #endif

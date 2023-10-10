@@ -36,6 +36,14 @@ void *gameLoop(void *){
 
 				printf("disconnected client\n");
 
+				for(int j = 0; j < world.players.size(); j++){
+					if(world.players[j].connectionID == connection_p->ID){
+						world.players.erase(world.players.begin() + j);
+						j--;
+						continue;
+					}
+				}
+
 				server.connections.erase(server.connections.begin() + i);
 				i--;
 				continue;
@@ -58,7 +66,7 @@ void *gameLoop(void *){
 				}
 			}
 
-			printf("%i, %i\n", lobbyState.n_players, lobbyState.n_readyPlayers);
+			printf("lobbyState: %i, %i\n", lobbyState.n_players, lobbyState.n_readyPlayers);
 
 			for(int i = 0; i < server.connections.size(); i++){
 
@@ -190,6 +198,30 @@ void *gameLoop(void *){
 		
 		}else if(server.currentState == SERVER_STATE_LEVEL){
 
+			printf("level state: %i, %i\n", world.players.size(), server.connections.size());
+
+			//check if game is over
+			if(server.connections.size() <= 1
+			|| world.players.size() <= 1){
+				server.currentState = SERVER_STATE_LOBBY;
+
+				for(int i = 0; i < server.connections.size(); i++){
+
+					Connection *connection_p = &server.connections[i];
+					connection_p->ready = false;
+
+					Message message;
+					message.type = MESSAGE_GAME_OVER;
+					message.connectionID = connection_p->ID;
+
+					sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+					
+				}
+
+				printf("switched to lobby state\n");
+				continue;
+			}
+
 			//handle inputs from clients
 			for(int i = 0; i < server.connections.size(); i++){
 				
@@ -197,6 +229,10 @@ void *gameLoop(void *){
 				
 				//update player based on inputs buffer
 				Player *player_p = World_getPlayerPointerByConnectionID(&world, connection_p->ID);
+
+				if(player_p == NULL){
+					continue;
+				}
 
 				while(connection_p->n_handledInputs < connection_p->n_receivedInputs){
 
@@ -231,6 +267,15 @@ void *gameLoop(void *){
 
 				}
 
+			}
+
+			//check if players have died
+			for(int i = 0; i < world.players.size(); i++){
+				if(world.players[i].health <= 0){
+					world.players.erase(world.players.begin() + i);
+					i--;
+					continue;
+				}
 			}
 
 			//send game state to clients

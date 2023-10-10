@@ -22,6 +22,14 @@ float holdingDistance = 0.0;
 
 void levelState(Game *game_p){
 
+	if(!game_p->client.receivedGameState){
+		return;
+	}
+
+	//if(game_p->dead){
+		//return;
+	//}
+
 	//printf("---\n");
 
 	if(Engine_keys[ENGINE_KEY_G].downed){
@@ -29,6 +37,21 @@ void levelState(Game *game_p){
 		if(game_p->world.players[0].weapon >= N_WEAPONS){
 			game_p->world.players[0].weapon = (Weapon)0;
 		}
+	}
+
+	printf("player: %i\n", game_p->world.players.size());
+
+	//check if game is over
+	if(game_p->client.gameOver){
+		printf("game over!\n");
+
+		game_p->client.ready = false;
+		game_p->client.startLevel = false;
+		game_p->currentState = GAME_STATE_LOBBY;
+
+		Engine_fpsModeOn = false;
+
+		return;
 	}
 
 	//printf("---\n");
@@ -96,17 +119,46 @@ void levelState(Game *game_p){
 	Client_sendInputsToServer(&game_p->client, inputs);
 
 	//update world based on latest server game state
+	for(int i = 0; i < game_p->world.players.size(); i++){
+
+		Player *player_p = &game_p->world.players[i];
+
+		PlayerData *serverPlayerData_p = NULL;
+		for(int j = 0; j < serverGameState.n_players; j++){
+			if(serverGameState.players[j].connectionID == player_p->connectionID){
+				serverPlayerData_p = &serverGameState.players[j];
+			}
+		}
+
+		if(serverPlayerData_p == NULL){
+
+			//check if player is dead
+			if(player_p->connectionID == game_p->client.connectionID){
+				player_p->health = 0;
+				game_p->dead = true;
+				continue;
+			}
+
+			game_p->world.players.erase(game_p->world.players.begin() + i);
+			i--;
+			continue;
+		}
+
+		player_p->health = serverPlayerData_p->health;
+
+		if(player_p->connectionID != game_p->client.connectionID
+		|| length(player_p->pos - serverPlayerData_p->pos) > 5.0){
+			player_p->pos = serverPlayerData_p->pos;
+			player_p->velocity = serverPlayerData_p->velocity;
+			player_p->onGround = serverPlayerData_p->onGround;
+		}
+	
+	}
+	/*
 	for(int i = 0; i < serverGameState.n_players; i++){
 
 		PlayerData *serverPlayerData_p = &serverGameState.players[i];
 		Player *player_p = World_getPlayerPointerByConnectionID(&game_p->world, serverPlayerData_p->connectionID);
-
-		/*
-		if(player_p == NULL){
-			World_addPlayer(&game_p->world, getVec3f(0.0), serverPlayerData_p->connectionID);
-			player_p = World_getPlayerPointerByConnectionID(&game_p->world, serverPlayerData_p->connectionID);
-		}
-		*/
 
 		//skip player position update unless they are too unsyncronized
 		if(!(player_p->connectionID == game_p->client.connectionID
@@ -119,10 +171,11 @@ void levelState(Game *game_p){
 		player_p->health = serverPlayerData_p->health;
 
 	}
+	*/
 #endif
 
 	//handle inputs on client
-	{
+	if(!game_p->dead){
 		Player *player_p = World_getPlayerPointerByConnectionID(&game_p->world, game_p->client.connectionID);
 
 		player_p->direction = inputs.cameraDirection;
@@ -554,7 +607,7 @@ void levelState(Game *game_p){
 	//cameraDirection = getVec3f(-0.9, -0.33, 0.26);
 
 	//update camera position
-	{
+	if(!game_p->dead){
 		Player *player_p = World_getPlayerPointerByConnectionID(&game_p->world, game_p->client.connectionID);
 
 		cameraPos = player_p->pos;
@@ -793,6 +846,10 @@ void levelState(Game *game_p){
 
 void drawLevelState(Game *game_p){
 
+	if(!game_p->client.receivedGameState){
+		return;
+	}
+
 	glBindTexture(GL_TEXTURE_2D, game_p->paintMapTexture.ID);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, PAINT_MAP_WIDTH, PAINT_MAP_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, game_p->paintMap);
 
@@ -974,7 +1031,7 @@ void drawLevelState(Game *game_p){
 
 		//draw grass
 		if((renderStage == RENDER_STAGE_GRASS_SHADOWS
-		|| renderStage == RENDER_STAGE_SCENE) && true){
+		|| renderStage == RENDER_STAGE_SCENE) && false){
 			glDisable(GL_CULL_FACE);
 
 			Vec3f pos = getVec3f(0.0, 4.0, 0.0);
@@ -1450,6 +1507,11 @@ void drawLevelState(Game *game_p){
 			if(player_p->weapon == WEAPON_SWORD){
 				Renderer2D_drawText(&game_p->renderer2D, "Sword", 40, 100, 60, game_p->font);
 			}
+
+			if(game_p->dead){
+				Renderer2D_drawText(&game_p->renderer2D, "Dead", 500, 500, 200, game_p->font);
+			}
+
 		}
 	
 		glEnable(GL_DEPTH_TEST);
