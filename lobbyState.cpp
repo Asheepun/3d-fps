@@ -150,8 +150,8 @@ void lobbyState(Game *game_p){
 	//check if level should start
 	pthread_mutex_lock(&game_p->client.startLevelMutex);
 
-	bool startLevel = game_p->client.startLevel;
-	StartLevelData startLevelData = game_p->client.startLevelData;
+	bool startLevel = game_p->client.startLevel_mutexed;
+	StartLevelData startLevelData = game_p->client.startLevelData_mutexed;
 
 	pthread_mutex_unlock(&game_p->client.startLevelMutex);
 
@@ -159,7 +159,7 @@ void lobbyState(Game *game_p){
 
 		srand(startLevelData.seed);
 
-		//setup world
+		//clear world
 		World_clear(&game_p->world);
 
 		for(int i = 0; i < game_p->trees.size(); i++){
@@ -185,6 +185,13 @@ void lobbyState(Game *game_p){
 				continue;
 			}
 		}
+
+		//clear shots
+		pthread_mutex_lock(&game_p->client.latestServerShotsMutex);
+
+		game_p->client.latestServerShots_mutexed.clear();
+
+		pthread_mutex_unlock(&game_p->client.latestServerShotsMutex);
 
 		//add obstacles
 		World_addObstacle(

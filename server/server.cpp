@@ -66,7 +66,7 @@ void *gameLoop(void *){
 				}
 			}
 
-			printf("lobbyState: %i, %i\n", lobbyState.n_players, lobbyState.n_readyPlayers);
+			//printf("lobbyState: %i, %i\n", lobbyState.n_players, lobbyState.n_readyPlayers);
 
 			for(int i = 0; i < server.connections.size(); i++){
 
@@ -167,7 +167,7 @@ void *gameLoop(void *){
 
 				}
 
-				//send message to clients
+				//send start message to clients
 				StartLevelData startLevelData;
 
 				startLevelData.n_players = world.players.size();
@@ -198,7 +198,7 @@ void *gameLoop(void *){
 		
 		}else if(server.currentState == SERVER_STATE_LEVEL){
 
-			printf("level state: %i, %i\n", world.players.size(), server.connections.size());
+			//printf("level state: %i, %i\n", world.players.size(), server.connections.size());
 
 			//check if game is over
 			if(server.connections.size() <= 1
@@ -222,6 +222,8 @@ void *gameLoop(void *){
 				continue;
 			}
 
+			std::vector<ShotData> shots;
+
 			//handle inputs from clients
 			for(int i = 0; i < server.connections.size(); i++){
 				
@@ -241,6 +243,14 @@ void *gameLoop(void *){
 					player_p->direction = inputs.cameraDirection;
 
 					if(inputs.shoot){
+
+						//add shot to shot data array
+						ShotData shotData;
+						shotData.pos = player_p->pos + getVec3f(0.0, player_p->height, 0.0);
+						shotData.direction = player_p->direction;
+						shotData.connectionID = connection_p->ID;
+						shotData.gameTime = inputs.gameTime;
+						shots.push_back(shotData);
 
 						//calculate shot relative to the shooters time
 						int timeDifference = server.gameTime - inputs.gameTime;
@@ -283,12 +293,14 @@ void *gameLoop(void *){
 
 				Connection *connection_p = &server.connections[i];
 
+				Inputs inputs = connection_p->inputQueue[connection_p->n_handledInputs % INPUT_QUEUE_SIZE];
+
 				ServerGameState gameState;
 
 				for(int j = 0; j < world.players.size(); j++){
 					gameState.players[j].connectionID = world.players[j].connectionID;
 					gameState.players[j].pos = world.players[j].pos;
-					gameState.players[j].velocity = world.players[j].velocity;
+					gameState.players[j].direction = world.players[j].direction;
 					gameState.players[j].onGround = world.players[j].onGround;
 					gameState.players[j].health = world.players[j].health;
 				}
@@ -305,6 +317,22 @@ void *gameLoop(void *){
 
 				sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
 			
+			}
+
+			//send shots to clients
+			for(int i = 0; i < shots.size(); i++){
+				for(int j = 0; j < server.connections.size(); j++){
+
+					Connection *connection_p = &server.connections[j];
+					
+					Message message;
+					message.type = MESSAGE_SHOT;
+					message.connectionID = connection_p->ID;
+					memcpy(message.buffer, &shots[i], sizeof(ShotData));
+
+					sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+
+				}
 			}
 
 			//save player states in buffer

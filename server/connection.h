@@ -16,6 +16,7 @@ const char MESSAGE_SERVER_LOBBY_STATE = 20;
 const char MESSAGE_CLIENT_READY = 21;
 const char MESSAGE_START_LEVEL = 22;
 const char MESSAGE_GAME_OVER = 23;
+const char MESSAGE_SHOT = 24;
 
 const int N_PLAYERS_MAX = 4;
 const int N_TREES_MAX = 6;
@@ -43,7 +44,7 @@ struct PlayerData{
 	int connectionID;
 	int health;
 	Vec3f pos;
-	Vec3f velocity;
+	Vec3f direction;
 	bool onGround;
 };
 
@@ -51,6 +52,13 @@ struct ServerGameState{
 	int n_players;
 	PlayerData players[N_PLAYERS_MAX];
 	int n_handledInputs;
+	int gameTime;
+};
+
+struct ShotData{
+	Vec3f pos;
+	Vec3f direction;
+	int connectionID;
 	int gameTime;
 };
 
@@ -114,11 +122,13 @@ struct Client{
 	bool ready;
 	ServerLobbyState latestServerLobbyState_mutexed;
 	pthread_mutex_t serverLobbyStateMutex;
-	bool startLevel;
-	StartLevelData startLevelData;
+	bool startLevel_mutexed;
+	StartLevelData startLevelData_mutexed;
 	pthread_mutex_t startLevelMutex;
 	bool gameOver;
 	bool receivedGameState;
+	std::vector<ShotData> latestServerShots_mutexed;
+	pthread_mutex_t latestServerShotsMutex;
 };
 
 #endif

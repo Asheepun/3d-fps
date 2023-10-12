@@ -10,9 +10,6 @@
 #include <vector>
 #include <immintrin.h>
 
-Vec3f treePos = { 10.0, 0.0, 15.0 };
-TextureBuffer leafTransformationsTextureBuffer;
-
 bool drawTimings = false;
 
 Game game;
@@ -45,21 +42,17 @@ void Engine_start(){
 	//Game_initClient(&game);
 #endif
 
-	Game_loadAssets(&game);
-	World_loadAssets(&game.world, "./");
+	game.dead = false;
 
-	Renderer2D_init(&game.renderer2D, WIDTH, HEIGHT);
+	pthread_t loadAssetsThread;
+	//pthread_create(&loadAssetsThread, NULL, loadAssetsAndGenerateStuffThreaded, &game);
 
-	game.font = getFont("assets/times.ttf", 60);
-
-#ifdef RUN_OFFLINE
-	game.currentState = GAME_STATE_LEVEL;
-#else
-	game.currentState = GAME_STATE_LOBBY;
-#endif
+	loadAssetsAndGenerateStuffThreaded(&game);
 
 	//generate water mesh
 	{
+		Game *game_p = &game;
+
 		float scale = 20.0;
 		int n_triangles = (scale) * (scale) * 2;
 		float *meshData = (float *)malloc(n_triangles * 6 * 8 * sizeof(float));
@@ -125,17 +118,14 @@ void Engine_start(){
 		Model_initFromMeshData(&model, (unsigned char *)meshData, n_triangles);
 		String_set(model.name, "water", STRING_SIZE);
 
-		game.models.push_back(model);
+		game_p->models.push_back(model);
 
-	}
-
-	//generate underwater terrain
-	{
-	
 	}
 
 	//generate terrain
 	{
+		Game *game_p = &game;
+
 		Vec3f *triangles;
 		Vec2f *textureCoords;
 		int n_triangles;
@@ -148,7 +138,7 @@ void Engine_start(){
 		triangleMesh.n_triangles = n_triangles;
 		String_set(triangleMesh.name, "terrain", STRING_SIZE);
 
-		game.world.triangleMeshes.push_back(triangleMesh);
+		game_p->world.triangleMeshes.push_back(triangleMesh);
 
 		unsigned char *meshData = generateMeshDataFromTriangleMesh(triangleMesh, textureCoords);
 
@@ -158,11 +148,11 @@ void Engine_start(){
 
 		String_set(model.name, "terrain", STRING_SIZE);
 
-		game.models.push_back(model);
+		game_p->models.push_back(model);
 
-		game.terrainMaxHeight = 0.0;
+		game_p->terrainMaxHeight = 0.0;
 		for(int i = 0; i < n_triangles * 3; i++){
-			game.terrainMaxHeight = fmax(game.terrainMaxHeight, triangles[i].y * TERRAIN_SCALE);
+			game_p->terrainMaxHeight = fmax(game_p->terrainMaxHeight, triangles[i].y * TERRAIN_SCALE);
 		}
 
 		//free unneeded data
@@ -173,25 +163,30 @@ void Engine_start(){
 
 	//generate terrain texture
 	{
+		Game *game_p = &game;
+
 		Texture texture;
 
-		game.terrainTextureData = (unsigned char *)malloc(sizeof(unsigned char) * 4 * TERRAIN_TEXTURE_WIDTH * TERRAIN_TEXTURE_WIDTH);
+		game_p->terrainTextureData = (unsigned char *)malloc(sizeof(unsigned char) * 4 * TERRAIN_TEXTURE_WIDTH * TERRAIN_TEXTURE_WIDTH);
 
 		for(int i = 0; i < TERRAIN_TEXTURE_WIDTH * TERRAIN_TEXTURE_WIDTH; i++){
-			game.terrainTextureData[i * 4 + 0] = (unsigned char)(TERRAIN_COLOR.x * 255.0);
-			game.terrainTextureData[i * 4 + 1] = (unsigned char)(TERRAIN_COLOR.y * 255.0);
-			game.terrainTextureData[i * 4 + 2] = (unsigned char)(TERRAIN_COLOR.z * 255.0);
-			game.terrainTextureData[i * 4 + 3] = (unsigned char)(TERRAIN_COLOR.w * 255.0);
+			game_p->terrainTextureData[i * 4 + 0] = (unsigned char)(TERRAIN_COLOR.x * 255.0);
+			game_p->terrainTextureData[i * 4 + 1] = (unsigned char)(TERRAIN_COLOR.y * 255.0);
+			game_p->terrainTextureData[i * 4 + 2] = (unsigned char)(TERRAIN_COLOR.z * 255.0);
+			game_p->terrainTextureData[i * 4 + 3] = (unsigned char)(TERRAIN_COLOR.w * 255.0);
 		}
 
-		Texture_init(&texture, "terrain", game.terrainTextureData, TERRAIN_TEXTURE_WIDTH, TERRAIN_TEXTURE_WIDTH);
+		Texture_init(&texture, "terrain", game_p->terrainTextureData, TERRAIN_TEXTURE_WIDTH, TERRAIN_TEXTURE_WIDTH);
 
-		game.textures.push_back(texture);
+		game_p->textures.push_back(texture);
 	}
+
 
 	//generate grass positions
 	{
-		TriangleMesh *terrainTriangleMesh_p = World_getTriangleMeshPointerByName(&game.world, "terrain");
+		Game *game_p = &game;
+
+		TriangleMesh *terrainTriangleMesh_p = World_getTriangleMeshPointerByName(&game_p->world, "terrain");
 
 		int n = 0;
 		int hits = 0;
@@ -247,7 +242,7 @@ void Engine_start(){
 				if(hit){
 					pos.y = intersectionPoint.y + 0.5;
 					pos.w = getRandom() + 100.0;
-					game.grassPositions.push_back(pos);
+					game_p->grassPositions.push_back(pos);
 					pos.y += 3.0;
 
 					hits++;
@@ -261,10 +256,21 @@ void Engine_start(){
 
 		//printf("%i, %i\n", hits, n);
 
-		TextureBuffer_initAsVec4fArray(&game.grassPositionsTextureBuffer, &game.grassPositions[0], game.grassPositions.size());
+		TextureBuffer_initAsVec4fArray(&game_p->grassPositionsTextureBuffer, &game_p->grassPositions[0], game_p->grassPositions.size());
 
-		game.sortedGrassPositions = (Vec4f *)malloc(sizeof(Vec4f) * game.grassPositions.size());
+		game_p->sortedGrassPositions = (Vec4f *)malloc(sizeof(Vec4f) * game_p->grassPositions.size());
 	}
+
+
+	Renderer2D_init(&game.renderer2D, WIDTH, HEIGHT);
+
+	game.font = getFont("assets/times.ttf", 60);
+
+#ifdef RUN_OFFLINE
+	game.currentState = GAME_STATE_LEVEL;
+#else
+	game.currentState = GAME_STATE_LOBBY;
+#endif
 
 	Engine_setWindowSize(WIDTH / 2, HEIGHT / 2);
 
@@ -331,6 +337,7 @@ void Engine_start(){
 	//init game
 	game.startLevel = false;
 
+#ifdef RUN_OFFLINE
 	World_addObstacle(
 		&game.world,
 		getVec3f(0.0, 0.0, 0.0),
@@ -340,6 +347,7 @@ void Engine_start(){
 		Game_getTextureIndexByName(&game, "terrain"),
 		getVec4f(1.0, 1.0, 1.0, 1.0)
 	);
+#endif
 
 	/*
 	World_addObstacle(
@@ -460,6 +468,7 @@ void Engine_start(){
 	Game_addTree(&game, getVec3f(40.0, 0.0, 40.0));
 	*/
 
+	/*
 	//generate point meshes
 	for(int i = 0; i < game.world.triangleMeshes.size(); i++){
 		PointMesh pointMesh;
@@ -489,7 +498,9 @@ void Engine_start(){
 		}
 
 	}
+	*/
 
+	/*
 	//generate bounding boxes for obstacles
 	for(int i = 0; i < game.world.obstacles.size(); i++){
 		
@@ -526,6 +537,7 @@ void Engine_start(){
 		//Vec3f_log(obstacle_p->boundingBox.size);
 
 	}
+	*/
 
 	//Engine_toggleFullscreen();
 

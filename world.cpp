@@ -267,6 +267,7 @@ void World_addPlayer(World *world_p, Vec3f pos, int connectionID){
 	player.height = PLAYER_HEIGHT_STANDING;
 	player.weapon = WEAPON_GUN;
 	player.health = 100;
+	player.direction = getVec3f(1.0, 0.0, 0.0);
 
 	world_p->players.push_back(player);
 
@@ -507,6 +508,34 @@ int Game_getShaderIndexByName(Game *game_p, const char *name){
 
 }
 
+int Game_getBoneModelIndexByName(Game *game_p, const char *name){
+
+	for(int i = 0; i < game_p->boneModels.size(); i++){
+		if(strcmp(game_p->boneModels[i].name, name) == 0){
+			return i;
+		}
+	}
+
+	printf("COULD NOT FIND BONE MODEL: %s\n", name);
+
+	return -1;
+
+}
+
+int World_getBoneRigIndexByName(World *world_p, const char *name){
+	
+	for(int i = 0; i < world_p->boneRigs.size(); i++){
+		if(strcmp(world_p->boneRigs[i].name, name) == 0){
+			return i;
+		}
+	}
+
+	printf("COULD NOT FIND BONE RIG: %s\n", name);
+
+	return -1;
+
+}
+
 Model *Game_getModelPointerByName(Game *game_p, const char *name){
 
 	int index = Game_getModelIndexByName(game_p, name);
@@ -552,6 +581,30 @@ Shader *Game_getShaderPointerByName(Game *game_p, const char *name){
 	}
 
 	return &game_p->shaders[index];
+
+}
+
+BoneModel *Game_getBoneModelPointerByName(Game *game_p, const char *name){
+
+	int index = Game_getBoneModelIndexByName(game_p, name);
+
+	if(index == -1){
+		return NULL;
+	}
+
+	return &game_p->boneModels[index];
+
+}
+
+BoneRig *World_getBoneRigPointerByName(World *world_p, const char *name){
+
+	int index = World_getBoneRigIndexByName(world_p, name);
+
+	if(index == -1){
+		return NULL;
+	}
+
+	return &world_p->boneRigs[index];
 
 }
 

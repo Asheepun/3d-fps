@@ -22,9 +22,11 @@ float holdingDistance = 0.0;
 
 void levelState(Game *game_p){
 
+#ifndef RUN_OFFLINE
 	if(!game_p->client.receivedGameState){
 		return;
 	}
+#endif
 
 	//if(game_p->dead){
 		//return;
@@ -39,14 +41,14 @@ void levelState(Game *game_p){
 		}
 	}
 
-	printf("player: %i\n", game_p->world.players.size());
+	//printf("player: %i\n", game_p->world.players.size());
 
 	//check if game is over
 	if(game_p->client.gameOver){
 		printf("game over!\n");
 
 		game_p->client.ready = false;
-		game_p->client.startLevel = false;
+		game_p->client.startLevel_mutexed = false;
 		game_p->currentState = GAME_STATE_LOBBY;
 
 		Engine_fpsModeOn = false;
@@ -64,6 +66,23 @@ void levelState(Game *game_p){
 
 	pthread_mutex_unlock(&game_p->client.serverGameStateMutex);
 #endif
+
+	//get server shots
+#ifndef RUN_OFFLINE
+	pthread_mutex_lock(&game_p->client.latestServerShotsMutex);
+
+	int n_serverShots = game_p->client.latestServerShots_mutexed.size();
+	ShotData serverShots[n_serverShots];
+	memcpy(serverShots, &game_p->client.latestServerShots_mutexed[0], n_serverShots * sizeof(ShotData));
+
+	game_p->client.latestServerShots_mutexed.clear();
+
+	pthread_mutex_unlock(&game_p->client.latestServerShotsMutex);
+#endif
+
+	//if(n_serverShots > 0){
+		//printf("shot!\n");
+	//}
 
 	Inputs inputs;
 	memset(&inputs, 0, sizeof(Inputs));
@@ -149,29 +168,11 @@ void levelState(Game *game_p){
 		if(player_p->connectionID != game_p->client.connectionID
 		|| length(player_p->pos - serverPlayerData_p->pos) > 5.0){
 			player_p->pos = serverPlayerData_p->pos;
-			player_p->velocity = serverPlayerData_p->velocity;
+			player_p->direction = serverPlayerData_p->direction;
 			player_p->onGround = serverPlayerData_p->onGround;
 		}
 	
 	}
-	/*
-	for(int i = 0; i < serverGameState.n_players; i++){
-
-		PlayerData *serverPlayerData_p = &serverGameState.players[i];
-		Player *player_p = World_getPlayerPointerByConnectionID(&game_p->world, serverPlayerData_p->connectionID);
-
-		//skip player position update unless they are too unsyncronized
-		if(!(player_p->connectionID == game_p->client.connectionID
-		&& length(player_p->pos - serverPlayerData_p->pos) < 10.0)){
-			player_p->pos = serverPlayerData_p->pos;
-			player_p->velocity = serverPlayerData_p->velocity;
-			player_p->onGround = serverPlayerData_p->onGround;
-		}
-
-		player_p->health = serverPlayerData_p->health;
-
-	}
-	*/
 #endif
 
 	//handle inputs on client
@@ -217,6 +218,45 @@ void levelState(Game *game_p){
 	
 		Player_World_moveAndCollideBasedOnInputs_common(player_p, &game_p->world, inputs);
 	}
+
+#ifndef RUN_OFFLINE
+	//handle shots on client
+	for(int i = 0; i < n_serverShots; i++){
+
+		ShotData *shot_p = &serverShots[i];
+
+		if(shot_p->connectionID != game_p->client.connectionID){
+
+			Player *player_p = World_getPlayerPointerByConnectionID(&game_p->world, shot_p->connectionID);
+
+			Vec3f hitPosition;
+			Vec3f hitNormal;
+			int hitConnectionID;
+			bool hit = Player_World_shoot_common(player_p, &game_p->world, game_p->world.players, &hitPosition, &hitNormal, &hitConnectionID);
+
+			if(hit){
+
+				int n_particles = 17 + getRandom() * 5;
+
+				for(int j = 0; j < n_particles; j++){
+
+					Particle particle;
+					particle.pos = hitPosition;
+					particle.velocity = hitNormal * 0.1;
+					particle.velocity.y += 0.1;
+					particle.velocity += normalize(getVec3f(getRandom() - 0.5, getRandom() - 0.5, getRandom() - 0.5)) * 0.05;
+					particle.scale = getVec3f(0.1 * (0.8 + 0.4 * getRandom()));
+					
+					game_p->bloodParticles.push_back(particle);
+
+				}
+
+			}
+
+		}
+
+	}
+#endif
 
 	/*
 	//check if rigid bodies are dragged
@@ -846,9 +886,11 @@ void levelState(Game *game_p){
 
 void drawLevelState(Game *game_p){
 
+#ifndef RUN_OFFLINE
 	if(!game_p->client.receivedGameState){
 		return;
 	}
+#endif
 
 	glBindTexture(GL_TEXTURE_2D, game_p->paintMapTexture.ID);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, PAINT_MAP_WIDTH, PAINT_MAP_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, game_p->paintMap);
@@ -1027,6 +1069,48 @@ void drawLevelState(Game *game_p){
 
 			}
 
+			//draw player guns
+			for(int i = 0; i < game_p->world.players.size(); i++){
+				
+				Player *player_p = &game_p->world.players[i];
+
+				if(player_p->connectionID == game_p->client.connectionID){
+					//continue;
+				}
+
+				float horizontalAngle = atan2(player_p->direction.x, player_p->direction.z);
+				float verticalAngle = asin(player_p->direction.y);
+
+				//verticalAngle = windTime;
+
+				Vec4f orientation = IDENTITY_QUATERNION;
+				orientation = mulQuaternions(getQuaternion(getVec3f(0.0, 1.0, 0.0), M_PI / 2.0), orientation);
+				orientation = mulQuaternions(getQuaternion(getVec3f(1.0, 0.0, 0.0), -verticalAngle), orientation);
+				orientation = mulQuaternions(getQuaternion(getVec3f(0.0, 1.0, 0.0), horizontalAngle), orientation);
+
+				Vec3f cameraRight = cross(player_p->direction, getVec3f(0.0, 1.0, 0.0));
+				Vec3f cameraUp = normalize(cross(cameraRight, player_p->direction));
+
+				Vec3f pos = player_p->pos + getVec3f(0.0, player_p->height, 0.0) + player_p->direction * 1.0 - cameraUp * 0.3;
+
+				Mat4f modelMatrix = getModelMatrix(pos, getVec3f(GUN_SCALE), orientation);
+
+				Model *model_p = Game_getModelPointerByName(game_p, "gun");
+				Texture *texture_p = Game_getTexturePointerByName(game_p, "blank");
+
+				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+				glBindVertexArray(model_p->VAO);
+
+				GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
+
+				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
+
+				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.9, 0.0, 0.0, 1.0));
+
+				glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+
+			}
+
 		}
 
 		//draw grass
@@ -1179,16 +1263,55 @@ void drawLevelState(Game *game_p){
 					continue;
 				}
 
-				float scale = 0.5;
+				Mat4f modelMatrix = getModelMatrix(player_p->pos, getVec3f(PLAYER_SCALE), IDENTITY_QUATERNION);
 
-				Mat4f modelMatrix = getModelMatrix(player_p->pos, getVec3f(scale), IDENTITY_QUATERNION);
+				BoneModel *model_p = Game_getBoneModelPointerByName(game_p, "gubbe");
+				BoneRig *boneRig_p = World_getBoneRigPointerByName(&game_p->world, "gubbe");
 
-				BoneModel *model_p = &game_p->boneModels[0];
+				std::vector<Bone> newBones = boneRig_p->originBones;
 
-				BoneRig *boneRig_p = &game_p->world.boneRigs[0];
-				BoneRig *boneRig2_p = &game_p->world.boneRigs[1];
+				//player_p->direction = game_p->world.players[0].direction * -1.0;
 
-				std::vector<Mat4f> boneTransformations = getBoneRigTransformations(boneRig_p, boneRig2_p->originBones);
+				Vec3f axis = getVec3f(0.0, 1.0, 0.0);
+				float angle = 0.0;
+
+				float horizontalAngle = atan2(player_p->direction.x, player_p->direction.z);
+				float verticalAngle = asin(player_p->direction.y);
+				float angleToGun = M_PI / 8.0;
+				//horizontalAngle = 0.0;
+
+				for(int j = 0; j < newBones.size(); j++){
+					if(strcmp(newBones[j].name, "Root") == 0){
+						//newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
+					}
+					if(strcmp(newBones[j].name, "Spine") == 0){
+						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, horizontalAngle));
+					}
+
+					if(strcmp(newBones[j].name, "Upper_Arm_R") == 0){
+						Vec3f axis = getVec3f(0.0, 0.0, 1.0);
+						float angle = -M_PI / 2.0 - angleToGun;
+						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
+						axis = getVec3f(1.0, 0.0, 0.0);
+						angle = -verticalAngle;
+						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
+					}
+					if(strcmp(newBones[j].name, "Upper_Arm_L") == 0){
+						Vec3f axis = getVec3f(1.0, 0.0, 0.0);
+						float angle = M_PI / 2.0 + angleToGun;
+						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
+						axis = getVec3f(0.0, 0.0, 1.0);
+						angle = verticalAngle;
+						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
+					}
+				}
+
+				//BoneModel *model_p = &game_p->boneModels[0];
+
+				//BoneRig *boneRig_p = &game_p->world.boneRigs[0];
+				//BoneRig *boneRig2_p = &game_p->world.boneRigs[1];
+
+				std::vector<Mat4f> boneTransformations = getBoneRigTransformations(boneRig_p, newBones);
 
 				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
 				glBindVertexArray(model_p->VAO);

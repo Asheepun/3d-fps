@@ -27,6 +27,7 @@ void main(){
 
 	vertexPosition *= boneTransformationSum;
 	vertexNormal *= boneTransformationSum;
+	vertexNormal = normalize(vertexNormal);
 
 	vertexPosition *= modelMatrix;
 

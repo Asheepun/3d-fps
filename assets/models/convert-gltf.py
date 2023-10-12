@@ -3,7 +3,7 @@ import base64
 import struct
 import math
 
-fileName = "dude-bones2"
+fileName = "gubbe"
   
 gltfFile = open(fileName + ".gltf")
 #gltfFile = open('minimalfile.gltf')

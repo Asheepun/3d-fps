@@ -111,7 +111,7 @@ void BoneModel_initFromFile(BoneModel *, const char *);
 
 void BoneRig_initFromFile(BoneRig *, const char *);
 
-int BoneModel_getBoneIndexByName(BoneModel *, const char *);
+//int BoneModel_getBoneIndexByName(BoneModel *, const char *);
 
 std::vector<Bone> getBonesFromFile(const char *);
 

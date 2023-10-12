@@ -1,6 +1,8 @@
+#include "engine/shaders.h"
+
 #include "game.h"
 
-#include "engine/shaders.h"
+#include "math.h"
 
 void Game_loadAssets(Game *game_p){
 
@@ -61,6 +63,7 @@ void Game_loadAssets(Game *game_p){
 			"quad",
 			"cube",
 			"sword",
+			"gun",
 		};
 
 		int n_names = sizeof(names) / sizeof(char *);
@@ -87,6 +90,7 @@ void Game_loadAssets(Game *game_p){
 	{
 		const char *names[] = {
 			"dude-bones",
+			"gubbe",
 			//"dude-bones2",
 		};
 
@@ -192,6 +196,7 @@ void World_loadAssets(World *world_p, const char *rootPath){
 	{
 		const char *names[] = {
 			"dude-bones",
+			"gubbe",
 		};
 
 		int n_names = sizeof(names) / sizeof(char *);
@@ -221,6 +226,7 @@ void World_loadAssets(World *world_p, const char *rootPath){
 		const char *names[] = {
 			"dude-bones",
 			"dude-bones2",
+			"gubbe",
 		};
 
 		int n_names = sizeof(names) / sizeof(char *);
@@ -244,5 +250,22 @@ void World_loadAssets(World *world_p, const char *rootPath){
 		}
 	
 	}
+
+}
+
+void *loadAssetsAndGenerateStuffThreaded(void *gamePointer){
+
+	Game *game_p = (Game *)gamePointer;
+
+	printf("began loading assets\n");
+
+	Game_loadAssets(game_p);
+	World_loadAssets(&game_p->world, "./");
+
+	printf("loaded assets\n");
+
+	printf("done generating stuff\n");
+
+	return NULL;
 
 }

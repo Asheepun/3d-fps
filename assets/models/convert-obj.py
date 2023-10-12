@@ -1,6 +1,6 @@
 import array
 
-fileName = "sword"
+fileName = "gun"
 
 objFile = open(fileName + ".obj", "r")
 

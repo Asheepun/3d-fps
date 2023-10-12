@@ -15,7 +15,7 @@
 #include <cstring>
 #include <vector>
 
-//#define RUN_OFFLINE
+#define RUN_OFFLINE
 
 enum GameState{
 	GAME_STATE_LOBBY,
@@ -223,6 +223,9 @@ static float PLAYER_WALK_RESISTANCE = 0.75;
 static float PLAYER_LOOK_SPEED = 0.0015;
 static float PLAYER_SPEED = 0.065;
 static float PLAYER_CROUCH_SPEED = 0.025;
+static float PLAYER_SCALE = 0.6;
+
+static float GUN_SCALE = 0.4;
 
 //FUNCTION_DEFINITIONS
 
@@ -253,11 +256,15 @@ int Game_getModelIndexByName(Game *, const char *);
 int Game_getTextureIndexByName(Game *, const char *);
 int World_getTriangleMeshIndexByName(World *, const char *);
 int Game_getShaderIndexByName(Game *, const char *);
+int Game_getBoneModelIndexByName(Game *, const char *);
+int World_getBoneRigIndexByName(World *, const char *);
 
 Model *Game_getModelPointerByName(Game *, const char *);
 Texture *Game_getTexturePointerByName(Game *, const char *);
 TriangleMesh *World_getTriangleMeshPointerByName(World *, const char *);
 Shader *Game_getShaderPointerByName(Game *, const char *);
+BoneModel *Game_getBoneModelPointerByName(Game *, const char *);
+BoneRig *World_getBoneRigPointerByName(World *, const char *);
 
 Obstacle *Game_getObstacleByID(Game *, int);
 
@@ -276,6 +283,8 @@ void Client_sendReadyToServer(Client *, bool);
 
 void Game_loadAssets(Game *);
 void World_loadAssets(World *, const char *);
+
+void *loadAssetsAndGenerateStuffThreaded(void *);
 
 //FILE: trees.cpp
 

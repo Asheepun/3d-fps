@@ -17,7 +17,7 @@ void Client_init(Client *client_p){
 	
 	client_p->n_sentInputs = 0;
 	client_p->ready = false;
-	client_p->startLevel = false;
+	client_p->startLevel_mutexed = false;
 	client_p->gameOver = false;
 	client_p->receivedGameState = false;
 
@@ -94,8 +94,8 @@ void *receiveServerMessages(void *clientPointer){
 			
 			pthread_mutex_lock(&client_p->startLevelMutex);
 
-			client_p->startLevel = true;
-			memcpy(&client_p->startLevelData, message.buffer, sizeof(StartLevelData));
+			client_p->startLevel_mutexed = true;
+			memcpy(&client_p->startLevelData_mutexed, message.buffer, sizeof(StartLevelData));
 
 			pthread_mutex_unlock(&client_p->startLevelMutex);
 			
@@ -103,6 +103,17 @@ void *receiveServerMessages(void *clientPointer){
 
 		if(message.type == MESSAGE_GAME_OVER){
 			client_p->gameOver = true;
+		}
+
+		if(message.type == MESSAGE_SHOT){
+
+			ShotData shot;
+			memcpy(&shot, message.buffer, sizeof(ShotData));
+
+			pthread_mutex_lock(&client_p->latestServerShotsMutex);
+			client_p->latestServerShots_mutexed.push_back(shot);
+			pthread_mutex_unlock(&client_p->latestServerShotsMutex);
+
 		}
 
 	}
