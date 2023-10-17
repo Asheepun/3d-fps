@@ -2,6 +2,8 @@
 
 in vec4 input_fragmentPosition;
 in vec4 input_fragmentNormal;
+in vec4 input_boneIndices;
+in vec4 input_boneWeights;
 
 out vec4 FragColor;
 

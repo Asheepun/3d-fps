@@ -241,6 +241,8 @@ std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone> bones){
 	bool matrixCalculationFlags[bones.size()];
 	memset(matrixCalculationFlags, 0, bones.size() * sizeof(bool));
 
+	//printf("---\n");
+
 	for(int iteration = 0; iteration < bones.size(); iteration++){
 		for(int i = 0; i < bones.size(); i++){
 
@@ -256,7 +258,7 @@ std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone> bones){
 
 				Mat4f transformation = getIdentityMat4f();
 
-				transformation *= getScalingMat4f(bone_p->scale);
+				//transformation *= getScalingMat4f(bone_p->scale);
 				transformation *= getQuaternionMat4f(bone_p->rotation);
 				transformation *= getTranslationMat4f(bone_p->translation);
 
@@ -274,9 +276,9 @@ std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone> bones){
 				
 				Mat4f transformation = getIdentityMat4f();
 
-				transformation *= getScalingMat4f(bone_p->scale);
 				transformation *= getQuaternionMat4f(bone_p->rotation);
 				transformation *= getTranslationMat4f(bone_p->translation);
+				//transformation *= getScalingMat4f(bone_p->scale);
 
 				transformation *= matrices[bone_p->parent];
 
@@ -313,6 +315,8 @@ std::vector<Mat4f> getBoneRigTransformations(BoneRig *boneRig_p, std::vector<Bon
 	for(int i = 0; i < bindMatrices.size(); i++){
 		Mat4f transformation = boneRig_p->inverseBindMatrices[i];
 		transformation *= bindMatrices[i];
+		//Mat4f transformation = bindMatrices[i];
+		//transformation *= boneRig_p->inverseBindMatrices[i];
 		transformations.push_back(transformation);
 	}
 

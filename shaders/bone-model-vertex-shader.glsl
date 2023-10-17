@@ -14,6 +14,8 @@ uniform mat4 boneTransformations[32];
 
 out vec4 input_fragmentPosition;
 out vec4 input_fragmentNormal;
+out vec4 input_boneIndices;
+out vec4 input_boneWeights;
 
 void main(){
 
@@ -24,6 +26,8 @@ void main(){
 							   + boneTransformations[int(attribute_boneIndices.y)] * attribute_boneWeights.y
 							   + boneTransformations[int(attribute_boneIndices.z)] * attribute_boneWeights.z
 							   + boneTransformations[int(attribute_boneIndices.w)] * attribute_boneWeights.w;
+	input_boneIndices = attribute_boneIndices;
+	input_boneWeights = attribute_boneWeights;
 
 	vertexPosition *= boneTransformationSum;
 	vertexNormal *= boneTransformationSum;

@@ -1265,6 +1265,8 @@ void drawLevelState(Game *game_p){
 
 				Mat4f modelMatrix = getModelMatrix(player_p->pos, getVec3f(PLAYER_SCALE), IDENTITY_QUATERNION);
 
+				//BoneModel *model_p = Game_getBoneModelPointerByName(game_p, "gubbe");
+				//BoneRig *boneRig_p = World_getBoneRigPointerByName(&game_p->world, "gubbe");
 				BoneModel *model_p = Game_getBoneModelPointerByName(game_p, "gubbe");
 				BoneRig *boneRig_p = World_getBoneRigPointerByName(&game_p->world, "gubbe");
 
@@ -1277,22 +1279,22 @@ void drawLevelState(Game *game_p){
 
 				float horizontalAngle = atan2(player_p->direction.x, player_p->direction.z);
 				float verticalAngle = asin(player_p->direction.y);
-				float angleToGun = M_PI / 8.0;
+				float angleToGun = M_PI / 5.0;
+				float shoulderAngle = M_PI / 10.0;
 				//horizontalAngle = 0.0;
 
 				for(int j = 0; j < newBones.size(); j++){
-					if(strcmp(newBones[j].name, "Root") == 0){
-						//newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
-					}
-					if(strcmp(newBones[j].name, "Spine") == 0){
-						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, horizontalAngle));
-					}
 
-					if(strcmp(newBones[j].name, "Upper_Arm_R") == 0){
-						Vec3f axis = getVec3f(0.0, 0.0, 1.0);
-						float angle = -M_PI / 2.0 - angleToGun;
+					if(strcmp(newBones[j].name, "Root") == 0){
+						Vec3f axis = getVec3f(0.0, 1.0, 0.0);
+						float angle = horizontalAngle;
 						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
-						axis = getVec3f(1.0, 0.0, 0.0);
+					}
+					if(strcmp(newBones[j].name, "Upper_Arm_R") == 0){
+						Vec3f axis = getVec3f(1.0, 0.0, 0.0);
+						float angle = M_PI / 2.0 + angleToGun;
+						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
+						axis = getVec3f(0.0, 0.0, 1.0);
 						angle = -verticalAngle;
 						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
 					}
@@ -1304,25 +1306,70 @@ void drawLevelState(Game *game_p){
 						angle = verticalAngle;
 						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
 					}
+					if(strcmp(newBones[j].name, "Upper_Leg_R") == 0){
+						Vec3f axis = getVec3f(0.0, 0.0, 1.0);
+						float angle = sin(windTime * 8.0);
+						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
+					}
+					if(strcmp(newBones[j].name, "Upper_Leg_L") == 0){
+						Vec3f axis = getVec3f(0.0, 0.0, 1.0);
+						float angle = sin(windTime * 8.0);
+						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
+					}
 				}
-
-				//BoneModel *model_p = &game_p->boneModels[0];
-
-				//BoneRig *boneRig_p = &game_p->world.boneRigs[0];
-				//BoneRig *boneRig2_p = &game_p->world.boneRigs[1];
 
 				std::vector<Mat4f> boneTransformations = getBoneRigTransformations(boneRig_p, newBones);
 
 				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
 				glBindVertexArray(model_p->VAO);
 
-				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", getTranslationMat4f(getVec3f(0.0, 0.0, 0.0)) * modelMatrix);
 
 				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.7, 0.7, 0.7, 1.0));
 
 				GL3D_uniformMat4fArray(shader_p->ID, "boneTransformations", &boneTransformations[0], boneTransformations.size());
 
 				glDrawArrays(GL_TRIANGLES, 0, model_p->n_triangles * 3);
+
+				/*
+				Shader *shader_p = Game_getShaderPointerByName(game_p, "model");
+				if(renderStage == RENDER_STAGE_SHADOWS
+				|| renderStage == RENDER_STAGE_BIG_SHADOWS){
+					shader_p = Game_getShaderPointerByName(game_p, "model-shadow");
+				}
+
+				glUseProgram(shader_p->ID);
+
+				GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
+
+				GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 1, game_p->shadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 2, game_p->grassShadowMapDepthTexture.ID);
+				GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 3, game_p->bigShadowMapDepthTexture.ID);
+
+				GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "lightViewMatrix", lightViewMatrix);
+				GL3D_uniformMat4f(shader_p->ID, "bigLightViewMatrix", bigLightViewMatrix);
+
+				std::vector<Mat4f> bindMatrices = getBindMatricesFromBones(newBones, NULL);
+
+				for(int j = 0; j < bindMatrices.size(); j++){
+
+					Model *model_p = Game_getModelPointerByName(game_p, "cube");
+					Texture *texture_p = Game_getTexturePointerByName(game_p, "blank");
+
+					glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+					glBindVertexArray(model_p->VAO);
+
+					GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
+
+					GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix * bindMatrices[j] * getScalingMat4f(getVec3f(0.1)));
+
+					GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.9, 0.0, 0.0, 1.0));
+
+					glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+
+				}
+				*/
 			
 			}
 

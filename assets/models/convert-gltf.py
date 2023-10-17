@@ -40,6 +40,7 @@ indices = struct.unpack(str(n_indices) + "H", indexBytes)
 print(min(indices))
 print(max(indices))
 
+print(n_positions)
 print(n_indices)
 
 outputData = b""
@@ -73,10 +74,18 @@ for i in indices:
         normals[i * 3 + 2],
         texCoords[i * 2 + 0],
         texCoords[i * 2 + 1],
-        max(joints[i * 4 + 0] - 1, 0),
-        max(joints[i * 4 + 1] - 1, 0),
-        max(joints[i * 4 + 2] - 1, 0),
-        max(joints[i * 4 + 3] - 1, 0),
+        #1,
+        #1,
+        #1,
+        #1,
+        joints[i * 4 + 0],
+        joints[i * 4 + 1],
+        joints[i * 4 + 2],
+        joints[i * 4 + 3],
+        #max(joints[i * 4 + 0] - 1, 0),
+        #max(joints[i * 4 + 1] - 1, 0),
+        #max(joints[i * 4 + 2] - 1, 0),
+        #max(joints[i * 4 + 3] - 1, 0),
         weights[i * 4 + 0],
         weights[i * 4 + 1],
         weights[i * 4 + 2],
@@ -97,6 +106,42 @@ outputFile.close()
 # CREATE BONES FILE
 #
 
+tmp_n_nodes = 0
+tmp_names = []
+tmp_rotations = []
+tmp_scales = []
+tmp_translations = []
+tmp_parents = []
+
+for nodeData in data["nodes"]:
+
+    tmp_names.append(nodeData["name"])
+
+    if "rotation" in nodeData:
+        tmp_rotations.append(nodeData["rotation"])
+    else:
+        tmp_rotations.append([0.0, 0.0, 0.0, 1.0])
+
+    if "scale" in nodeData:
+        tmp_scales.append(nodeData["scale"])
+    else:
+        tmp_scales.append([1.0, 1.0, 1.0])
+
+    if "translation" in nodeData:
+        tmp_translations.append(nodeData["translation"])
+    else:
+        tmp_translations.append([0.0, 0.0, 0.0])
+
+    tmp_parents.append(-1)
+
+    tmp_n_nodes += 1
+
+for i in range(0, tmp_n_nodes):
+    if "children" in data["nodes"][i]:
+        for j in data["nodes"][i]["children"]:
+            tmp_parents[j] = i
+            #print(j)
+
 n_nodes = 0
 names = []
 rotations = []
@@ -104,34 +149,26 @@ scales = []
 translations = []
 parents = []
 
-for nodeData in data["nodes"]:
+#sort names and stuff
+for index in data["skins"][0]["joints"]:
+    #print(index)
+    names.append(tmp_names[index])
+    rotations.append(tmp_rotations[index])
+    scales.append(tmp_scales[index])
+    translations.append(tmp_translations[index])
 
-    names.append(nodeData["name"])
+    found = False
+    for parentIndex in range(0, len(data["skins"][0]["joints"])):
+        if(data["skins"][0]["joints"][parentIndex] == tmp_parents[index]):
+            parents.append(parentIndex)
+            #print("found")
+            found = True
+            break
 
-    if "rotation" in nodeData:
-        rotations.append(nodeData["rotation"])
-    else:
-        rotations.append([0.0, 0.0, 0.0, 1.0])
-
-    if "scale" in nodeData:
-        scales.append(nodeData["scale"])
-    else:
-        scales.append([1.0, 1.0, 1.0])
-
-    if "translation" in nodeData:
-        translations.append(nodeData["translation"])
-    else:
-        translations.append([0.0, 0.0, 0.0])
-
-    parents.append(-1)
-
-    n_nodes += 1;
-
-for i in range(0, n_nodes):
-    if "children" in data["nodes"][i]:
-        for j in data["nodes"][i]["children"]:
-            parents[j] = i
-            #print(j)
+    if not found:
+        parents.append(-1)
+#parents.append(data["skins"][0]["joints"][tmp_parents[index]])
+    n_nodes += 1
 
 outputFile = open(fileName + ".bones", "w")
 
