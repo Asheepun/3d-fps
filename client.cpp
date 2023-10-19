@@ -23,8 +23,8 @@ void Client_init(Client *client_p){
 	client_p->gameOver = false;
 	client_p->receivedGameState = false;
 
-	const char *ip = "127.0.0.1";
-	//const char *ip = "206.189.58.34";
+	//const char *ip = "127.0.0.1";
+	const char *ip = "206.189.58.34";
 
 	Socket_init(&client_p->socket, PORT, ip);
 	/*
@@ -128,7 +128,7 @@ void *receiveServerMessages(void *clientPointer){
 
 }
 
-#define SEND_WITH_LAG
+//#define SEND_WITH_LAG
 int SEND_LAG_FRAMES = 10;
 std::vector<Message> lagBuffer;
 

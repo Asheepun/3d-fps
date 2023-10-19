@@ -202,6 +202,7 @@ static unsigned int OS_KEY_IDENTIFIERS[] = {
 	VK_ESCAPE,
 
 	VK_SHIFT,
+	VK_CONTROL,
 
 };
 #endif
