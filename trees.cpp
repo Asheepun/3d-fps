@@ -226,6 +226,7 @@ void generateTree(Vec3f treePos, Tree *output_tree, Model *output_model, Triangl
 	triangleMesh.triangles = (Vec3f *)malloc(sizeof(Vec3f) * 3 * triangleMesh.n_triangles);
 	memcpy(triangleMesh.triangles, &triangles[0], sizeof(Vec3f) * 3 * triangleMesh.n_triangles);
 
+#ifndef IS_SERVER
 	unsigned char *meshData = generateMeshDataFromTriangleMesh(triangleMesh, &textureCoords[0]);
 
 	Model model;
@@ -243,6 +244,7 @@ void generateTree(Vec3f treePos, Tree *output_tree, Model *output_model, Triangl
 	//int modelIndex = game_p->models.size() - 1;
 
 	free(meshData);
+#endif
 
 	//create leaves
 	if(output_tree != NULL){
@@ -314,18 +316,22 @@ void generateTree(Vec3f treePos, Tree *output_tree, Model *output_model, Triangl
 
 		}
 
+#ifndef IS_SERVER
 		TextureBuffer_initAsMat4fArray(&tree.leafTransformationsTextureBuffer, &tree.leafTransformations[0], tree.leafTransformations.size(), false);
 
 		tree.sortedLeafTransformations = (Mat4f *)malloc(sizeof(Mat4f) * tree.leafTransformations.size());
+#endif
 
 	}
 
 	if(output_tree != NULL){
 		*output_tree = tree;
 	}
+#ifndef IS_SERVER
 	if(output_model != NULL){
 		*output_model = model;
 	}
+#endif
 	if(output_triangleMesh != NULL){
 		*output_triangleMesh = triangleMesh;
 	}

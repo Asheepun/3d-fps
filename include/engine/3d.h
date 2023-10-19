@@ -3,6 +3,7 @@
 
 #include "engine/geometry.h"
 #include "engine/strings.h"
+#include "engine/3d-no-driver.h"
 
 #ifdef _WIN32
 #include "glad/wgl.h"
@@ -25,14 +26,6 @@ typedef struct Model{
 	unsigned int numberOfTriangles;
 }Model;
 
-struct Bone{
-	char name[STRING_SIZE];
-	int parent;
-	Vec4f rotation;
-	Vec3f scale;
-	Vec3f translation;
-};
-
 struct BoneModel{
 	char name[STRING_SIZE];
 	unsigned int VBO;
@@ -40,12 +33,6 @@ struct BoneModel{
 	unsigned int n_triangles;
 	//std::vector<Bone> bones;
 	//std::vector<Mat4f> inverseBindMatrices;
-};
-
-struct BoneRig{
-	char name[STRING_SIZE];
-	std::vector<Bone> originBones;
-	std::vector<Mat4f> inverseBindMatrices;
 };
 
 struct Texture{
@@ -78,30 +65,11 @@ typedef struct VertexMesh{
 }VertexMesh;
 */
 
-struct TriangleMesh{
-	Vec3f *triangles;
-	float *triangleRadii;
-	int n_triangles;
-	char name[STRING_SIZE];
-};
-
 struct PointMesh{
 	Vec3f *points;
 	int n_points;
 	char name[STRING_SIZE];
 };
-
-struct BoneTriangleMesh{
-	Vec3f *triangles;
-	unsigned char *indices;
-	Vec4f *weights;
-	int n_triangles;
-	char name[STRING_SIZE];
-};
-
-static const int MODEL_COMPONENT_SIZE = sizeof(float) * 8;
-
-static const int BONE_MODEL_COMPONENT_SIZE = sizeof(float) * 12 + sizeof(unsigned char) * 4;
 
 void Model_initFromMeshData(Model *, const unsigned char *, int);
 
@@ -109,27 +77,14 @@ void Model_initFromFile_mesh(Model *, const char *);
 
 void BoneModel_initFromFile(BoneModel *, const char *);
 
-void BoneRig_initFromFile(BoneRig *, const char *);
-
 //int BoneModel_getBoneIndexByName(BoneModel *, const char *);
 
-std::vector<Bone> getBonesFromFile(const char *);
-
-std::vector<Bone> getInterpolatedBones(std::vector<Bone>, std::vector<Bone>, float);
-std::vector<Mat4f> getBindMatricesFromBones(std::vector<Bone>);
-
-std::vector<Mat4f> getBoneRigTransformations(BoneRig *, std::vector<Bone>);
-//std::vector<Mat4f> getBoneModelTransformations(BoneModel *, std::vector<Bone>);
 
 unsigned char *generateMeshDataFromTriangleMesh(TriangleMesh, Vec2f *);
 
 //void VertexMesh_initFromFile_mesh(VertexMesh *, const char *);
 
-void TriangleMesh_initFromFile_mesh(TriangleMesh *, const char *);
-
 void PointMesh_initFromTriangleMesh(PointMesh *, TriangleMesh);
-
-void BoneTriangleMesh_initFromFile(BoneTriangleMesh *, const char *);
 
 void Texture_init(Texture *, const char *, unsigned char *, int, int);
 
@@ -158,7 +113,6 @@ Vec3f PointMesh_GJKSupport(PointMesh *, Mat4f, Vec3f);
 
 //free functions
 void Model_free(Model *);
-void TriangleMesh_free(TriangleMesh *);
 void TextureBuffer_free(TextureBuffer *);
 void Texture_free(Texture *);
 

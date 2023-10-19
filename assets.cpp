@@ -4,6 +4,7 @@
 
 #include "math.h"
 
+#ifndef IS_SERVER
 void Game_loadAssets(Game *game_p){
 
 	//load textures
@@ -160,6 +161,7 @@ void Game_loadAssets(Game *game_p){
 	}
 
 }
+#endif
 
 void World_loadAssets(World *world_p, const char *rootPath){
 
@@ -253,6 +255,7 @@ void World_loadAssets(World *world_p, const char *rootPath){
 
 }
 
+#ifndef IS_SERVER
 void *loadAssetsAndGenerateStuffThreaded(void *gamePointer){
 
 	Game *game_p = (Game *)gamePointer;
@@ -269,3 +272,4 @@ void *loadAssetsAndGenerateStuffThreaded(void *gamePointer){
 	return NULL;
 
 }
+#endif
