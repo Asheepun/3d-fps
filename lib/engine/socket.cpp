@@ -1,7 +1,25 @@
 #include "engine/socket.h"
 
 #include "stdio.h"
+#include "string.h"
 
+#ifdef __linux__
+void Socket_init(Socket *socket_p, int PORT, const char *ip){
+
+	socket_p->handle = socket(AF_INET, SOCK_DGRAM, 0);
+
+	socket_p->addressSize = sizeof(socket_p->address);
+
+	memset(&socket_p->address, '\0', socket_p->addressSize);
+	socket_p->address.sin_family = AF_INET;
+	socket_p->address.sin_port = htons(PORT);
+	socket_p->address.sin_addr.s_addr = inet_addr(ip);
+
+}
+
+#endif
+
+#ifdef _WIN32
 void Socket_init(Socket *socket_p, int PORT, const char *ip){
 
 	if(WSAStartup(MAKEWORD(2,2), &socket_p->wsa) != 0){
@@ -23,6 +41,7 @@ void Socket_init(Socket *socket_p, int PORT, const char *ip){
 	socket_p->address.sin_addr.s_addr = inet_addr(ip);
 
 }
+#endif
 
 void Socket_bind(Socket *socket_p){
 
@@ -30,7 +49,6 @@ void Socket_bind(Socket *socket_p){
 
 	if (n < 0){
 		perror("[-]bind error");
-		exit(1);
 	}
 
 }

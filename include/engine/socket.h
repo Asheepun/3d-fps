@@ -1,6 +1,20 @@
 #ifndef SOCKET_H_
 #define SOCKET_H_
 
+#ifdef __linux__
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+struct Socket{
+	int handle;
+	struct sockaddr_in address;
+	socklen_t addressSize;
+};
+
+#endif
+
+#ifdef _WIN32
 #include "winsock.h"
 
 struct Socket{
@@ -9,6 +23,7 @@ struct Socket{
 	int addressSize;
 	WSADATA wsa;
 };
+#endif
 
 void Socket_init(Socket *, int, const char *);
 
