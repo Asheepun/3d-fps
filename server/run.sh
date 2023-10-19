@@ -1,1 +1,1 @@
-g++ ../lib/engine/files.cpp ../lib/engine/shaders.cpp ../lib/engine/3d.cpp ../lib/engine/strings.cpp ../lib/engine/geometry.cpp ../lib/glad/glx.c ../lib/glad/gl.c ../world.cpp ../assets.cpp ../trees.cpp server.cpp -I ./../include/ -ldl -lm -lGL -lX11 -lXfixes -lpthread -g -o server && ./server
+g++ -DIS_SERVER server.cpp ../lib/engine/files.cpp ../lib/engine/3d-no-driver.cpp ../lib/engine/strings.cpp ../lib/engine/geometry.cpp  ../world.cpp ../assets.cpp ../trees.cpp -I ./../include/ -ldl -lm -lpthread -g -o server && ./server

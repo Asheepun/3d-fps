@@ -19,6 +19,13 @@ Server server;
 World world;
 std::vector<std::vector<Player>> pastPlayersBuffer;
 
+Vec3f playerStartPositions[] = {
+	(float)5.0, (float)3.0, (float)5.0,
+	(float)(TERRAIN_SCALE - 5.0), (float)3.0, (float)5.0,
+	(float)5.0, (float)3.0, (float)(TERRAIN_SCALE - 5.0),
+	(float)(TERRAIN_SCALE - 5.0), (float)3.0, (float)(TERRAIN_SCALE - 5.0)
+};
+
 void *gameLoop(void *){
 
 	size_t frameTime = 1000000 / 60;
@@ -163,7 +170,7 @@ void *gameLoop(void *){
 
 					Connection *connection_p = &server.connections[i];
 
-					World_addPlayer(&world, getVec3f(5.0, 3.0, 5.0), connection_p->ID);
+					World_addPlayer(&world, playerStartPositions[i], connection_p->ID);
 
 				}
 
