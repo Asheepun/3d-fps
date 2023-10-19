@@ -35,7 +35,8 @@ void Client_init(Client *client_p){
 	Message message;
 	message.type = MESSAGE_CONNECTION_REQUEST;
 	sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr *)&client_p->address, client_p->addressSize);
-	printf("sent message to port\n");
+	printf("sent message to port: %i\n", PORT);
+	printf("ip: %s\n", ip);
 
 	memset(&message, 0, sizeof(Message));
 	recvfrom(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, &client_p->addressSize);
