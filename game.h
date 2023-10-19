@@ -15,7 +15,7 @@
 #include <cstring>
 #include <vector>
 
-//#define RUN_OFFLINE
+#define RUN_OFFLINE
 
 enum GameState{
 	GAME_STATE_LOBBY,

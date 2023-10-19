@@ -1118,7 +1118,7 @@ void drawLevelState(Game *game_p){
 
 		//draw grass
 		if((renderStage == RENDER_STAGE_GRASS_SHADOWS
-		|| renderStage == RENDER_STAGE_SCENE) && false){
+		|| renderStage == RENDER_STAGE_SCENE) && true){
 			glDisable(GL_CULL_FACE);
 
 			Vec3f pos = getVec3f(0.0, 4.0, 0.0);

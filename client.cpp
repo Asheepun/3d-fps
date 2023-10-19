@@ -1,12 +1,14 @@
 #include "game.h"
 
-#include <arpa/inet.h>
+#include "engine/socket.h"
+
+//#include <arpa/inet.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
 #include "pthread.h"
+//#include <sys/socket.h>
+//#include <unistd.h>
+
 
 void *receiveServerMessages(void *);
 
@@ -24,6 +26,8 @@ void Client_init(Client *client_p){
 	const char *ip = "127.0.0.1";
 	//const char *ip = "206.189.58.34";
 
+	Socket_init(&client_p->socket, PORT, ip);
+	/*
 	client_p->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	memset(&client_p->address, '\0', sizeof(client_p->address));
 	client_p->address.sin_family = AF_INET;
@@ -31,14 +35,17 @@ void Client_init(Client *client_p){
 	client_p->address.sin_addr.s_addr = inet_addr(ip);
 
 	client_p->addressSize = sizeof(client_p->address);
+	*/
 
 	Message message;
 	message.type = MESSAGE_CONNECTION_REQUEST;
-	sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr *)&client_p->address, client_p->addressSize);
+	//sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr *)&client_p->address, client_p->addressSize);
+	Socket_sendBufferToBoundSocket(&client_p->socket, &message, sizeof(Message));
 	printf("sent message to port\n");
 
 	memset(&message, 0, sizeof(Message));
-	recvfrom(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, &client_p->addressSize);
+	//recvfrom(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, &client_p->addressSize);
+	Socket_receiveBufferFromBoundSocket(&client_p->socket, &message, sizeof(Message));
 
 	client_p->connectionID = message.connectionID;
 
@@ -57,7 +64,8 @@ void *receiveServerMessages(void *clientPointer){
 
 		Message message;
 		memset(&message, 0, sizeof(Message));
-		recvfrom(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, &client_p->addressSize);
+		//recvfrom(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, &client_p->addressSize);
+		Socket_receiveBufferFromBoundSocket(&client_p->socket, &message, sizeof(Message));
 
 		if(message.type == MESSAGE_SERVER_GAME_STATE){
 
@@ -135,11 +143,13 @@ void Client_sendInputsToServer(Client *client_p, Inputs inputs){
 	lagBuffer.push_back(message);
 
 	if(lagBuffer.size() > SEND_LAG_FRAMES){
-		sendto(client_p->sockfd, &lagBuffer[0], sizeof(Message), 0, (struct sockaddr*)&client_p->address, client_p->addressSize);
+		//sendto(client_p->sockfd, &lagBuffer[0], sizeof(Message), 0, (struct sockaddr*)&client_p->address, client_p->addressSize);
+		Socket_sendBufferToBoundSocket(&client_p->socket, &message, sizeof(Message));
 		lagBuffer.erase(lagBuffer.begin());
 	}
 #else
-	sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, client_p->addressSize);
+	//sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, client_p->addressSize);
+	Socket_sendBufferToBoundSocket(&client_p->socket, &message, sizeof(Message));
 #endif
 
 	client_p->n_sentInputs++;
@@ -153,6 +163,7 @@ void Client_sendReadyToServer(Client *client_p, bool ready){
 	message.connectionID = client_p->connectionID;
 	memcpy(message.buffer, &ready, sizeof(bool));
 
-	sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, client_p->addressSize);
+	//sendto(client_p->sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&client_p->address, client_p->addressSize);
+	Socket_sendBufferToBoundSocket(&client_p->socket, &message, sizeof(Message));
 
 }

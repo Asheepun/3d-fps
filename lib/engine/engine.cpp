@@ -382,10 +382,11 @@ int main(){
 		//startTicks = clock();
 		auto frameStartTime = std::chrono::high_resolution_clock::now();
 
-		lastFocused = focused;
-		focused = false;
-
+		//check window focus
 		{
+			lastFocused = focused;
+			focused = false;
+
 			Window focusedWindow;
 			int returnInt;
 			XGetInputFocus(dpy, &focusedWindow, &returnInt);
@@ -514,6 +515,7 @@ int main(){
 
 		}
 
+		//handle cursor visibility
 		if(focused
 		&& Engine_fpsModeOn){
 			if(!cursorHidden){
@@ -731,12 +733,29 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	float accumilatedTime = 0;
 
+	bool cursorHidden = false;
+	bool lastFocused = false;
+	bool focused = false;
+
 	//game loop
 	while(!programShouldQuit){
 
 		QueryPerformanceFrequency(&liFrequency);
 
 		QueryPerformanceCounter(&liStart);
+
+		//check window focus
+		{
+			lastFocused = focused;
+			focused = false;
+
+			HWND focusedWindow = GetFocus();
+
+			if(focusedWindow == hwnd){
+				focused = true;
+			}
+		
+		}
 	
 		//handle events
 		MSG msg = {};
@@ -748,7 +767,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		}
 
 		//do fps magic
-		if(Engine_fpsModeOn){
+		if(Engine_fpsModeOn
+		&& focused){
 
 			RECT windowRect;
 			RECT clientRect;
@@ -760,6 +780,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 			SetCursorPos(windowRect.left + smallMargin + Engine_clientWidth / 2, windowRect.top + largeMargin + Engine_clientHeight / 2);
 
+		}
+
+		//handle cursor visibility
+		if(focused
+		&& Engine_fpsModeOn){
+			while(ShowCursor(false) >= 0){}
+		}else{
+			while(ShowCursor(true) <= 0){}
 		}
 
 		//update
@@ -782,6 +810,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		Engine_draw();
 		
 		SwapBuffers(hdc);
+		
+		glFinish();
 		
 		//glDrawPixels(screenWidth, screenHeight, GL_RGB, GL_UNSIGNED_BYTE, screenPixels);
 

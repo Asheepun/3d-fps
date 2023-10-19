@@ -1,9 +1,15 @@
 #ifndef CONNECTION_H_
 #define CONNECTION_H_
 
+#include "engine/socket.h"
+
+#include "pthread.h"
+
+/*
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
+*/
 
 const int PORT = 8080;
 const int BUFFER_SIZE = 1024;
@@ -91,8 +97,9 @@ enum ServerState{
 };
 
 struct Connection{
-	struct sockaddr_in clientAddress;
-	socklen_t clientAddressSize;
+	Socket socket;
+	//struct sockaddr_in clientAddress;
+	//socklen_t clientAddressSize;
 	int ID;
 	Inputs inputQueue[INPUT_QUEUE_SIZE];
 	long int n_receivedInputs;
@@ -103,9 +110,10 @@ struct Connection{
 
 struct Server{
 	enum ServerState currentState;
-	int sockfd;
-	struct sockaddr_in address;
-	socklen_t addressSize;
+	Socket socket;
+	//int sockfd;
+	//struct sockaddr_in address;
+	//socklen_t addressSize;
 	std::vector<Connection> connections;
 	int currentConnectionID;
 	int gameTime;
@@ -113,9 +121,10 @@ struct Server{
 
 //CLIENT SIDE
 struct Client{
-	int sockfd;
-	struct sockaddr_in address;
-	socklen_t addressSize;
+	Socket socket;
+	//int sockfd;
+	//struct sockaddr_in address;
+	//socklen_t addressSize;
 	int connectionID;
 	int n_sentInputs;
 	std::vector<Inputs> inputsBuffer;
