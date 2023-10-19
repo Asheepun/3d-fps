@@ -68,6 +68,12 @@ struct Bullet{
 	Vec3f velocity;
 };
 
+struct BulletTrace{
+	Vec3f startPos;
+	Vec3f endPos;
+	float alpha;
+};
+
 struct Particle{
 	Vec3f pos;
 	Vec3f velocity;
@@ -133,6 +139,7 @@ struct Game{
 	std::vector<Particle> grassParticles;
 	std::vector<RigidBody> rigidBodies;
 	std::vector<Tree> trees;
+	std::vector<BulletTrace> bulletTraces;
 
 	std::vector<Model> models;
 	std::vector<BoneModel> boneModels;

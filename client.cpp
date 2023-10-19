@@ -21,8 +21,8 @@ void Client_init(Client *client_p){
 	client_p->gameOver = false;
 	client_p->receivedGameState = false;
 
-	const char *ip = "127.0.0.1";
-	//const char *ip = "206.189.58.34";
+	//const char *ip = "127.0.0.1";
+	const char *ip = "206.189.58.34";
 
 	client_p->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	memset(&client_p->address, '\0', sizeof(client_p->address));

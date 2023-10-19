@@ -192,6 +192,13 @@ void levelState(Game *game_p){
 				int hitConnectionID;
 				bool hit = Player_World_shoot_common(player_p, &game_p->world, game_p->world.players, &hitPosition, &hitNormal, &hitConnectionID);
 
+				Vec3f startPos = player_p->pos + getVec3f(0.0, player_p->height, 0.0) + player_p->direction * 2.0;
+				Vec3f endPos = startPos + player_p->direction * 100.0;
+
+				Vec3f cameraRight = cross(player_p->direction, getVec3f(0.0, 1.0, 0.0));
+				Vec3f cameraUp = normalize(cross(cameraRight, player_p->direction));
+				startPos -= cameraUp * 0.3;
+
 				if(hit){
 
 					int n_particles = 17 + getRandom() * 5;
@@ -209,7 +216,16 @@ void levelState(Game *game_p){
 
 					}
 
+					endPos = hitPosition;
+
 				}
+
+				BulletTrace bulletTrace;
+				bulletTrace.startPos = startPos;
+				bulletTrace.endPos = endPos;
+				bulletTrace.alpha = 1.0;
+
+				game_p->bulletTraces.push_back(bulletTrace);
 
 			}
 			if(player_p->weapon == WEAPON_SWORD){
@@ -236,6 +252,13 @@ void levelState(Game *game_p){
 			Vec3f hitNormal;
 			int hitConnectionID;
 			bool hit = Player_World_shoot_common(player_p, &game_p->world, game_p->world.players, &hitPosition, &hitNormal, &hitConnectionID);
+			Vec3f startPos = player_p->pos + getVec3f(0.0, player_p->height, 0.0) + player_p->direction * 2.0;
+			Vec3f endPos = startPos + player_p->direction * 100.0;
+
+			Vec3f cameraRight = cross(player_p->direction, getVec3f(0.0, 1.0, 0.0));
+			Vec3f cameraUp = normalize(cross(cameraRight, player_p->direction));
+			startPos -= cameraUp * 0.3;
+
 
 			if(hit){
 
@@ -254,7 +277,16 @@ void levelState(Game *game_p){
 
 				}
 
+				endPos = hitPosition;
+
 			}
+
+			BulletTrace bulletTrace;
+			bulletTrace.startPos = startPos;
+			bulletTrace.endPos = endPos;
+			bulletTrace.alpha = 1.0;
+
+			game_p->bulletTraces.push_back(bulletTrace);
 
 		}
 
@@ -755,6 +787,21 @@ void levelState(Game *game_p){
 	
 	}
 
+	//update bullet traces
+	for(int i = 0; i < game_p->bulletTraces.size(); i++){
+
+		BulletTrace *bulletTrace_p = &game_p->bulletTraces[i];
+
+		bulletTrace_p->alpha -= 0.03;
+
+		if(bulletTrace_p->alpha < 0.0){
+			game_p->bulletTraces.erase(game_p->bulletTraces.begin() + i);
+			i--;
+			continue;
+		}
+	
+	}
+
 	//update sword
 	{
 		if(swingAngle < SWING_ANGLE_RANGE){
@@ -1017,6 +1064,8 @@ void drawLevelState(Game *game_p){
 			glUseProgram(shader_p->ID);
 
 			GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
+			GL3D_uniformFloat(shader_p->ID, "ambientLightFactor", 0.3);
+			GL3D_uniformFloat(shader_p->ID, "diffuseLightFactor", 0.7);
 
 			GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 1, game_p->shadowMapDepthTexture.ID);
 			GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 2, game_p->grassShadowMapDepthTexture.ID);
@@ -1108,7 +1157,7 @@ void drawLevelState(Game *game_p){
 
 				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
 
-				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.9, 0.0, 0.0, 1.0));
+				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.7, 0.7, 0.7, 1.0));
 
 				glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
 
@@ -1118,7 +1167,7 @@ void drawLevelState(Game *game_p){
 
 		//draw grass
 		if((renderStage == RENDER_STAGE_GRASS_SHADOWS
-		|| renderStage == RENDER_STAGE_SCENE) && false){
+		|| renderStage == RENDER_STAGE_SCENE) && true){
 			glDisable(GL_CULL_FACE);
 
 			Vec3f pos = getVec3f(0.0, 4.0, 0.0);
@@ -1250,7 +1299,9 @@ void drawLevelState(Game *game_p){
 		*/
 
 		//draw players
-		if(renderStage == RENDER_STAGE_SCENE){
+		if(renderStage == RENDER_STAGE_SHADOWS
+		|| renderStage == RENDER_STAGE_BIG_SHADOWS
+		|| renderStage == RENDER_STAGE_SCENE){
 
 			Shader *shader_p = Game_getShaderPointerByName(game_p, "bone");
 
@@ -1262,7 +1313,8 @@ void drawLevelState(Game *game_p){
 
 				Player *player_p = &game_p->world.players[i];
 
-				if(player_p->connectionID == game_p->client.connectionID){
+				if(player_p->connectionID == game_p->client.connectionID
+				&& renderStage == RENDER_STAGE_SCENE){
 					continue;
 				}
 
@@ -1274,7 +1326,7 @@ void drawLevelState(Game *game_p){
 				std::vector<Bone> newBones = boneRig_p->originBones;
 
 				//player_p->direction = game_p->world.players[0].direction * -1.0;
-				player_p->height = PLAYER_HEIGHT_CROUCHING;
+				//player_p->height = PLAYER_HEIGHT_CROUCHING;
 
 				std::vector<Mat4f> boneTransformations = World_Player_getBoneTransformations(&game_p->world, player_p);
 
@@ -1283,7 +1335,7 @@ void drawLevelState(Game *game_p){
 
 				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", getTranslationMat4f(getVec3f(0.0, 0.0, 0.0)) * modelMatrix);
 
-				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(0.7, 0.7, 0.7, 1.0));
+				GL3D_uniformVec4f(shader_p->ID, "inputColor", TERRAIN_COLOR);
 
 				GL3D_uniformMat4fArray(shader_p->ID, "boneTransformations", &boneTransformations[0], boneTransformations.size());
 
@@ -1444,6 +1496,8 @@ void drawLevelState(Game *game_p){
 				glBindVertexArray(model_p->VAO);
 
 				GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
+				GL3D_uniformFloat(shader_p->ID, "ambientLightFactor", 0.3);
+				GL3D_uniformFloat(shader_p->ID, "diffuseLightFactor", 0.7);
 
 				GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
 				//GL3D_uniformTexture(shader_p->ID, "alphaTexture", 1, alphaTexture_p->ID);
@@ -1531,6 +1585,8 @@ void drawLevelState(Game *game_p){
 			glUseProgram(shader_p->ID);
 
 			GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
+			GL3D_uniformFloat(shader_p->ID, "ambientLightFactor", 0.3);
+			GL3D_uniformFloat(shader_p->ID, "diffuseLightFactor", 0.7);
 
 			GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 1, game_p->shadowMapDepthTexture.ID);
 			GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 2, game_p->grassShadowMapDepthTexture.ID);
@@ -1600,6 +1656,62 @@ void drawLevelState(Game *game_p){
 
 			glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
 			
+		}
+
+		//draw bullet traces
+		if(renderStage == RENDER_STAGE_SCENE){
+
+			glDisable(GL_CULL_FACE);
+
+			Shader *shader_p = Game_getShaderPointerByName(game_p, "model");
+			if(renderStage == RENDER_STAGE_SHADOWS
+			|| renderStage == RENDER_STAGE_BIG_SHADOWS){
+				shader_p = Game_getShaderPointerByName(game_p, "model-shadow");
+			}
+
+			glUseProgram(shader_p->ID);
+
+			GL3D_uniformFloat(shader_p->ID, "grassShadowStrength", GRASS_SHADOW_STRENGTH);
+			GL3D_uniformFloat(shader_p->ID, "ambientLightFactor", 1.0);
+			GL3D_uniformFloat(shader_p->ID, "diffuseLightFactor", 0.0);
+
+			GL3D_uniformTexture(shader_p->ID, "shadowMapDepthTexture", 1, game_p->shadowMapDepthTexture.ID);
+			GL3D_uniformTexture(shader_p->ID, "grassShadowMapDepthTexture", 2, game_p->grassShadowMapDepthTexture.ID);
+			GL3D_uniformTexture(shader_p->ID, "bigShadowMapDepthTexture", 3, game_p->bigShadowMapDepthTexture.ID);
+
+			GL3D_uniformMat4f(shader_p->ID, "viewMatrix", viewMatrix);
+			GL3D_uniformMat4f(shader_p->ID, "lightViewMatrix", lightViewMatrix);
+			GL3D_uniformMat4f(shader_p->ID, "bigLightViewMatrix", bigLightViewMatrix);
+
+			for(int i = 0; i < game_p->bulletTraces.size(); i++){
+
+				BulletTrace *bulletTrace_p = &game_p->bulletTraces[i];
+
+				Vec3f direction = bulletTrace_p->endPos - bulletTrace_p->startPos;
+
+				Vec3f axis = normalize(cross(getVec3f(0.0, 1.0, 0.0), direction));
+				float angle = acos(dot(normalize(direction), getVec3f(0.0, 1.0, 0.0)));
+
+				Mat4f modelMatrix = getModelMatrix((bulletTrace_p->startPos + bulletTrace_p->endPos) / 2.0, getVec3f(0.03, length(direction) / 2.0, 1.0), getQuaternion(axis, angle));
+
+				Model *model_p = Game_getModelPointerByName(game_p, "quad");
+				Texture *texture_p = Game_getTexturePointerByName(game_p, "blank");
+
+				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
+				glBindVertexArray(model_p->VAO);
+
+				GL3D_uniformTexture(shader_p->ID, "colorTexture", 0, texture_p->ID);
+
+				GL3D_uniformMat4f(shader_p->ID, "modelMatrix", modelMatrix);
+
+				GL3D_uniformVec4f(shader_p->ID, "inputColor", getVec4f(1.0, 0.9, 0.8, bulletTrace_p->alpha));
+
+				glDrawArrays(GL_TRIANGLES, 0, model_p->numberOfTriangles * 3);
+			
+			}
+
+			glEnable(GL_CULL_FACE);
+
 		}
 	
 	}

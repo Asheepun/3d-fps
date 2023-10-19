@@ -19,8 +19,8 @@ uniform float grassShadowStrength;
 
 uniform vec4 inputColor;
 
-float ambientLightFactor = 0.3;
-float diffuseLightFactor = 0.7;
+uniform float ambientLightFactor;
+uniform float diffuseLightFactor;
 
 vec3 lightDirection = vec3(0.7, -1.0, 0.5);
 

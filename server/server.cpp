@@ -376,6 +376,7 @@ int main(int argc, char **argv){
 	//init server
 	{
 		const char *ip = "127.0.0.1";
+		//const char *ip = "0.0.0.0";
 	
 		server.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 		if (server.sockfd < 0) {
