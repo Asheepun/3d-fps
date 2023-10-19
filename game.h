@@ -15,7 +15,7 @@
 #include <cstring>
 #include <vector>
 
-#define RUN_OFFLINE
+//#define RUN_OFFLINE
 
 enum GameState{
 	GAME_STATE_LOBBY,
@@ -102,6 +102,8 @@ struct Player{
 	float height;
 	bool onGround;
 	int health;
+	float walkAngle;
+	float walkAngleSpeed;
 	int connectionID;
 };
 
@@ -234,6 +236,8 @@ static float GUN_SCALE = 0.4;
 bool Player_World_shoot_common(Player *, World *, std::vector<Player>, Vec3f *, Vec3f *, int *);
 void Player_World_moveAndCollideBasedOnInputs_common(Player *, World *, Inputs);
 
+std::vector<Mat4f> World_Player_getBoneTransformations(World *, Player *);
+
 //void World_updatePlayersAndObstaclesCommon(World *);
 
 void World_addPlayer(World *, Vec3f, int);
@@ -255,6 +259,7 @@ bool checkBoxBoxCollision(Box, Box);
 int Game_getModelIndexByName(Game *, const char *);
 int Game_getTextureIndexByName(Game *, const char *);
 int World_getTriangleMeshIndexByName(World *, const char *);
+int World_getBoneTriangleMeshIndexByName(World *, const char *);
 int Game_getShaderIndexByName(Game *, const char *);
 int Game_getBoneModelIndexByName(Game *, const char *);
 int World_getBoneRigIndexByName(World *, const char *);
@@ -262,6 +267,7 @@ int World_getBoneRigIndexByName(World *, const char *);
 Model *Game_getModelPointerByName(Game *, const char *);
 Texture *Game_getTexturePointerByName(Game *, const char *);
 TriangleMesh *World_getTriangleMeshPointerByName(World *, const char *);
+BoneTriangleMesh *World_getBoneTriangleMeshPointerByName(World *, const char *);
 Shader *Game_getShaderPointerByName(Game *, const char *);
 BoneModel *Game_getBoneModelPointerByName(Game *, const char *);
 BoneRig *World_getBoneRigPointerByName(World *, const char *);

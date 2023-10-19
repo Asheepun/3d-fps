@@ -24,15 +24,11 @@ bool Player_World_shoot_common(Player *player_p, World *world_p, std::vector<Pla
 
 		if(checkPlayer_p->connectionID != player_p->connectionID){
 
-			BoneTriangleMesh *boneTriangleMesh_p = &world_p->boneTriangleMeshes[0];
-			BoneRig *boneRig_p = &world_p->boneRigs[0];
-			BoneRig *boneRig2_p = &world_p->boneRigs[1];
+			BoneTriangleMesh *boneTriangleMesh_p = World_getBoneTriangleMeshPointerByName(world_p, "gubbe");
 
-			std::vector<Mat4f> boneTransformations = getBoneRigTransformations(boneRig_p, boneRig2_p->originBones);
+			std::vector<Mat4f> boneTransformations = World_Player_getBoneTransformations(world_p, checkPlayer_p);
 
-			float scale = 0.5;
-
-			Mat4f modelMatrix = getModelMatrix(checkPlayer_p->pos, getVec3f(scale), IDENTITY_QUATERNION);
+			Mat4f modelMatrix = getModelMatrix(checkPlayer_p->pos, getVec3f(PLAYER_SCALE, PLAYER_SCALE * (checkPlayer_p->height / PLAYER_HEIGHT_STANDING), PLAYER_SCALE), IDENTITY_QUATERNION);
 
 			for(int j = 0; j < boneTriangleMesh_p->n_triangles; j++){
 
@@ -252,6 +248,21 @@ void Player_World_moveAndCollideBasedOnInputs_common(Player *player_p, World *wo
 		}
 	}
 
+	//handle animation
+	{
+		if(sqrt(square(player_p->velocity.x) + square(player_p->velocity.z)) > 0.1){
+
+			player_p->walkAngle += player_p->walkAngleSpeed;
+
+			if(fabs(player_p->walkAngle) > 1.3){
+				player_p->walkAngleSpeed *= -1.0;
+			}
+
+		}else{
+			player_p->walkAngle *= 0.9;
+		}
+	}
+
 }
 
 void World_addPlayer(World *world_p, Vec3f pos, int connectionID){
@@ -268,8 +279,58 @@ void World_addPlayer(World *world_p, Vec3f pos, int connectionID){
 	player.weapon = WEAPON_GUN;
 	player.health = 100;
 	player.direction = getVec3f(1.0, 0.0, 0.0);
+	player.walkAngle = 0.0;
+	player.walkAngleSpeed = 0.1;
 
 	world_p->players.push_back(player);
+
+}
+
+std::vector<Mat4f> World_Player_getBoneTransformations(World *world_p, Player *player_p){
+
+	BoneRig *boneRig_p = World_getBoneRigPointerByName(world_p, "gubbe");
+	std::vector<Bone> newBones = boneRig_p->originBones;
+
+	float horizontalAngle = atan2(player_p->direction.x, player_p->direction.z);
+	float verticalAngle = asin(player_p->direction.y);
+	float angleToGun = M_PI / 5.0;
+	float shoulderAngle = M_PI / 10.0;
+
+	for(int i = 0; i < newBones.size(); i++){
+		if(strcmp(newBones[i].name, "Root") == 0){
+			Vec3f axis = getVec3f(0.0, 1.0, 0.0);
+			float angle = horizontalAngle;
+			newBones[i].rotation = mulQuaternions(newBones[i].rotation, getQuaternion(axis, angle));
+		}
+		if(strcmp(newBones[i].name, "Upper_Arm_R") == 0){
+			Vec3f axis = getVec3f(1.0, 0.0, 0.0);
+			float angle = M_PI / 2.0 + angleToGun;
+			newBones[i].rotation = mulQuaternions(newBones[i].rotation, getQuaternion(axis, angle));
+			axis = getVec3f(0.0, 0.0, 1.0);
+			angle = -verticalAngle;
+			newBones[i].rotation = mulQuaternions(newBones[i].rotation, getQuaternion(axis, angle));
+		}
+		if(strcmp(newBones[i].name, "Upper_Arm_L") == 0){
+			Vec3f axis = getVec3f(1.0, 0.0, 0.0);
+			float angle = M_PI / 2.0 + angleToGun;
+			newBones[i].rotation = mulQuaternions(newBones[i].rotation, getQuaternion(axis, angle));
+			axis = getVec3f(0.0, 0.0, 1.0);
+			angle = verticalAngle;
+			newBones[i].rotation = mulQuaternions(newBones[i].rotation, getQuaternion(axis, angle));
+		}
+		if(strcmp(newBones[i].name, "Upper_Leg_R") == 0){
+			Vec3f axis = getVec3f(0.0, 0.0, 1.0);
+			float angle = player_p->walkAngle;
+			newBones[i].rotation = mulQuaternions(newBones[i].rotation, getQuaternion(axis, angle));
+		}
+		if(strcmp(newBones[i].name, "Upper_Leg_L") == 0){
+			Vec3f axis = getVec3f(0.0, 0.0, 1.0);
+			float angle = player_p->walkAngle;
+			newBones[i].rotation = mulQuaternions(newBones[i].rotation, getQuaternion(axis, angle));
+		}
+	}
+
+	return getBoneRigTransformations(boneRig_p, newBones);
 
 }
 
@@ -494,6 +555,20 @@ int World_getTriangleMeshIndexByName(World *world_p, const char *name){
 
 }
 
+int World_getBoneTriangleMeshIndexByName(World *world_p, const char *name){
+
+	for(int i = 0; i < world_p->boneTriangleMeshes.size(); i++){
+		if(strcmp(world_p->boneTriangleMeshes[i].name, name) == 0){
+			return i;
+		}
+	}
+
+	printf("COULD NOT FIND BONE TRIANGLE MESH: %s\n", name);
+
+	return -1;
+
+}
+
 int Game_getShaderIndexByName(Game *game_p, const char *name){
 
 	for(int i = 0; i < game_p->shaders.size(); i++){
@@ -569,6 +644,18 @@ TriangleMesh *World_getTriangleMeshPointerByName(World *world_p, const char *nam
 	}
 
 	return &world_p->triangleMeshes[index];
+
+}
+
+BoneTriangleMesh *World_getBoneTriangleMeshPointerByName(World *world_p, const char *name){
+
+	int index = World_getBoneTriangleMeshIndexByName(world_p, name);
+
+	if(index == -1){
+		return NULL;
+	}
+
+	return &world_p->boneTriangleMeshes[index];
 
 }
 

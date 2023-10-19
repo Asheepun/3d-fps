@@ -170,6 +170,8 @@ void levelState(Game *game_p){
 			player_p->pos = serverPlayerData_p->pos;
 			player_p->direction = serverPlayerData_p->direction;
 			player_p->onGround = serverPlayerData_p->onGround;
+			player_p->height = serverPlayerData_p->height;
+			player_p->walkAngle = serverPlayerData_p->walkAngle;
 		}
 	
 	}
@@ -178,6 +180,7 @@ void levelState(Game *game_p){
 	//handle inputs on client
 	if(!game_p->dead){
 		Player *player_p = World_getPlayerPointerByConnectionID(&game_p->world, game_p->client.connectionID);
+		//Player *player_p = &game_p->world.players[1];
 
 		player_p->direction = inputs.cameraDirection;
 
@@ -1263,62 +1266,17 @@ void drawLevelState(Game *game_p){
 					continue;
 				}
 
-				Mat4f modelMatrix = getModelMatrix(player_p->pos, getVec3f(PLAYER_SCALE), IDENTITY_QUATERNION);
+				Mat4f modelMatrix = getModelMatrix(player_p->pos, getVec3f(PLAYER_SCALE, PLAYER_SCALE * (player_p->height / PLAYER_HEIGHT_STANDING), PLAYER_SCALE), IDENTITY_QUATERNION);
 
-				//BoneModel *model_p = Game_getBoneModelPointerByName(game_p, "gubbe");
-				//BoneRig *boneRig_p = World_getBoneRigPointerByName(&game_p->world, "gubbe");
 				BoneModel *model_p = Game_getBoneModelPointerByName(game_p, "gubbe");
 				BoneRig *boneRig_p = World_getBoneRigPointerByName(&game_p->world, "gubbe");
 
 				std::vector<Bone> newBones = boneRig_p->originBones;
 
 				//player_p->direction = game_p->world.players[0].direction * -1.0;
+				player_p->height = PLAYER_HEIGHT_CROUCHING;
 
-				Vec3f axis = getVec3f(0.0, 1.0, 0.0);
-				float angle = 0.0;
-
-				float horizontalAngle = atan2(player_p->direction.x, player_p->direction.z);
-				float verticalAngle = asin(player_p->direction.y);
-				float angleToGun = M_PI / 5.0;
-				float shoulderAngle = M_PI / 10.0;
-				//horizontalAngle = 0.0;
-
-				for(int j = 0; j < newBones.size(); j++){
-
-					if(strcmp(newBones[j].name, "Root") == 0){
-						Vec3f axis = getVec3f(0.0, 1.0, 0.0);
-						float angle = horizontalAngle;
-						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
-					}
-					if(strcmp(newBones[j].name, "Upper_Arm_R") == 0){
-						Vec3f axis = getVec3f(1.0, 0.0, 0.0);
-						float angle = M_PI / 2.0 + angleToGun;
-						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
-						axis = getVec3f(0.0, 0.0, 1.0);
-						angle = -verticalAngle;
-						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
-					}
-					if(strcmp(newBones[j].name, "Upper_Arm_L") == 0){
-						Vec3f axis = getVec3f(1.0, 0.0, 0.0);
-						float angle = M_PI / 2.0 + angleToGun;
-						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
-						axis = getVec3f(0.0, 0.0, 1.0);
-						angle = verticalAngle;
-						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
-					}
-					if(strcmp(newBones[j].name, "Upper_Leg_R") == 0){
-						Vec3f axis = getVec3f(0.0, 0.0, 1.0);
-						float angle = sin(windTime * 8.0);
-						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
-					}
-					if(strcmp(newBones[j].name, "Upper_Leg_L") == 0){
-						Vec3f axis = getVec3f(0.0, 0.0, 1.0);
-						float angle = sin(windTime * 8.0);
-						newBones[j].rotation = mulQuaternions(newBones[j].rotation, getQuaternion(axis, angle));
-					}
-				}
-
-				std::vector<Mat4f> boneTransformations = getBoneRigTransformations(boneRig_p, newBones);
+				std::vector<Mat4f> boneTransformations = World_Player_getBoneTransformations(&game_p->world, player_p);
 
 				glBindBuffer(GL_ARRAY_BUFFER, model_p->VBO);
 				glBindVertexArray(model_p->VAO);

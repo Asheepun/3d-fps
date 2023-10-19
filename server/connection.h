@@ -45,6 +45,8 @@ struct PlayerData{
 	int health;
 	Vec3f pos;
 	Vec3f direction;
+	float height;
+	float walkAngle;
 	bool onGround;
 };
 

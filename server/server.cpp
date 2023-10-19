@@ -303,6 +303,8 @@ void *gameLoop(void *){
 					gameState.players[j].direction = world.players[j].direction;
 					gameState.players[j].onGround = world.players[j].onGround;
 					gameState.players[j].health = world.players[j].health;
+					gameState.players[j].height = world.players[j].height;
+					gameState.players[j].walkAngle = world.players[j].walkAngle;
 				}
 
 				gameState.n_players = world.players.size();
