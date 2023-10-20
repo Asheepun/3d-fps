@@ -157,7 +157,22 @@ void lobbyState(Game *game_p){
 
 	if(startLevel){
 
-		srand(startLevelData.seed);
+		//reset client side effects
+		game_p->bloodParticles.clear();
+		game_p->bulletTraces.clear();
+
+		memset(game_p->paintMap, 0, sizeof(unsigned char) * PAINT_MAP_WIDTH * PAINT_MAP_HEIGHT);
+
+		for(int i = 0; i < TERRAIN_TEXTURE_WIDTH * TERRAIN_TEXTURE_WIDTH; i++){
+			game_p->terrainTextureData[i * 4 + 0] = (unsigned char)(TERRAIN_COLOR.x * 255.0);
+			game_p->terrainTextureData[i * 4 + 1] = (unsigned char)(TERRAIN_COLOR.y * 255.0);
+			game_p->terrainTextureData[i * 4 + 2] = (unsigned char)(TERRAIN_COLOR.z * 255.0);
+			game_p->terrainTextureData[i * 4 + 3] = (unsigned char)(TERRAIN_COLOR.w * 255.0);
+		}
+
+		for(int i = 0; i < game_p->grassPositions.size(); i++){
+			game_p->grassPositions[i].w = getRandom() + 100.0;
+		}
 
 		//clear world
 		World_clear(&game_p->world);
@@ -203,6 +218,9 @@ void lobbyState(Game *game_p){
 			Game_getTextureIndexByName(game_p, "terrain"),
 			getVec4f(1.0, 1.0, 1.0, 1.0)
 		);
+
+		//create new world
+		srand(startLevelData.seed);
 
 		//add trees
 		for(int i = 0; i < startLevelData.n_trees; i++){

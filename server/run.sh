@@ -1,1 +1,1 @@
-g++ -DIS_SERVER server.cpp ../lib/engine/files.cpp ../lib/engine/3d-no-driver.cpp ../lib/engine/strings.cpp ../lib/engine/geometry.cpp  ../world.cpp ../assets.cpp ../trees.cpp -I ./../include/ -ldl -lm -lpthread -g -o server && ./server
+g++ -DIS_SERVER server.cpp ../lib/engine/files.cpp ../lib/engine/3d-no-driver.cpp ../lib/engine/strings.cpp ../lib/engine/geometry.cpp ../lib/engine/socket.cpp ../world.cpp ../assets.cpp ../trees.cpp -I ./../include/ -ldl -lm -lpthread -g -o server && ./server

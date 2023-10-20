@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+//#include <sys/socket.h>
+//#include <sys/types.h>
+//#include <netinet/in.h>
+//#include <arpa/inet.h>
 #include <vector>
 #include <chrono>
 #include "time.h"
@@ -21,9 +21,9 @@ std::vector<std::vector<Player>> pastPlayersBuffer;
 
 Vec3f playerStartPositions[] = {
 	(float)5.0, (float)3.0, (float)5.0,
+	(float)(TERRAIN_SCALE - 5.0), (float)3.0, (float)(TERRAIN_SCALE - 5.0),
 	(float)(TERRAIN_SCALE - 5.0), (float)3.0, (float)5.0,
-	(float)5.0, (float)3.0, (float)(TERRAIN_SCALE - 5.0),
-	(float)(TERRAIN_SCALE - 5.0), (float)3.0, (float)(TERRAIN_SCALE - 5.0)
+	(float)5.0, (float)3.0, (float)(TERRAIN_SCALE - 5.0)
 };
 
 void *gameLoop(void *){
@@ -84,7 +84,8 @@ void *gameLoop(void *){
 				message.connectionID = connection_p->ID;
 				memcpy(message.buffer, &lobbyState, sizeof(ServerLobbyState));
 
-				sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+				Socket_sendBuffer(&server.socket, &message, sizeof(Message), &connection_p->socket);
+				//sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
 			}
 			
 			//start the game if all players are ready
@@ -196,7 +197,8 @@ void *gameLoop(void *){
 					message.connectionID = connection_p->ID;
 					memcpy(message.buffer, &startLevelData, sizeof(StartLevelData));
 
-					sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+					//sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+					Socket_sendBuffer(&server.socket, &message, sizeof(Message), &connection_p->socket);
 				}
 
 				server.currentState = SERVER_STATE_LEVEL;
@@ -221,7 +223,8 @@ void *gameLoop(void *){
 					message.type = MESSAGE_GAME_OVER;
 					message.connectionID = connection_p->ID;
 
-					sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+					//sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+					Socket_sendBuffer(&server.socket, &message, sizeof(Message), &connection_p->socket);
 					
 				}
 
@@ -324,7 +327,8 @@ void *gameLoop(void *){
 				message.connectionID = connection_p->ID;
 				memcpy(message.buffer, &gameState, sizeof(ServerGameState));
 
-				sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+				//sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+				Socket_sendBuffer(&server.socket, &message, sizeof(Message), &connection_p->socket);
 			
 			}
 
@@ -339,7 +343,8 @@ void *gameLoop(void *){
 					message.connectionID = connection_p->ID;
 					memcpy(message.buffer, &shots[i], sizeof(ShotData));
 
-					sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+					//sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection_p->clientAddress, connection_p->clientAddressSize);
+					Socket_sendBuffer(&server.socket, &message, sizeof(Message), &connection_p->socket);
 
 				}
 			}
@@ -378,6 +383,7 @@ int main(int argc, char **argv){
 		const char *ip = "127.0.0.1";
 		//const char *ip = "0.0.0.0";
 	
+		/*
 		server.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 		if (server.sockfd < 0) {
 			perror("[-]socket error");
@@ -396,6 +402,9 @@ int main(int argc, char **argv){
 			perror("[-]bind error");
 			exit(1);
 		}
+		*/
+		Socket_init(&server.socket, PORT, ip);
+		Socket_bind(&server.socket);
 
 		server.gameTime = 0;
 		server.currentState = SERVER_STATE_LOBBY;
@@ -434,12 +443,15 @@ int main(int argc, char **argv){
 
 		//char buffer[BUFFER_SIZE];
 		//memset(buffer, 0, BUFFER_SIZE);
-		struct sockaddr_in clientAddress;
-		socklen_t clientAddressSize;
-		clientAddressSize = sizeof(clientAddress);
+		//struct sockaddr_in clientAddress;
+		//socklen_t clientAddressSize;
+		//clientAddressSize = sizeof(clientAddress);
+		Socket clientSocket;
+		clientSocket.addressSize = sizeof(clientSocket.address);
 
 		Message message;
-		recvfrom(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&clientAddress, &clientAddressSize);
+		//recvfrom(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&clientAddress, &clientAddressSize);
+		Socket_receiveBuffer(&server.socket, &message, sizeof(Message), &clientSocket);
 
 		if(message.type == MESSAGE_CONNECTION_REQUEST){
 
@@ -447,8 +459,9 @@ int main(int argc, char **argv){
 
 			Connection connection;
 			connection.ID = server.currentConnectionID;
-			connection.clientAddress = clientAddress;
-			connection.clientAddressSize = clientAddressSize;
+			connection.socket = clientSocket;
+			//connection.clientAddress = clientAddress;
+			//connection.clientAddressSize = clientAddressSize;
 			connection.n_handledInputs = 0;
 			connection.n_receivedInputs = 0;
 			connection.ticksSinceLastMessage = 0;
@@ -462,7 +475,8 @@ int main(int argc, char **argv){
 			Message message;
 			message.type = MESSAGE_CONNECTION_ID;
 			message.connectionID = connection.ID;
-			sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection.clientAddress, connection.clientAddressSize);
+			//sendto(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&connection.clientAddress, connection.clientAddressSize);
+			Socket_sendBuffer(&server.socket, &message, sizeof(Message), &connection.socket);
 
 			printf("sent id: %i\n", connection.ID);
 
