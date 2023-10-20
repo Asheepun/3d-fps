@@ -220,7 +220,8 @@ void lobbyState(Game *game_p){
 		);
 
 		//create new world
-		srand(startLevelData.seed);
+		//srand(startLevelData.seed);
+		setRandomSeed(startLevelData.seed);
 
 		//add trees
 		for(int i = 0; i < startLevelData.n_trees; i++){

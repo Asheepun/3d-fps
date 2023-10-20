@@ -35,7 +35,7 @@ int framesSinceHit = 0;
 
 void Engine_start(){
 
-	srand(0);
+	setRandomSeed(1);
 
 #ifndef RUN_OFFLINE
 	Client_init(&game.client);

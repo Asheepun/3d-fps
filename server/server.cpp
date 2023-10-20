@@ -92,8 +92,8 @@ void *gameLoop(void *){
 			if(lobbyState.n_players > 1
 			&& lobbyState.n_readyPlayers == lobbyState.n_players){
 
-				int seed = 0;
-				srand(seed);
+				int seed = 1;
+				setRandomSeed(seed);
 
 				//setup world
 				World_clear(&world);

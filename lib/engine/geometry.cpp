@@ -15,19 +15,19 @@ float square(float x){
 	return x * x;
 }
 
-int ___x = 1;
-int ___a = 65521;
-int ___c = 0;
-int ___m = 17364;
+unsigned int ___x = 1;
+unsigned int ___a = 1103515245;
+unsigned int ___c = 12345;
+unsigned int ___m = 2147483648;
 
 float getRandom(){
 
-	return (float)rand() / (float)RAND_MAX;
-	//___x = (___a * ___x + ___c) % ___m;
-	//float r = (float)___x;
-	//r /= ___m;
+	//return (float)rand() / (float)RAND_MAX;
+	___x = (___a * ___x + ___c) % ___m;
+	float r = (float)___x;
+	r /= (float)___m;
 
-	//return r;
+	return r;
 	
 }
 
