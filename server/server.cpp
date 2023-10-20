@@ -17,7 +17,6 @@
 
 Server server;
 World world;
-std::vector<std::vector<Player>> pastPlayersBuffer;
 
 Vec3f playerStartPositions[] = {
 	(float)5.0, (float)3.0, (float)5.0,
@@ -264,14 +263,14 @@ void *gameLoop(void *){
 
 						//calculate shot relative to the shooters time
 						int timeDifference = server.gameTime - inputs.gameTime;
-						int pastPlayersBufferIndex = max(pastPlayersBuffer.size() - 1 - timeDifference, 0);
+						int pastPlayersBufferIndex = max(world.pastPlayersBuffer.size() - 1 - timeDifference, 0);
 
 						if(player_p->weapon == WEAPON_GUN){
 
 							Vec3f hitPosition;
 							Vec3f hitNormal;
 							int hitConnectionID;
-							bool hit = Player_World_shoot_common(player_p, &world, pastPlayersBuffer[pastPlayersBufferIndex], &hitPosition, &hitNormal, &hitConnectionID);
+							bool hit = Player_World_shoot_common(player_p, &world, world.pastPlayersBuffer[pastPlayersBufferIndex], &hitPosition, &hitNormal, &hitConnectionID);
 
 							if(hit){
 								Player *hitPlayer_p = World_getPlayerPointerByConnectionID(&world, hitConnectionID);
@@ -350,10 +349,10 @@ void *gameLoop(void *){
 			}
 
 			//save player states in buffer
-			pastPlayersBuffer.push_back(world.players);
+			world.pastPlayersBuffer.push_back(world.players);
 
-			if(pastPlayersBuffer.size() > PAST_PLAYERS_BUFFER_SIZE){
-				pastPlayersBuffer.erase(pastPlayersBuffer.begin());
+			if(world.pastPlayersBuffer.size() > PAST_PLAYERS_BUFFER_SIZE){
+				world.pastPlayersBuffer.erase(world.pastPlayersBuffer.begin());
 			}
 
 			server.gameTime++;
@@ -453,7 +452,8 @@ int main(int argc, char **argv){
 		//recvfrom(server.sockfd, &message, sizeof(Message), 0, (struct sockaddr*)&clientAddress, &clientAddressSize);
 		Socket_receiveBuffer(&server.socket, &message, sizeof(Message), &clientSocket);
 
-		if(message.type == MESSAGE_CONNECTION_REQUEST){
+		if(message.type == MESSAGE_CONNECTION_REQUEST
+		&& server.connection.size() < N_PLAYERS_MAX){
 
 			printf("got connection request!\n");
 

@@ -175,6 +175,14 @@ void levelState(Game *game_p){
 		}
 	
 	}
+
+	//store player positions in buffer
+	game_p->world.pastPlayersBuffer.push_back(game_p->world.players);
+
+	if(game_p->world.pastPlayersBuffer.size() > PAST_PLAYERS_BUFFER_SIZE){
+		game_p->world.pastPlayersBuffer.erase(game_p->world.pastPlayersBuffer.begin());
+	}
+
 #endif
 
 	//handle inputs on client
@@ -244,6 +252,9 @@ void levelState(Game *game_p){
 
 		ShotData *shot_p = &serverShots[i];
 
+		int timeDifference = serverGameState.gameTime - inputs.gameTime;
+		int pastPlayersBufferIndex = max(game_p->world.pastPlayersBuffer.size() - 1 - timeDifference, 0);
+
 		if(shot_p->connectionID != game_p->client.connectionID){
 
 			Player *player_p = World_getPlayerPointerByConnectionID(&game_p->world, shot_p->connectionID);
@@ -251,14 +262,13 @@ void levelState(Game *game_p){
 			Vec3f hitPosition;
 			Vec3f hitNormal;
 			int hitConnectionID;
-			bool hit = Player_World_shoot_common(player_p, &game_p->world, game_p->world.players, &hitPosition, &hitNormal, &hitConnectionID);
+			bool hit = Player_World_shoot_common(player_p, &game_p->world, game_p->world.pastPlayersBuffer[pastPlayersBufferIndex], &hitPosition, &hitNormal, &hitConnectionID);
 			Vec3f startPos = player_p->pos + getVec3f(0.0, player_p->height, 0.0) + player_p->direction * 2.0;
 			Vec3f endPos = startPos + player_p->direction * 100.0;
 
 			Vec3f cameraRight = cross(player_p->direction, getVec3f(0.0, 1.0, 0.0));
 			Vec3f cameraUp = normalize(cross(cameraRight, player_p->direction));
 			startPos -= cameraUp * 0.3;
-
 
 			if(hit){
 

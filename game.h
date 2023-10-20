@@ -126,6 +126,7 @@ struct World{
 	std::vector<TriangleMesh> triangleMeshes;
 	std::vector<BoneTriangleMesh> boneTriangleMeshes;
 	std::vector<BoneRig> boneRigs;
+std::vector<std::vector<Player>> pastPlayersBuffer;
 };
 
 struct Game{
